@@ -1,15 +1,18 @@
+use bevy::prelude::*;
+use bevy::render::camera::CameraRenderGraph;
 use bevy::{
     prelude::*,
     render::render_resource::{
         Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
-    }
+    },
 };
-use bevy::prelude::*;
-use bevy::render::camera::CameraRenderGraph;
 use bevy_egui::{EguiPlugin, EguiUserTextures};
 
-use crate::texture::{TextureNode, TextureNodeBundle, TextureNodeImage, TextureNodeInputs, TextureNodeOutputs, TextureNodeType, TexturePlugin};
 use crate::texture::ramp::{TextureRampSettings, TextureRampSubGraph};
+use crate::texture::{
+    TextureNode, TextureNodeBundle, TextureNodeImage, TextureNodeInputs, TextureNodeOutputs,
+    TextureNodeType, TexturePlugin,
+};
 use crate::ui::UiPlugin;
 
 mod texture;
@@ -80,8 +83,14 @@ fn setup(
             node: TextureNode,
             node_type: TextureNodeType("texture_ramp".into()),
             image: TextureNodeImage(image_handle_1.clone()),
-            inputs: TextureNodeInputs { count: 0, connections: vec![] },
-            outputs: TextureNodeOutputs { count: 0, connections: vec![] },
+            inputs: TextureNodeInputs {
+                count: 0,
+                connections: vec![],
+            },
+            outputs: TextureNodeOutputs {
+                count: 0,
+                connections: vec![],
+            },
         },
         TextureRampSettings {
             color_a: Vec4::new(1.0, 0.0, 0.0, 1.0),
@@ -113,7 +122,6 @@ fn setup(
     let image_handle_2 = images.add(image);
     // egui_user_textures.add_image(image_handle_2.clone());
 
-
     commands.spawn((
         TextureNodeBundle {
             camera: Camera3dBundle {
@@ -128,8 +136,14 @@ fn setup(
             node: TextureNode,
             node_type: TextureNodeType("texture_ramp".into()),
             image: TextureNodeImage(image_handle_2.clone()),
-            inputs: TextureNodeInputs { count: 0, connections: vec![] },
-            outputs: TextureNodeOutputs { count: 0, connections: vec![] },
+            inputs: TextureNodeInputs {
+                count: 0,
+                connections: vec![],
+            },
+            outputs: TextureNodeOutputs {
+                count: 0,
+                connections: vec![],
+            },
         },
         TextureRampSettings {
             color_a: Vec4::new(1.0, 0.0, 0.0, 1.0),
@@ -137,7 +151,6 @@ fn setup(
             mode: 1,
         },
     ));
-
 
     // This is the texture that will be rendered to.
     let mut image = Image {
@@ -176,8 +189,14 @@ fn setup(
             node: TextureNode,
             node_type: TextureNodeType("texture_ramp".into()),
             image: TextureNodeImage(image_handle_3.clone()),
-            inputs: TextureNodeInputs { count: 0, connections: vec![] },
-            outputs: TextureNodeOutputs { count: 0, connections: vec![] },
+            inputs: TextureNodeInputs {
+                count: 0,
+                connections: vec![],
+            },
+            outputs: TextureNodeOutputs {
+                count: 0,
+                connections: vec![],
+            },
         },
         TextureRampSettings {
             color_a: Vec4::new(1.0, 0.0, 0.0, 1.0),

@@ -1,21 +1,25 @@
 use bevy::core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_state;
 use bevy::ecs::query::QueryItem;
 use bevy::prelude::*;
-use bevy::render::{render_graph, RenderApp};
 use bevy::render::extract_component::{
     ComponentUniforms, ExtractComponent, ExtractComponentPlugin, UniformComponentPlugin,
 };
-use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_graph::{
     NodeRunError, RenderGraphApp, RenderGraphContext, RenderLabel, RenderSubGraph, ViewNodeRunner,
 };
-use bevy::render::render_resource::{BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry, BindingType, BufferBindingType, CachedRenderPipelineId, ColorTargetState, ColorWrites, FragmentState, LoadOp, MultisampleState, Operations, PipelineCache, PrimitiveState, RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor, Sampler, SamplerDescriptor, ShaderStages, ShaderType, StoreOp, TextureFormat};
+use bevy::render::render_resource::{
+    BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry, BindingType, BufferBindingType,
+    CachedRenderPipelineId, ColorTargetState, ColorWrites, FragmentState, LoadOp, MultisampleState,
+    Operations, PipelineCache, PrimitiveState, RenderPassColorAttachment, RenderPassDescriptor,
+    RenderPipelineDescriptor, Sampler, SamplerDescriptor, ShaderStages, ShaderType, StoreOp,
+    TextureFormat,
+};
 use bevy::render::renderer::{RenderContext, RenderDevice};
 use bevy::render::texture::BevyDefault;
 use bevy::render::view::ViewTarget;
+use bevy::render::{render_graph, RenderApp};
 use bevy_egui::{egui, EguiContexts};
 
-use crate::texture::TextureNodeImage;
 use crate::ui::graph::SelectedNode;
 use crate::ui::UiState;
 
@@ -151,7 +155,7 @@ impl FromWorld for TextureRampPipeline {
                     min_binding_size: Some(TextureRampSettings::min_size()),
                 },
                 count: None,
-            }]
+            }],
         );
 
         let sampler = render_device.create_sampler(&SamplerDescriptor::default());
@@ -198,19 +202,14 @@ struct TextureRampLabel;
 struct TextureRampNode;
 
 impl render_graph::ViewNode for TextureRampNode {
-    type ViewQuery = (
-        &'static ViewTarget,
-        &'static TextureRampSettings,
-        &'static TextureNodeImage,
-    );
+    type ViewQuery = (&'static ViewTarget);
     fn run(
         &self,
         graph: &mut RenderGraphContext,
         render_context: &mut RenderContext,
-        (view_target, settings, texture_handle): QueryItem<Self::ViewQuery>,
+        (view_target): QueryItem<Self::ViewQuery>,
         world: &World,
     ) -> Result<(), NodeRunError> {
-        let images = world.resource::<RenderAssets<Image>>();
         let texture_ramp_pipeline = world.resource::<TextureRampPipeline>();
         let pipeline_cache = world.resource::<PipelineCache>();
 
@@ -219,13 +218,10 @@ impl render_graph::ViewNode for TextureRampNode {
             return Ok(());
         };
 
-        // Get the settings uniform binding
         let settings_uniforms = world.resource::<ComponentUniforms<TextureRampSettings>>();
         let Some(settings_binding) = settings_uniforms.uniforms().binding() else {
             return Ok(());
         };
-
-        let texture = images.get(&**texture_handle).unwrap();
 
         let bind_group = render_context.render_device().create_bind_group(
             "texture_ramp_bind_group",

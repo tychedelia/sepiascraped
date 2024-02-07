@@ -1,7 +1,7 @@
+use crate::texture::TextureNodeImage;
 use crate::ui::graph::{GraphNode, GraphPlugin, SelectedNode};
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
-use crate::texture::TextureNodeImage;
 
 pub mod graph;
 
@@ -25,7 +25,7 @@ pub struct UiState {
 pub fn ui(
     mut contexts: EguiContexts,
     mut ui_state: ResMut<UiState>,
-    query: Query<(&TextureNodeImage)>
+    query: Query<(&TextureNodeImage)>,
 ) {
     // egui::CentralPanel::default().show(contexts.ctx(), |ui| {
     //     ui.heading("Texture Nodes");
@@ -38,5 +38,4 @@ pub fn ui(
     //         ));
     //     }
     // });
-
 }

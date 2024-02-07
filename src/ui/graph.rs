@@ -93,10 +93,7 @@ fn update_graph(
     }
 }
 
-fn post_update_ui(
-    mut commands: Commands,
-    selected_nodes: Query<(Entity, &SelectedNode)>
-) {
+fn post_update_ui(mut commands: Commands, selected_nodes: Query<(Entity, &SelectedNode)>) {
     for (entity, _) in selected_nodes.iter() {
         // TODO: ordering prboblems with the ui_state
         // commands.entity(entity).remove::<SelectedNode>();
