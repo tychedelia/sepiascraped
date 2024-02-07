@@ -1,5 +1,4 @@
 use bevy::{
-    ecs::query::QueryData,
     prelude::*,
     render::render_resource::{
         Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
@@ -64,30 +63,142 @@ fn setup(
     // fill image.data with zeroes
     image.resize(size);
 
-    let image_handle = images.add(image);
-    egui_user_textures.add_image(image_handle.clone());
+    let image_handle_1 = images.add(image);
+    // egui_user_textures.add_image(image_handle_1.clone());
 
     commands.spawn((
         TextureNodeBundle {
             camera: Camera3dBundle {
                 camera_render_graph: CameraRenderGraph::new(TextureRampSubGraph),
                 camera: Camera {
-                    order: -1,
-                    target: image_handle.clone().into(),
+                    target: image_handle_1.clone().into(),
+                    order: 1,
                     ..default()
                 },
-                transform: Transform::from_translation(Vec3::new(0.0, 0.0, 10.0)),
                 ..default()
             },
             node: TextureNode,
             node_type: TextureNodeType("texture_ramp".into()),
-            image: TextureNodeImage(image_handle.clone()),
+            image: TextureNodeImage(image_handle_1.clone()),
             inputs: TextureNodeInputs { count: 0, connections: vec![] },
             outputs: TextureNodeOutputs { count: 0, connections: vec![] },
         },
         TextureRampSettings {
-            color_a: Vec4::new(1.0, 0.0, 0.0, 1.0), // Color::RED.into(
-            color_b: Vec4::new(0.0, 0.0, 1.0, 1.0), // Color::GREEN.into(),
+            color_a: Vec4::new(1.0, 0.0, 0.0, 1.0),
+            color_b: Vec4::new(0.0, 0.0, 1.0, 1.0),
+            mode: 0,
         },
     ));
+
+    // This is the texture that will be rendered to.
+    let mut image = Image {
+        texture_descriptor: TextureDescriptor {
+            label: None,
+            size,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Rgba8UnormSrgb,
+            mip_level_count: 1,
+            sample_count: 1,
+            usage: TextureUsages::TEXTURE_BINDING
+                | TextureUsages::COPY_DST
+                | TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        },
+        ..default()
+    };
+
+    // fill image.data with zeroes
+    image.resize(size);
+
+    let image_handle_2 = images.add(image);
+    // egui_user_textures.add_image(image_handle_2.clone());
+
+
+    commands.spawn((
+        TextureNodeBundle {
+            camera: Camera3dBundle {
+                camera_render_graph: CameraRenderGraph::new(TextureRampSubGraph),
+                camera: Camera {
+                    order: 2,
+                    target: image_handle_2.clone().into(),
+                    ..default()
+                },
+                ..default()
+            },
+            node: TextureNode,
+            node_type: TextureNodeType("texture_ramp".into()),
+            image: TextureNodeImage(image_handle_2.clone()),
+            inputs: TextureNodeInputs { count: 0, connections: vec![] },
+            outputs: TextureNodeOutputs { count: 0, connections: vec![] },
+        },
+        TextureRampSettings {
+            color_a: Vec4::new(1.0, 0.0, 0.0, 1.0),
+            color_b: Vec4::new(0.0, 0.5, 1.0, 1.0),
+            mode: 1,
+        },
+    ));
+
+
+    // This is the texture that will be rendered to.
+    let mut image = Image {
+        texture_descriptor: TextureDescriptor {
+            label: None,
+            size,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Rgba8UnormSrgb,
+            mip_level_count: 1,
+            sample_count: 1,
+            usage: TextureUsages::TEXTURE_BINDING
+                | TextureUsages::COPY_DST
+                | TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        },
+        ..default()
+    };
+
+    // fill image.data with zeroes
+    image.resize(size);
+
+    let image_handle_3 = images.add(image);
+    // egui_user_textures.add_image(image_handle_3.clone());
+
+    commands.spawn((
+        TextureNodeBundle {
+            camera: Camera3dBundle {
+                camera_render_graph: CameraRenderGraph::new(TextureRampSubGraph),
+                camera: Camera {
+                    order: 3,
+                    target: image_handle_3.clone().into(),
+                    ..default()
+                },
+                ..default()
+            },
+            node: TextureNode,
+            node_type: TextureNodeType("texture_ramp".into()),
+            image: TextureNodeImage(image_handle_3.clone()),
+            inputs: TextureNodeInputs { count: 0, connections: vec![] },
+            outputs: TextureNodeOutputs { count: 0, connections: vec![] },
+        },
+        TextureRampSettings {
+            color_a: Vec4::new(1.0, 0.0, 0.0, 1.0),
+            color_b: Vec4::new(1.0, 0.5, 1.0, 1.0),
+            mode: 2,
+        },
+    ));
+
+    commands.spawn(Camera2dBundle::default());
+    commands.spawn(SpriteBundle {
+        texture: image_handle_1,
+        transform: Transform::from_translation(Vec3::new(-512.0, 0.0, 0.0)),
+        ..default()
+    });
+    commands.spawn(SpriteBundle {
+        texture: image_handle_2,
+        transform: Transform::from_translation(Vec3::new(512.0, 0.0, 0.0)),
+        ..default()
+    });
+    commands.spawn(SpriteBundle {
+        texture: image_handle_3,
+        ..default()
+    });
 }

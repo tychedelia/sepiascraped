@@ -5,6 +5,6 @@ edition = "2021"
 
 [dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy" }
-bevy_egui = { git = "https://github.com/eerii/bevy_egui" }
+bevy_egui = { git = "https://github.com/eerii/bevy_egui", features = ["immutable_ctx"] }
 egui_graph = { path = "../../mitchmindtree/egui_graph" }
 petgraph = "0.6.4"

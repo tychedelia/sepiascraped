@@ -21,7 +21,7 @@ pub struct TextureNode;
 #[derive(Component, Clone, ExtractComponent)]
 pub struct TextureNodeType(pub String);
 
-#[derive(Component, Clone, Deref, DerefMut, ExtractComponent)]
+#[derive(Component, Clone, Debug, Deref, DerefMut, ExtractComponent)]
 pub struct TextureNodeImage(pub Handle<Image>);
 
 #[derive(Component)]

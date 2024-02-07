@@ -1,8 +1,7 @@
-use bevy::core_pipeline::core_2d::graph::{Labels2d, SubGraph2d};
-use bevy::core_pipeline::core_3d::graph::{Labels3d, SubGraph3d};
 use bevy::core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_state;
 use bevy::ecs::query::QueryItem;
 use bevy::prelude::*;
+use bevy::render::{render_graph, RenderApp};
 use bevy::render::extract_component::{
     ComponentUniforms, ExtractComponent, ExtractComponentPlugin, UniformComponentPlugin,
 };
@@ -10,18 +9,10 @@ use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_graph::{
     NodeRunError, RenderGraphApp, RenderGraphContext, RenderLabel, RenderSubGraph, ViewNodeRunner,
 };
-use bevy::render::render_resource::binding_types::{sampler, texture_2d, uniform_buffer};
-use bevy::render::render_resource::{
-    BindGroupEntries, BindGroupLayout, BindGroupLayoutEntries, CachedRenderPipelineId,
-    ColorTargetState, ColorWrites, FragmentState, LoadOp, MultisampleState, Operations,
-    PipelineCache, PrimitiveState, RenderPassColorAttachment, RenderPassDescriptor,
-    RenderPipelineDescriptor, Sampler, SamplerBindingType, SamplerDescriptor, ShaderStages,
-    ShaderType, StoreOp, TextureFormat, TextureSampleType,
-};
+use bevy::render::render_resource::{BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry, BindingType, BufferBindingType, CachedRenderPipelineId, ColorTargetState, ColorWrites, FragmentState, LoadOp, MultisampleState, Operations, PipelineCache, PrimitiveState, RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor, Sampler, SamplerDescriptor, ShaderStages, ShaderType, StoreOp, TextureFormat};
 use bevy::render::renderer::{RenderContext, RenderDevice};
 use bevy::render::texture::BevyDefault;
 use bevy::render::view::ViewTarget;
-use bevy::render::{render_graph, RenderApp};
 use bevy_egui::{egui, EguiContexts};
 
 use crate::texture::TextureNodeImage;
@@ -76,17 +67,63 @@ fn side_panel_ui(
                     ui.color_edit_button_rgba_premultiplied(settings.color_a.as_mut());
                     ui.label("Color B");
                     ui.color_edit_button_rgba_premultiplied(settings.color_b.as_mut());
+                    let mut mode = TextureRampMode::from_u32(settings.mode).expect("Invalid mode");
+                    egui::ComboBox::from_label("Mode")
+                        .selected_text(format!("{mode:?}"))
+                        .show_ui(ui, |ui| {
+                            ui.set_min_width(60.0);
+                            ui.selectable_value(
+                                &mut mode,
+                                TextureRampMode::Horizontal,
+                                "Horizontal",
+                            );
+                            ui.selectable_value(&mut mode, TextureRampMode::Vertical, "Vertical");
+                            ui.selectable_value(&mut mode, TextureRampMode::Radial, "Radial");
+                        });
+                    settings.mode = mode.as_u32();
                 })
                 .response,
         );
     }
 }
 
+#[derive(Default, Clone, Copy, Debug, PartialEq)]
+pub enum TextureRampMode {
+    #[default]
+    Horizontal = 0,
+    Vertical = 1,
+    Radial = 2,
+}
+
+impl TextureRampMode {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            TextureRampMode::Horizontal => "Horizontal",
+            TextureRampMode::Vertical => "Vertical",
+            TextureRampMode::Radial => "Radial",
+        }
+    }
+
+    pub fn as_u32(&self) -> u32 {
+        *self as u32
+    }
+
+    pub fn from_u32(value: u32) -> Option<Self> {
+        match value {
+            0 => Some(TextureRampMode::Horizontal),
+            1 => Some(TextureRampMode::Vertical),
+            2 => Some(TextureRampMode::Radial),
+            _ => None,
+        }
+    }
+}
+
 // This is the component that will get passed to the shader
-#[derive(Component, Default, Clone, Copy, ExtractComponent, ShaderType)]
+#[derive(Component, Default, Debug, Clone, Copy, ExtractComponent, ShaderType)]
 pub struct TextureRampSettings {
     pub color_a: Vec4,
     pub color_b: Vec4,
+    pub mode: u32,
     // WebGL2 structs must be 16 byte aligned.
     #[cfg(feature = "webgl2")]
     _webgl2_padding: Vec3,
@@ -105,14 +142,16 @@ impl FromWorld for TextureRampPipeline {
 
         let layout = render_device.create_bind_group_layout(
             "texture_ramp_bind_group_layout",
-            &BindGroupLayoutEntries::sequential(
-                ShaderStages::FRAGMENT,
-                (
-                    texture_2d(TextureSampleType::Float { filterable: true }),
-                    sampler(SamplerBindingType::Filtering),
-                    uniform_buffer::<TextureRampSettings>(false),
-                ),
-            ),
+            &[BindGroupLayoutEntry {
+                binding: 0,
+                visibility: ShaderStages::FRAGMENT,
+                ty: BindingType::Buffer {
+                    ty: BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: Some(TextureRampSettings::min_size()),
+                },
+                count: None,
+            }]
         );
 
         let sampler = render_device.create_sampler(&SamplerDescriptor::default());
@@ -172,9 +211,7 @@ impl render_graph::ViewNode for TextureRampNode {
         world: &World,
     ) -> Result<(), NodeRunError> {
         let images = world.resource::<RenderAssets<Image>>();
-
         let texture_ramp_pipeline = world.resource::<TextureRampPipeline>();
-
         let pipeline_cache = world.resource::<PipelineCache>();
 
         let Some(pipeline) = pipeline_cache.get_render_pipeline(texture_ramp_pipeline.pipeline_id)
@@ -193,17 +230,16 @@ impl render_graph::ViewNode for TextureRampNode {
         let bind_group = render_context.render_device().create_bind_group(
             "texture_ramp_bind_group",
             &texture_ramp_pipeline.layout,
-            &BindGroupEntries::sequential((
-                view_target.main_texture_view(),
-                &texture_ramp_pipeline.sampler,
-                settings_binding.clone(),
-            )),
+            &[BindGroupEntry {
+                binding: 0,
+                resource: settings_binding.clone(),
+            }],
         );
 
         let mut render_pass = render_context.begin_tracked_render_pass(RenderPassDescriptor {
             label: Some("texture_ramp_pass"),
             color_attachments: &[Some(RenderPassColorAttachment {
-                view: &texture.texture_view,
+                view: &view_target.out_texture(),
                 resolve_target: None,
                 ops: Operations {
                     load: LoadOp::Clear(Color::BLACK.into()),

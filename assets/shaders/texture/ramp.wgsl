@@ -1,25 +1,28 @@
-// This shader computes the chromatic aberration effect
-
-// Since post processing is a fullscreen effect, we use the fullscreen vertex shader provided by bevy.
-// This will import a vertex shader that renders a single fullscreen triangle.
-//
-// A fullscreen triangle is a single triangle that covers the entire screen.
 #import bevy_core_pipeline::fullscreen_vertex_shader::FullscreenVertexOutput
 
-@group(0) @binding(0) var screen_texture: texture_2d<f32>;
-@group(0) @binding(1) var texture_sampler: sampler;
 
 struct TextureRampSettings {
     color_a: vec4<f32>,
     color_b: vec4<f32>,
+    mode: u32,
 #ifdef SIXTEEN_BYTE_ALIGNMENT
     // WebGL2 structs must be 16 byte aligned.
     _webgl2_padding: vec3<f32>
 #endif
 }
-@group(0) @binding(2) var<uniform> settings: TextureRampSettings;
+
+@group(0) @binding(0) var<uniform> settings: TextureRampSettings;
 
 @fragment
 fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
-    return mix(settings.color_a, settings.color_b, in.uv.y);
+    if (settings.mode == 0) {
+        return mix(settings.color_a, settings.color_b, in.uv.x);
+    } else if (settings.mode == 1) {
+        return mix(settings.color_a, settings.color_b, in.uv.y);
+    } else if (settings.mode == 2){
+        let distFromCenter = distance(in.uv, vec2(0.5, 0.5));
+        let gradientFactor = clamp(distFromCenter / 1., 0.0, 1.0);
+        return mix(settings.color_a, settings.color_b, gradientFactor);
+    }
+    return vec4<f32>(0.0, 0.0, 0.0, 1.0);
 }

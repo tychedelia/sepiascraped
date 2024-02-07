@@ -174,14 +174,8 @@ fn layout(graph: &Graph, flow: egui::Direction, ctx: &egui::Context) -> egui_gra
 fn nodes(nctx: &mut egui_graph::NodesCtx, ui: &mut egui::Ui, state: &mut GraphState) {
     let indices: Vec<_> = state.graph.node_indices().collect();
     for n in indices {
-        let inputs = state
-            .graph
-            .edges_directed(n, petgraph::Incoming)
-            .fold(0, |max, e| std::cmp::max(max, e.weight().1 + 1));
-        let outputs = state
-            .graph
-            .edges_directed(n, petgraph::Outgoing)
-            .fold(0, |max, e| std::cmp::max(max, e.weight().0 + 1));
+        let inputs = 1;
+        let outputs = 1;
         let node = &mut state.graph[n];
         let graph_view = &mut state.view;
         let response = egui_graph::node::Node::new(n)
@@ -198,7 +192,6 @@ fn nodes(nctx: &mut egui_graph::NodesCtx, ui: &mut egui::Ui, state: &mut GraphSt
             // Keep track of the selected nodes.
             if let Some(selected) = response.selection() {
                 if selected {
-                    print!("Selected node {}", n.index());
                     assert!(state.interaction.selection.nodes.insert(n));
                 } else {
                     assert!(state.interaction.selection.nodes.remove(&n));
