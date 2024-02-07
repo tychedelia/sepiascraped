@@ -1,31 +1,25 @@
-use std::f32::consts::PI;
-
-use bevy::prelude::*;
 use bevy::{
+    ecs::query::QueryData,
     prelude::*,
-    render::{
-        render_resource::{
-            Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
-        },
-        view::RenderLayers,
-    },
+    render::render_resource::{
+        Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+    }
 };
+use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
-use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiUserTextures};
+use bevy_egui::{EguiPlugin, EguiUserTextures};
 
+use crate::texture::{TextureNode, TextureNodeBundle, TextureNodeImage, TextureNodeInputs, TextureNodeOutputs, TextureNodeType, TexturePlugin};
 use crate::texture::ramp::{TextureRampSettings, TextureRampSubGraph};
-use crate::texture::{
-    TextureNode, TextureNodeBundle, TextureNodeImage, TextureNodeInputs, TextureNodeOutputs,
-    TextureNodeType, TexturePlugin,
-};
+use crate::ui::UiPlugin;
 
 mod texture;
+mod ui;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, EguiPlugin, TexturePlugin))
+        .add_plugins((DefaultPlugins, EguiPlugin, TexturePlugin, UiPlugin))
         .add_systems(Startup, setup)
-        .add_systems(Update, (update, cube_rotator_system, rotator_system))
         .run();
 }
 
@@ -74,116 +68,26 @@ fn setup(
     egui_user_textures.add_image(image_handle.clone());
 
     commands.spawn((
-        Camera3dBundle {
-            camera_render_graph: CameraRenderGraph::new(TextureRampSubGraph),
-            camera: Camera {
-                order: -1,
-                target: image_handle.clone().into(),
+        TextureNodeBundle {
+            camera: Camera3dBundle {
+                camera_render_graph: CameraRenderGraph::new(TextureRampSubGraph),
+                camera: Camera {
+                    order: -1,
+                    target: image_handle.clone().into(),
+                    ..default()
+                },
+                transform: Transform::from_translation(Vec3::new(0.0, 0.0, 10.0)),
                 ..default()
             },
-            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 10.0)),
-            ..default()
+            node: TextureNode,
+            node_type: TextureNodeType("texture_ramp".into()),
+            image: TextureNodeImage(image_handle.clone()),
+            inputs: TextureNodeInputs { count: 0, connections: vec![] },
+            outputs: TextureNodeOutputs { count: 0, connections: vec![] },
         },
-        TextureNodeImage(image_handle.clone()),
         TextureRampSettings {
             color_a: Vec4::new(1.0, 0.0, 0.0, 1.0), // Color::RED.into(
             color_b: Vec4::new(0.0, 0.0, 1.0, 1.0), // Color::GREEN.into(),
         },
     ));
-    let cube_handle = meshes.add(shape::Cube { size: 4.0 });
-    let cube_material_handle = materials.add(StandardMaterial {
-        base_color: Color::rgb(0.8, 0.7, 0.6),
-        reflectance: 0.02,
-        unlit: false,
-        ..default()
-    });
-
-    // This specifies the layer used for the first pass, which will be attached to the first pass camera and cube.
-    let first_pass_layer = RenderLayers::layer(1);
-
-    // The cube that will be rendered to the texture.
-    commands.spawn((
-        PbrBundle {
-            mesh: cube_handle,
-            material: cube_material_handle,
-            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
-            ..default()
-        },
-        FirstPassCube,
-        first_pass_layer,
-    ));
-
-    // Light
-    // NOTE: we add the light to all layers so it affects both the rendered-to-texture cube, and the cube on which we display the texture
-    // Setting the layer to RenderLayers::layer(0) would cause the main view to be lit, but the rendered-to-texture cube to be unlit.
-    // Setting the layer to RenderLayers::layer(1) would cause the rendered-to-texture cube to be lit, but the main view to be unlit.
-    commands.spawn((
-        PointLightBundle {
-            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 10.0)),
-            point_light: PointLight {
-                intensity: 150_000.0,
-                ..default()
-            },
-            ..default()
-        },
-        RenderLayers::all(),
-    ));
-
-    let cube_size = 4.0;
-    let cube_handle = meshes.add(shape::Box::new(cube_size, cube_size, cube_size));
-
-    // This material has the texture that has been rendered.
-    let material_handle = materials.add(StandardMaterial {
-        base_color_texture: Some(image_handle),
-        reflectance: 0.02,
-        unlit: false,
-        ..default()
-    });
-
-    // Main pass cube, with material containing the rendered first pass texture.
-    commands.spawn((
-        PbrBundle {
-            mesh: cube_handle,
-            material: material_handle,
-            transform: Transform::from_xyz(0.0, 0.0, 1.5)
-                .with_rotation(Quat::from_rotation_x(-PI / 5.0)),
-            ..default()
-        },
-        MainPassCube,
-    ));
-
-    // The main pass camera.
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(0.0, 0.0, 15.0).looking_at(Vec3::ZERO, Vec3::Y),
-        ..default()
-    });
-}
-
-fn update(mut contexts: EguiContexts, textures: Query<&TextureNodeImage>) {
-    let preview_texture_id = contexts
-        .image_id(&textures.iter().next().unwrap().0)
-        .unwrap();
-    egui::Window::new("Hello").show(&contexts.ctx_mut(), |ui| {
-        ui.label("Hello World!");
-        ui.image(egui::load::SizedTexture::new(
-            preview_texture_id,
-            egui::vec2(200.0, 200.0),
-        ));
-    });
-}
-
-/// Rotates the inner cube (first pass)
-fn rotator_system(time: Res<Time>, mut query: Query<&mut Transform, With<FirstPassCube>>) {
-    for mut transform in &mut query {
-        transform.rotate_x(1.5 * time.delta_seconds());
-        transform.rotate_z(1.3 * time.delta_seconds());
-    }
-}
-
-/// Rotates the outer cube (main pass)
-fn cube_rotator_system(time: Res<Time>, mut query: Query<&mut Transform, With<MainPassCube>>) {
-    for mut transform in &mut query {
-        transform.rotate_x(1.0 * time.delta_seconds());
-        transform.rotate_y(0.7 * time.delta_seconds());
-    }
 }

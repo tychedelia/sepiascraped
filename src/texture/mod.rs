@@ -38,7 +38,7 @@ pub struct TextureNodeOutputs {
 
 #[derive(Bundle)]
 pub struct TextureNodeBundle {
-    pub camera: Camera2dBundle,
+    pub camera: Camera3dBundle,
     pub node: TextureNode,
     pub node_type: TextureNodeType,
     pub image: TextureNodeImage,

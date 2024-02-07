@@ -3,7 +3,6 @@ use bevy::core_pipeline::core_3d::graph::{Labels3d, SubGraph3d};
 use bevy::core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_state;
 use bevy::ecs::query::QueryItem;
 use bevy::prelude::*;
-use bevy::render::{render_graph, RenderApp};
 use bevy::render::extract_component::{
     ComponentUniforms, ExtractComponent, ExtractComponentPlugin, UniformComponentPlugin,
 };
@@ -11,13 +10,23 @@ use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_graph::{
     NodeRunError, RenderGraphApp, RenderGraphContext, RenderLabel, RenderSubGraph, ViewNodeRunner,
 };
-use bevy::render::render_resource::{BindGroupEntries, BindGroupLayout, BindGroupLayoutEntries, CachedRenderPipelineId, ColorTargetState, ColorWrites, FragmentState, LoadOp, MultisampleState, Operations, PipelineCache, PrimitiveState, RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor, Sampler, SamplerBindingType, SamplerDescriptor, ShaderStages, ShaderType, StoreOp, TextureFormat, TextureSampleType};
 use bevy::render::render_resource::binding_types::{sampler, texture_2d, uniform_buffer};
+use bevy::render::render_resource::{
+    BindGroupEntries, BindGroupLayout, BindGroupLayoutEntries, CachedRenderPipelineId,
+    ColorTargetState, ColorWrites, FragmentState, LoadOp, MultisampleState, Operations,
+    PipelineCache, PrimitiveState, RenderPassColorAttachment, RenderPassDescriptor,
+    RenderPipelineDescriptor, Sampler, SamplerBindingType, SamplerDescriptor, ShaderStages,
+    ShaderType, StoreOp, TextureFormat, TextureSampleType,
+};
 use bevy::render::renderer::{RenderContext, RenderDevice};
 use bevy::render::texture::BevyDefault;
 use bevy::render::view::ViewTarget;
+use bevy::render::{render_graph, RenderApp};
+use bevy_egui::{egui, EguiContexts};
 
 use crate::texture::TextureNodeImage;
+use crate::ui::graph::SelectedNode;
+use crate::ui::UiState;
 
 pub struct TextureRampPlugin;
 
@@ -29,12 +38,16 @@ impl Plugin for TextureRampPlugin {
         app.add_plugins((
             ExtractComponentPlugin::<TextureRampSettings>::default(),
             UniformComponentPlugin::<TextureRampSettings>::default(),
-        ));
+        ))
+        .add_systems(Update, side_panel_ui.after(crate::ui::graph::ui));
 
         app.get_sub_app_mut(RenderApp)
             .unwrap()
             .add_render_sub_graph(TextureRampSubGraph)
-            .add_render_graph_node::<ViewNodeRunner<TextureRampNode>>(TextureRampSubGraph, TextureRampLabel);
+            .add_render_graph_node::<ViewNodeRunner<TextureRampNode>>(
+                TextureRampSubGraph,
+                TextureRampLabel,
+            );
     }
 
     fn finish(&self, app: &mut App) {
@@ -42,8 +55,30 @@ impl Plugin for TextureRampPlugin {
             return;
         };
 
-        render_app
-            .init_resource::<TextureRampPipeline>();
+        render_app.init_resource::<TextureRampPipeline>();
+    }
+}
+
+fn side_panel_ui(
+    mut ui_state: ResMut<UiState>,
+    mut egui_contexts: EguiContexts,
+    mut selected_node: Query<(Entity, &mut TextureRampSettings, &SelectedNode)>,
+) {
+    let ctx = egui_contexts.ctx_mut();
+    if let Ok((entity, mut settings, _selected_node)) = selected_node.get_single_mut() {
+        ui_state.side_panel = Some(
+            egui::SidePanel::left("texture_ramp_side_panel")
+                .resizable(false)
+                .show(ctx, |ui| {
+                    ui.heading("Ramp");
+                    ui.separator();
+                    ui.label("Color A");
+                    ui.color_edit_button_rgba_premultiplied(settings.color_a.as_mut());
+                    ui.label("Color B");
+                    ui.color_edit_button_rgba_premultiplied(settings.color_b.as_mut());
+                })
+                .response,
+        );
     }
 }
 
@@ -56,6 +91,7 @@ pub struct TextureRampSettings {
     #[cfg(feature = "webgl2")]
     _webgl2_padding: Vec3,
 }
+
 #[derive(Resource)]
 struct TextureRampPipeline {
     layout: BindGroupLayout,
@@ -135,7 +171,6 @@ impl render_graph::ViewNode for TextureRampNode {
         (view_target, settings, texture_handle): QueryItem<Self::ViewQuery>,
         world: &World,
     ) -> Result<(), NodeRunError> {
-
         let images = world.resource::<RenderAssets<Image>>();
 
         let texture_ramp_pipeline = world.resource::<TextureRampPipeline>();
@@ -152,8 +187,6 @@ impl render_graph::ViewNode for TextureRampNode {
         let Some(settings_binding) = settings_uniforms.uniforms().binding() else {
             return Ok(());
         };
-
-        println!("Running texture ramp node");
 
         let texture = images.get(&**texture_handle).unwrap();
 
