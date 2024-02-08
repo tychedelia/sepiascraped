@@ -2,7 +2,8 @@ use bevy::core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_stat
 use bevy::ecs::query::QueryItem;
 use bevy::prelude::*;
 use bevy::render::extract_component::{
-    ComponentUniforms, ExtractComponent, ExtractComponentPlugin, UniformComponentPlugin,
+    ComponentUniforms, DynamicUniformIndex, ExtractComponent, ExtractComponentPlugin,
+    UniformComponentPlugin,
 };
 use bevy::render::render_graph::{
     NodeRunError, RenderGraphApp, RenderGraphContext, RenderLabel, RenderSubGraph, ViewNodeRunner,
@@ -151,7 +152,7 @@ impl FromWorld for TextureRampPipeline {
                 visibility: ShaderStages::FRAGMENT,
                 ty: BindingType::Buffer {
                     ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
+                    has_dynamic_offset: true,
                     min_binding_size: Some(TextureRampSettings::min_size()),
                 },
                 count: None,
@@ -202,12 +203,15 @@ struct TextureRampLabel;
 struct TextureRampNode;
 
 impl render_graph::ViewNode for TextureRampNode {
-    type ViewQuery = (&'static ViewTarget);
+    type ViewQuery = (
+        &'static ViewTarget,
+        &'static DynamicUniformIndex<TextureRampSettings>,
+    );
     fn run(
         &self,
         graph: &mut RenderGraphContext,
         render_context: &mut RenderContext,
-        (view_target): QueryItem<Self::ViewQuery>,
+        (view_target, uniform_index): QueryItem<Self::ViewQuery>,
         world: &World,
     ) -> Result<(), NodeRunError> {
         let texture_ramp_pipeline = world.resource::<TextureRampPipeline>();
@@ -248,7 +252,7 @@ impl render_graph::ViewNode for TextureRampNode {
         });
 
         render_pass.set_render_pipeline(pipeline);
-        render_pass.set_bind_group(0, &bind_group, &[]);
+        render_pass.set_bind_group(0, &bind_group, &[uniform_index.index()]);
         render_pass.draw(0..3, 0..1);
 
         Ok(())

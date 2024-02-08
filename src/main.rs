@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy::render::camera::CameraRenderGraph;
+use bevy::render::camera::{CameraOutputMode, CameraRenderGraph};
 use bevy::{
     prelude::*,
     render::render_resource::{
@@ -74,6 +74,7 @@ fn setup(
             camera: Camera3dBundle {
                 camera_render_graph: CameraRenderGraph::new(TextureRampSubGraph),
                 camera: Camera {
+                    output_mode: CameraOutputMode::Skip,
                     target: image_handle_1.clone().into(),
                     order: 1,
                     ..default()
@@ -127,6 +128,7 @@ fn setup(
             camera: Camera3dBundle {
                 camera_render_graph: CameraRenderGraph::new(TextureRampSubGraph),
                 camera: Camera {
+                    output_mode: CameraOutputMode::Skip,
                     order: 2,
                     target: image_handle_2.clone().into(),
                     ..default()
@@ -180,6 +182,7 @@ fn setup(
             camera: Camera3dBundle {
                 camera_render_graph: CameraRenderGraph::new(TextureRampSubGraph),
                 camera: Camera {
+                    output_mode: CameraOutputMode::Skip,
                     order: 3,
                     target: image_handle_3.clone().into(),
                     ..default()
