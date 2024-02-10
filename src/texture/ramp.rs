@@ -1,3 +1,5 @@
+use crate::ui::graph::SelectedNode;
+use crate::ui::UiState;
 use bevy::core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_state;
 use bevy::ecs::query::QueryItem;
 use bevy::prelude::*;
@@ -21,9 +23,6 @@ use bevy::render::view::ViewTarget;
 use bevy::render::{render_graph, RenderApp};
 use bevy_egui::{egui, EguiContexts};
 
-use crate::ui::graph::SelectedNode;
-use crate::ui::UiState;
-
 pub struct TextureRampPlugin;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderSubGraph)]
@@ -35,7 +34,7 @@ impl Plugin for TextureRampPlugin {
             ExtractComponentPlugin::<TextureRampSettings>::default(),
             UniformComponentPlugin::<TextureRampSettings>::default(),
         ))
-        .add_systems(Update, side_panel_ui.after(crate::ui::graph::ui));
+        .add_systems(Update, side_panel_ui.before(crate::ui::graph::ui));
 
         app.get_sub_app_mut(RenderApp)
             .unwrap()
@@ -63,7 +62,7 @@ fn side_panel_ui(
     let ctx = egui_contexts.ctx_mut();
     if let Ok((entity, mut settings, _selected_node)) = selected_node.get_single_mut() {
         ui_state.side_panel = Some(
-            egui::SidePanel::left("texture_ramp_side_panel")
+            egui::Window::new("texture_ramp_side_panel")
                 .resizable(false)
                 .show(ctx, |ui| {
                     ui.heading("Ramp");
@@ -83,10 +82,11 @@ fn side_panel_ui(
                                 "Horizontal",
                             );
                             ui.selectable_value(&mut mode, TextureRampMode::Vertical, "Vertical");
-                            ui.selectable_value(&mut mode, TextureRampMode::Radial, "Radial");
+                            ui.selectable_value(&mut mode, TextureRampMode::Circular, "Circular");
                         });
                     settings.mode = mode.as_u32();
                 })
+                .unwrap()
                 .response,
         );
     }
@@ -97,7 +97,7 @@ pub enum TextureRampMode {
     #[default]
     Horizontal = 0,
     Vertical = 1,
-    Radial = 2,
+    Circular = 2,
 }
 
 impl TextureRampMode {
@@ -105,7 +105,7 @@ impl TextureRampMode {
         match self {
             TextureRampMode::Horizontal => "Horizontal",
             TextureRampMode::Vertical => "Vertical",
-            TextureRampMode::Radial => "Radial",
+            TextureRampMode::Circular => "Circular",
         }
     }
 
@@ -117,7 +117,7 @@ impl TextureRampMode {
         match value {
             0 => Some(TextureRampMode::Horizontal),
             1 => Some(TextureRampMode::Vertical),
-            2 => Some(TextureRampMode::Radial),
+            2 => Some(TextureRampMode::Circular),
             _ => None,
         }
     }

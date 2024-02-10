@@ -1,6 +1,11 @@
 use bevy::prelude::*;
+use bevy::prelude::*;
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
+use bevy::render::render_graph::{RenderGraphApp, RenderLabel, RenderSubGraph};
+use bevy::render::render_resource::ShaderType;
+use bevy::render::texture::BevyDefault;
 
+mod composite;
 pub mod ramp;
 
 pub struct TexturePlugin;

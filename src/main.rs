@@ -67,7 +67,7 @@ fn setup(
     image.resize(size);
 
     let image_handle_1 = images.add(image);
-    // egui_user_textures.add_image(image_handle_1.clone());
+    egui_user_textures.add_image(image_handle_1.clone());
 
     commands.spawn((
         TextureNodeBundle {
@@ -121,7 +121,7 @@ fn setup(
     image.resize(size);
 
     let image_handle_2 = images.add(image);
-    // egui_user_textures.add_image(image_handle_2.clone());
+    egui_user_textures.add_image(image_handle_2.clone());
 
     commands.spawn((
         TextureNodeBundle {
@@ -150,77 +150,7 @@ fn setup(
         TextureRampSettings {
             color_a: Vec4::new(1.0, 0.0, 0.0, 1.0),
             color_b: Vec4::new(0.0, 0.5, 1.0, 1.0),
-            mode: 1,
-        },
-    ));
-
-    // This is the texture that will be rendered to.
-    let mut image = Image {
-        texture_descriptor: TextureDescriptor {
-            label: None,
-            size,
-            dimension: TextureDimension::D2,
-            format: TextureFormat::Rgba8UnormSrgb,
-            mip_level_count: 1,
-            sample_count: 1,
-            usage: TextureUsages::TEXTURE_BINDING
-                | TextureUsages::COPY_DST
-                | TextureUsages::RENDER_ATTACHMENT,
-            view_formats: &[],
-        },
-        ..default()
-    };
-
-    // fill image.data with zeroes
-    image.resize(size);
-
-    let image_handle_3 = images.add(image);
-    // egui_user_textures.add_image(image_handle_3.clone());
-
-    commands.spawn((
-        TextureNodeBundle {
-            camera: Camera3dBundle {
-                camera_render_graph: CameraRenderGraph::new(TextureRampSubGraph),
-                camera: Camera {
-                    output_mode: CameraOutputMode::Skip,
-                    order: 3,
-                    target: image_handle_3.clone().into(),
-                    ..default()
-                },
-                ..default()
-            },
-            node: TextureNode,
-            node_type: TextureNodeType("texture_ramp".into()),
-            image: TextureNodeImage(image_handle_3.clone()),
-            inputs: TextureNodeInputs {
-                count: 0,
-                connections: vec![],
-            },
-            outputs: TextureNodeOutputs {
-                count: 0,
-                connections: vec![],
-            },
-        },
-        TextureRampSettings {
-            color_a: Vec4::new(1.0, 0.0, 0.0, 1.0),
-            color_b: Vec4::new(1.0, 0.5, 1.0, 1.0),
             mode: 2,
         },
     ));
-
-    commands.spawn(Camera2dBundle::default());
-    commands.spawn(SpriteBundle {
-        texture: image_handle_1,
-        transform: Transform::from_translation(Vec3::new(-512.0, 0.0, 0.0)),
-        ..default()
-    });
-    commands.spawn(SpriteBundle {
-        texture: image_handle_2,
-        transform: Transform::from_translation(Vec3::new(512.0, 0.0, 0.0)),
-        ..default()
-    });
-    commands.spawn(SpriteBundle {
-        texture: image_handle_3,
-        ..default()
-    });
 }

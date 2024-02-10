@@ -15,8 +15,7 @@ impl Plugin for GraphPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GraphState::new())
             .add_systems(Startup, startup)
-            .add_systems(Update, (ui, texture_ui, update_graph))
-            .add_systems(PostUpdate, (post_update_ui));
+            .add_systems(Update, (ui, texture_ui, update_graph));
     }
 }
 
@@ -73,7 +72,7 @@ impl GraphState {
             view: Default::default(),
             interaction: Default::default(),
             flow: egui::Direction::LeftToRight,
-            socket_radius: 5.0,
+            socket_radius: 10.0,
             socket_color: egui::Color32::from_rgba_premultiplied(100, 100, 100, 255),
             wire_width: 2.0,
             wire_color: egui::Color32::from_rgba_premultiplied(100, 100, 100, 255),
@@ -93,42 +92,38 @@ fn update_graph(
     }
 }
 
-fn post_update_ui(mut commands: Commands, selected_nodes: Query<(Entity, &SelectedNode)>) {
-    for (entity, _) in selected_nodes.iter() {
-        // TODO: ordering prboblems with the ui_state
-        // commands.entity(entity).remove::<SelectedNode>();
-    }
-}
-
 pub fn ui(
     mut commands: Commands,
     mut egui_contexts: EguiContexts,
     mut state: ResMut<GraphState>,
     mut ui_state: ResMut<UiState>,
 ) {
-    let ctx = if let Some(ref mut response) = &mut ui_state.side_panel {
-        &mut response.ctx
-    } else {
-        egui_contexts.ctx_mut()
-    };
+    let ctx = egui_contexts.ctx_mut();
 
     if state.graph.node_count() > 0 {
         state.view.layout = layout(&state.graph, state.flow, ctx);
     }
 
-    egui::containers::CentralPanel::default()
-        .frame(egui::Frame::default())
-        .show(ctx, |ui| {
-            egui_graph::Graph::new("Node Graph")
-                .show(&mut Default::default(), ui)
-                .nodes(|nctx, ui| nodes(nctx, ui, &mut state))
-                .edges(|ectx, ui| edges(ectx, ui, &mut state));
+    egui::containers::CentralPanel::default().show(ctx, |ui| {
+        let prev_selected = state.interaction.selection.nodes.clone();
+        ui.label("Node Graph");
+        egui_graph::Graph::new("Node Graph")
+            .show(&mut state.view, ui)
+            .nodes(|nctx, ui| nodes(nctx, ui, &mut state))
+            .edges(|ectx, ui| edges(ectx, ui, &mut state));
 
-            for node in &state.interaction.selection.nodes {
+        for node in &state.interaction.selection.nodes {
+            let entity = state.entity_map[&GraphId(*node)];
+            commands.entity(entity).insert(SelectedNode);
+        }
+
+        for node in &prev_selected {
+            if !state.interaction.selection.nodes.contains(node) {
                 let entity = state.entity_map[&GraphId(*node)];
-                commands.entity(entity).insert(SelectedNode);
+                commands.entity(entity).remove::<SelectedNode>();
             }
-        });
+        }
+    });
 }
 
 fn texture_ui(
