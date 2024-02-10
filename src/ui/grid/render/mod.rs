@@ -1,7 +1,3 @@
-mod shadow;
-
-pub use shadow::RenderSettings;
-
 use std::borrow::Cow;
 
 use bevy::{
@@ -36,10 +32,9 @@ use bevy::{
         Extract, ExtractSchedule, Render, RenderApp, RenderSet,
     },
 };
+use bevy::utils::FloatOrd;
 
 use crate::ui::grid::{GridFrustumIntersect, InfiniteGridSettings};
-
-use shadow::{GridShadow, SetGridShadowBindGroup};
 
 static PLANE_RENDER: &str = include_str!("plane_render.wgsl");
 
@@ -280,7 +275,6 @@ fn extract_infinite_grids(
                         grid: *grid,
                     },
                     visible_entities.clone(),
-                    RenderPhase::<GridShadow>::default(),
                 ),
             )
         })
@@ -492,13 +486,13 @@ fn queue_infinite_grids(
                 .unwrap_or(false)
             {
                 phase.items.push(Transparent3d {
+                    distance: f32::NEG_INFINITY,
                     pipeline: match intersects.contains(entity) {
                         true => shadow_pipeline,
                         false => base_pipeline,
                     },
                     entity,
                     draw_function: draw_function_id,
-                    distance: f32::NEG_INFINITY,
                     batch_range: 0..1,
                     dynamic_offset: None,
                 });
@@ -515,7 +509,6 @@ type DrawInfiniteGrid = (
     SetItemPipeline,
     SetGridViewBindGroup<0>,
     SetInfiniteGridBindGroup<1>,
-    SetGridShadowBindGroup<2>,
     FinishDrawInfiniteGrid,
 );
 
@@ -523,7 +516,6 @@ type DrawInfiniteGrid = (
 struct InfiniteGridPipeline {
     view_layout: BindGroupLayout,
     infinite_grid_layout: BindGroupLayout,
-    grid_shadows_layout: BindGroupLayout,
 }
 
 impl FromWorld for InfiniteGridPipeline {
@@ -570,42 +562,9 @@ impl FromWorld for InfiniteGridPipeline {
             ],
         );
 
-        let grid_shadows_layout = render_device.create_bind_group_layout(
-            Some("grid-shadows-bind-group-layout"),
-            &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: true,
-                        min_binding_size: BufferSize::new(GridShadowUniform::min_size().into()),
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: ShaderStages::FRAGMENT,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: true },
-                        view_dimension: TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: ShaderStages::FRAGMENT,
-                    ty: BindingType::Sampler(SamplerBindingType::Filtering),
-                    count: None,
-                },
-            ],
-        );
-
         Self {
             view_layout,
             infinite_grid_layout,
-            grid_shadows_layout,
         }
     }
 }
@@ -632,10 +591,7 @@ impl SpecializedRenderPipeline for InfiniteGridPipeline {
             } else {
                 "grid-render-pipeline-shadowless"
             })),
-            layout: [self.view_layout.clone(), self.infinite_grid_layout.clone()]
-                .into_iter()
-                .chain(key.has_shadows.then(|| self.grid_shadows_layout.clone()))
-                .collect(),
+            layout: vec![self.view_layout.clone(), self.infinite_grid_layout.clone()],
             push_constant_ranges: Vec::new(),
             vertex: VertexState {
                 shader: SHADER_HANDLE,
@@ -730,6 +686,4 @@ pub fn render_app_builder(app: &mut App) {
                 .in_set(RenderSet::PrepareBindGroups),
         )
         .add_systems(Render, queue_infinite_grids.in_set(RenderSet::Queue));
-
-    shadow::register_shadow(app);
 }

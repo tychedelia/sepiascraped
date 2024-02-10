@@ -1,7 +1,5 @@
 mod render;
 
-pub use render::RenderSettings;
-
 use bevy::math::{Vec3Swizzles, Vec4Swizzles};
 use bevy::prelude::*;
 use bevy::render::primitives::Aabb;
@@ -12,7 +10,6 @@ pub struct InfiniteGridPlugin;
 
 impl Plugin for InfiniteGridPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<GlobalInfiniteGridSettings>();
     }
 
     fn finish(&self, app: &mut App) {
@@ -25,11 +22,6 @@ impl Plugin for InfiniteGridPlugin {
             ),
         );
     }
-}
-
-#[derive(Resource, Default)]
-pub struct GlobalInfiniteGridSettings {
-    pub render_settings: RenderSettings,
 }
 
 #[derive(Component, Default)]
