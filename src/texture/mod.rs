@@ -20,7 +20,7 @@ impl Plugin for TexturePlugin {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 pub struct TextureNode;
 
 #[derive(Component, Clone, ExtractComponent)]

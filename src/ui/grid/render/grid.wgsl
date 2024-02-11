@@ -1,10 +1,7 @@
 #import bevy_render::view::View
 
 struct InfiniteGridPosition {
-    planar_rotation_matrix: mat3x3<f32>,
-    origin: vec3<f32>,
-    normal: vec3<f32>,
-
+    translation: vec3<f32>,
 };
 
 struct InfiniteGridSettings {
@@ -63,27 +60,30 @@ fn fragment(in: VertexOutput) -> FragmentOutput {
     let ndc = vec4<f32>(ndcX, ndcY, 1.0, 1.0);
     let viewSpace = view.inverse_projection * ndc;
     let viewSpacePos = viewSpace.xyz / viewSpace.w;
-    let worldSpace = view.inverse_view * vec4<f32>(viewSpacePos, 1.0);
+    let worldSpace = view.inverse_view * vec4<f32>(viewSpacePos, 1.0) + vec4<f32>(grid_position.translation, 0.0);
 
-    if (abs(worldSpace.x) < 1.0) {
+    let axisWidth: f32 = 1.0; // How wide the axis lines should appear
+
+    if (abs(worldSpace.x) < axisWidth) {
         return FragmentOutput(vec4<f32>(grid_settings.x_axis_col, 1.0));
     }
-    if (abs(worldSpace.y) < 1.0) {
+    if (abs(worldSpace.y) < axisWidth) {
         return FragmentOutput(vec4<f32>(grid_settings.z_axis_col, 1.0));
     }
 
     // Drawing major grid lines
-    let majorSpacing: f32 = 500.0;
-    let majorLineWidth: f32 = 0.5;
+    let majorSpacing: f32 = 500.0 / grid_settings.scale; // Distance between major grid lines
+    let majorLineWidthPixels: f32 = 2.0; // Desired line width in pixels
+    let majorLineWidthNDC: f32 = majorLineWidthPixels / screenSize.x;
+    let majorLineWidth: f32 = 0.5; // How wide the major grid lines should appear
+
     let majorGridLineX = abs(fract(worldSpace.x / majorSpacing + 0.5) - 0.5) < majorLineWidth / majorSpacing;
     let majorGridLineY = abs(fract(worldSpace.y / majorSpacing + 0.5) - 0.5) < majorLineWidth / majorSpacing;
-
     if (majorGridLineX || majorGridLineY) {
         return FragmentOutput(grid_settings.major_line_col);
     }
 
-
-    let minorSpacing: f32 = 50.0; // Distance between grid lines
+    let minorSpacing: f32 = 50.0 / grid_settings.scale; // Distance between grid lines
     let lineWidth: f32 = 0.3; // How wide the grid lines should appear
 
     // Calculate grid lines based on world space position and grid spacing

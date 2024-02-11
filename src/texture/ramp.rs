@@ -34,7 +34,7 @@ impl Plugin for TextureRampPlugin {
             ExtractComponentPlugin::<TextureRampSettings>::default(),
             UniformComponentPlugin::<TextureRampSettings>::default(),
         ))
-        .add_systems(Update, side_panel_ui.before(crate::ui::graph::ui));
+        .add_systems(Update, side_panel_ui);
 
         app.get_sub_app_mut(RenderApp)
             .unwrap()

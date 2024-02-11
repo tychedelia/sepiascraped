@@ -37,7 +37,7 @@ use bevy::utils::FloatOrd;
 
 use crate::ui::grid::{GridFrustumIntersect, InfiniteGridSettings};
 
-static PLANE_RENDER: &str = include_str!("plane_render.wgsl");
+static PLANE_RENDER: &str = include_str!("grid.wgsl");
 
 const SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(15204473893972682982);
 
@@ -49,9 +49,7 @@ struct ExtractedInfiniteGrid {
 
 #[derive(Debug, ShaderType)]
 pub struct InfiniteGridUniform {
-    rot_matrix: Mat3,
-    offset: Vec3,
-    normal: Vec3,
+    translation: Vec3,
 }
 
 #[derive(Debug, ShaderType)]
@@ -238,15 +236,10 @@ fn prepare_infinite_grids(
     position_uniforms.uniforms.clear();
     for (entity, extracted) in grids.iter() {
         let transform = extracted.transform;
-        let t = transform.compute_transform();
         let offset = transform.translation();
-        let normal = transform.up();
-        let rot_matrix = Mat3::from_quat(t.rotation.inverse());
         commands.entity(entity).insert(InfiniteGridUniformOffsets {
             position_offset: position_uniforms.uniforms.push(&InfiniteGridUniform {
-                rot_matrix,
-                offset,
-                normal,
+                translation: offset,
             }),
             settings_offset: settings_uniforms
                 .uniforms
