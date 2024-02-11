@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 
 use bevy::{
-    core_pipeline::core_3d::Transparent3d,
     ecs::{
         query::ROQueryItem,
         system::{
@@ -32,6 +31,8 @@ use bevy::{
         Extract, ExtractSchedule, Render, RenderApp, RenderSet,
     },
 };
+use bevy::core_pipeline::core_2d::Transparent2d;
+use bevy::render::view::{ViewUniform, ViewUniformOffset, ViewUniforms};
 use bevy::utils::FloatOrd;
 
 use crate::ui::grid::{GridFrustumIntersect, InfiniteGridSettings};
@@ -57,21 +58,10 @@ pub struct InfiniteGridUniform {
 pub struct GridDisplaySettingsUniform {
     scale: f32,
     // 1 / fadeout_distance
-    dist_fadeout_const: f32,
-    dot_fadeout_const: f32,
     x_axis_color: Vec3,
     z_axis_color: Vec3,
     minor_line_color: Vec4,
     major_line_color: Vec4,
-}
-
-#[derive(Debug, ShaderType)]
-pub struct GridShadowUniform {
-    shadow_color: Vec4,
-    shadow_collapse_matrix: Mat3,
-    shadow_center_pos: Vec3,
-    shadow_texture_width: f32,
-    shadow_texture_height: f32,
 }
 
 #[derive(Resource, Default)]
@@ -84,20 +74,10 @@ struct GridDisplaySettingsUniforms {
     uniforms: DynamicUniformBuffer<GridDisplaySettingsUniform>,
 }
 
-#[derive(Resource, Default)]
-struct GridShadowUniforms {
-    uniforms: DynamicUniformBuffer<GridShadowUniform>,
-}
-
 #[derive(Component)]
 struct InfiniteGridUniformOffsets {
     position_offset: u32,
     settings_offset: u32,
-}
-
-#[derive(Component)]
-pub struct GridShadowUniformOffset {
-    offset: u32,
 }
 
 #[derive(Component)]
@@ -110,25 +90,6 @@ struct InfiniteGridBindGroup {
     value: BindGroup,
 }
 
-#[derive(Clone, ShaderType)]
-pub struct GridViewUniform {
-    projection: Mat4,
-    inverse_projection: Mat4,
-    view: Mat4,
-    inverse_view: Mat4,
-    world_position: Vec3,
-}
-
-#[derive(Resource, Default)]
-pub struct GridViewUniforms {
-    uniforms: DynamicUniformBuffer<GridViewUniform>,
-}
-
-#[derive(Component)]
-pub struct GridViewUniformOffset {
-    pub offset: u32,
-}
-
 #[derive(Component)]
 struct GridViewBindGroup {
     value: BindGroup,
@@ -138,7 +99,7 @@ struct SetGridViewBindGroup<const I: usize>;
 
 impl<const I: usize, P: PhaseItem> RenderCommand<P> for SetGridViewBindGroup<I> {
     type Param = ();
-    type ViewQuery = (Read<GridViewUniformOffset>, Read<GridViewBindGroup>);
+    type ViewQuery = (Read<ViewUniformOffset>, Read<GridViewBindGroup>);
     type ItemQuery = ();
 
     #[inline]
@@ -204,40 +165,12 @@ impl<P: PhaseItem> RenderCommand<P> for FinishDrawInfiniteGrid {
     }
 }
 
-fn prepare_grid_view_uniforms(
-    mut commands: Commands,
-    render_device: Res<RenderDevice>,
-    render_queue: Res<RenderQueue>,
-    mut view_uniforms: ResMut<GridViewUniforms>,
-    views: Query<(Entity, &ExtractedView)>,
-) {
-    view_uniforms.uniforms.clear();
-    for (entity, camera) in views.iter() {
-        let projection = camera.projection;
-        let view = camera.transform.compute_matrix();
-        let inverse_view = view.inverse();
-        commands.entity(entity).insert(GridViewUniformOffset {
-            offset: view_uniforms.uniforms.push(&GridViewUniform {
-                projection,
-                view,
-                inverse_view,
-                inverse_projection: projection.inverse(),
-                world_position: camera.transform.translation(),
-            }),
-        });
-    }
-
-    view_uniforms
-        .uniforms
-        .write_buffer(&render_device, &render_queue)
-}
-
 fn prepare_grid_view_bind_groups(
     mut commands: Commands,
     render_device: Res<RenderDevice>,
-    uniforms: Res<GridViewUniforms>,
+    uniforms: Res<ViewUniforms>,
     pipeline: Res<InfiniteGridPipeline>,
-    views: Query<Entity, With<GridViewUniformOffset>>,
+    views: Query<Entity, With<ViewUniformOffset>>,
 ) {
     if let Some(binding) = uniforms.uniforms.binding() {
         for entity in views.iter() {
@@ -282,18 +215,6 @@ fn extract_infinite_grids(
     commands.insert_or_spawn_batch(extracted);
 }
 
-fn extract_grid_shadows(
-    mut commands: Commands,
-    grids: Extract<Query<(Entity, &InfiniteGridSettings, &GridFrustumIntersect)>>,
-) {
-    let extracted: Vec<_> = grids
-        .iter()
-        .filter(|(_, grid_settings, _)| grid_settings.shadow_color.is_some())
-        .map(|(entity, _, intersect)| (entity, (*intersect,)))
-        .collect();
-    commands.insert_or_spawn_batch(extracted);
-}
-
 fn extract_per_camera_settings(
     mut commands: Commands,
     cameras: Extract<Query<(Entity, &InfiniteGridSettings), With<Camera>>>,
@@ -331,8 +252,6 @@ fn prepare_infinite_grids(
                 .uniforms
                 .push(&GridDisplaySettingsUniform {
                     scale: extracted.grid.scale,
-                    dist_fadeout_const: 1. / extracted.grid.fadeout_distance,
-                    dot_fadeout_const: 1. / extracted.grid.dot_fadeout_strength,
                     x_axis_color: Vec3::from_slice(&extracted.grid.x_axis_color.as_rgba_f32()),
                     z_axis_color: Vec3::from_slice(&extracted.grid.z_axis_color.as_rgba_f32()),
                     minor_line_color: Vec4::from_slice(
@@ -353,8 +272,6 @@ fn prepare_infinite_grids(
                     .uniforms
                     .push(&GridDisplaySettingsUniform {
                         scale: settings.scale,
-                        dist_fadeout_const: 1. / settings.fadeout_distance,
-                        dot_fadeout_const: 1. / settings.dot_fadeout_strength,
                         x_axis_color: Vec3::from_slice(&settings.x_axis_color.as_rgba_f32()),
                         z_axis_color: Vec3::from_slice(&settings.z_axis_color.as_rgba_f32()),
                         minor_line_color: Vec4::from_slice(
@@ -376,45 +293,6 @@ fn prepare_infinite_grids(
         .write_buffer(&render_device, &render_queue);
 }
 
-fn prepare_grid_shadows(
-    mut commands: Commands,
-    grids: Query<(Entity, &ExtractedInfiniteGrid, &GridFrustumIntersect)>,
-    mut uniforms: ResMut<GridShadowUniforms>,
-    render_device: Res<RenderDevice>,
-    render_queue: Res<RenderQueue>,
-) {
-    uniforms.uniforms.clear();
-    for (entity, extracted, intersect) in grids.iter() {
-        let transform = extracted.transform;
-        let normal = transform.up();
-
-        // When called after [`extract_grid_shadows()`] has filtered out
-        // [`InfiniteGrid`]s that have shadow_color: None, this is always
-        // true. However, if this is ever called before then the unwrap()
-        // that was here before will crash the program with a panic! that
-        // makes shadow_color: None unusable.
-        if let Some(grid_shadow_color) = extracted.grid.shadow_color {
-            commands.entity(entity).insert(GridShadowUniformOffset {
-                offset: uniforms.uniforms.push(&GridShadowUniform {
-                    shadow_color: Vec4::from_slice(&grid_shadow_color.as_rgba_f32()),
-                    shadow_collapse_matrix: Mat3::from_cols(
-                        normal.cross(-intersect.up_dir),
-                        normal,
-                        -intersect.up_dir,
-                    )
-                    .inverse(),
-                    shadow_center_pos: intersect.center,
-                    shadow_texture_height: intersect.height,
-                    shadow_texture_width: intersect.width,
-                }),
-            });
-        }
-    }
-
-    uniforms
-        .uniforms
-        .write_buffer(&render_device, &render_queue);
-}
 
 fn prepare_bind_groups_for_infinite_grids(
     mut commands: Commands,
@@ -442,14 +320,14 @@ fn prepare_bind_groups_for_infinite_grids(
 #[allow(clippy::too_many_arguments)]
 fn queue_infinite_grids(
     pipeline_cache: Res<PipelineCache>,
-    transparent_draw_functions: Res<DrawFunctions<Transparent3d>>,
+    transparent_draw_functions: Res<DrawFunctions<Transparent2d>>,
     pipeline: Res<InfiniteGridPipeline>,
     mut pipelines: ResMut<SpecializedRenderPipelines<InfiniteGridPipeline>>,
     infinite_grids: Query<&ExtractedInfiniteGrid>,
     intersects: Query<&GridFrustumIntersect>,
     mut views: Query<(
         &VisibleEntities,
-        &mut RenderPhase<Transparent3d>,
+        &mut RenderPhase<Transparent2d>,
         &ExtractedView,
     )>,
     msaa: Res<Msaa>,
@@ -466,31 +344,19 @@ fn queue_infinite_grids(
             &pipeline,
             GridPipelineKey {
                 mesh_key,
-                has_shadows: false,
                 sample_count: msaa.samples(),
             },
         );
-        let shadow_pipeline = pipelines.specialize(
-            &pipeline_cache,
-            &pipeline,
-            GridPipelineKey {
-                mesh_key,
-                has_shadows: true,
-                sample_count: msaa.samples(),
-            },
-        );
+
         for &entity in &entities.entities {
             if infinite_grids
                 .get(entity)
                 .map(|grid| plane_check(&grid.transform, view.transform.translation()))
                 .unwrap_or(false)
             {
-                phase.items.push(Transparent3d {
-                    distance: f32::NEG_INFINITY,
-                    pipeline: match intersects.contains(entity) {
-                        true => shadow_pipeline,
-                        false => base_pipeline,
-                    },
+                phase.items.push(Transparent2d {
+                    sort_key: FloatOrd(0.0),
+                    pipeline:  base_pipeline,
                     entity,
                     draw_function: draw_function_id,
                     batch_range: 0..1,
@@ -529,7 +395,7 @@ impl FromWorld for InfiniteGridPipeline {
                 ty: BindingType::Buffer {
                     ty: BufferBindingType::Uniform,
                     has_dynamic_offset: true,
-                    min_binding_size: BufferSize::new(GridViewUniform::min_size().into()),
+                    min_binding_size: BufferSize::new(ViewUniform::min_size().into()),
                 },
                 count: None,
             }],
@@ -572,7 +438,6 @@ impl FromWorld for InfiniteGridPipeline {
 #[derive(Hash, PartialEq, Eq, Clone, Copy)]
 pub struct GridPipelineKey {
     mesh_key: MeshPipelineKey,
-    has_shadows: bool,
     sample_count: u32,
 }
 
@@ -586,11 +451,7 @@ impl SpecializedRenderPipeline for InfiniteGridPipeline {
         };
 
         RenderPipelineDescriptor {
-            label: Some(Cow::Borrowed(if key.has_shadows {
-                "grid-render-pipeline"
-            } else {
-                "grid-render-pipeline-shadowless"
-            })),
+            label: Some(Cow::from("grid-render-pipeline")),
             layout: vec![self.view_layout.clone(), self.infinite_grid_layout.clone()],
             push_constant_ranges: Vec::new(),
             vertex: VertexState {
@@ -608,22 +469,7 @@ impl SpecializedRenderPipeline for InfiniteGridPipeline {
                 polygon_mode: PolygonMode::Fill,
                 conservative: false,
             },
-            depth_stencil: Some(DepthStencilState {
-                format: TextureFormat::Depth32Float,
-                depth_write_enabled: false,
-                depth_compare: CompareFunction::Greater,
-                stencil: StencilState {
-                    front: StencilFaceState::IGNORE,
-                    back: StencilFaceState::IGNORE,
-                    read_mask: 0,
-                    write_mask: 0,
-                },
-                bias: DepthBiasState {
-                    constant: 0,
-                    slope_scale: 0.0,
-                    clamp: 0.0,
-                },
-            }),
+            depth_stencil: None,
             multisample: MultisampleState {
                 count: key.sample_count,
                 mask: !0,
@@ -631,11 +477,7 @@ impl SpecializedRenderPipeline for InfiniteGridPipeline {
             },
             fragment: Some(FragmentState {
                 shader: SHADER_HANDLE,
-                shader_defs: key
-                    .has_shadows
-                    .then(|| "SHADOWS".into())
-                    .into_iter()
-                    .collect(),
+                shader_defs: vec![],
                 entry_point: Cow::Borrowed("fragment"),
                 targets: vec![Some(ColorTargetState {
                     format,
@@ -656,25 +498,19 @@ pub fn render_app_builder(app: &mut App) {
         return;
     };
     render_app
-        .init_resource::<GridViewUniforms>()
+        .init_resource::<ViewUniforms>()
         .init_resource::<InfiniteGridUniforms>()
         .init_resource::<GridDisplaySettingsUniforms>()
-        .init_resource::<GridShadowUniforms>()
         .init_resource::<InfiniteGridPipeline>()
         .init_resource::<SpecializedRenderPipelines<InfiniteGridPipeline>>()
-        .add_render_command::<Transparent3d, DrawInfiniteGrid>()
+        .add_render_command::<Transparent2d, DrawInfiniteGrid>()
         .add_systems(
-            ExtractSchedule,
-            (extract_grid_shadows, extract_infinite_grids).chain(), // order to minimize move overhead
+            ExtractSchedule, extract_infinite_grids, // order to minimize move overhead
         )
         .add_systems(ExtractSchedule, extract_per_camera_settings)
         .add_systems(
             Render,
-            (
-                prepare_infinite_grids,
-                prepare_grid_shadows,
-                prepare_grid_view_uniforms,
-            )
+            (prepare_infinite_grids, )
                 .in_set(RenderSet::Prepare),
         )
         .add_systems(
