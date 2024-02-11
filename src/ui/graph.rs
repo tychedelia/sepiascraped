@@ -1,5 +1,6 @@
 use crate::texture::ramp::TextureRampSettings;
 use crate::texture::{TextureNode, TextureNodeImage};
+use crate::ui::grid::InfiniteGridSettings;
 use crate::ui::UiState;
 use bevy::prelude::*;
 use bevy::utils::{HashMap, HashSet};
@@ -23,12 +24,9 @@ impl Plugin for GraphPlugin {
 pub struct GraphId(NodeIndex<DefaultIx>);
 
 #[derive(Component)]
-pub struct GraphNode {
-}
+pub struct GraphNode {}
 
-impl GraphNode {
-
-}
+impl GraphNode {}
 
 type Graph = petgraph::stable_graph::StableGraph<GraphNode, (usize, usize)>;
 
@@ -77,13 +75,17 @@ pub fn ui(
     mut commands: Commands,
     mut state: ResMut<GraphState>,
     mut ui_state: ResMut<UiState>,
-    entities: Query<(Entity, &GraphId, &TextureNodeImage), Without<Sprite>>,
+    mut parent: Query<(Entity, &InheritedVisibility), With<InfiniteGridSettings>>,
+    entities: Query<(&TextureNodeImage), Added<GraphId>>,
 ) {
-    for (entity, graph_id, image) in entities.iter() {
-        commands.entity(entity).insert(SpriteBundle {
-            texture: (**image).clone(),
-            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 10.0)),
-            ..default()
+    for (image) in entities.iter() {
+        let (grid, _) = parent.single_mut();
+        commands.entity(grid).with_children(|parent| {
+            parent.spawn(SpriteBundle {
+                texture: (**image).clone(),
+                transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
+                ..default()
+            });
         });
     }
 }
@@ -95,7 +97,6 @@ fn texture_ui(
 ) {
     for (entity, _node) in textures.iter_mut() {
         let node_id = graph.graph.add_node(GraphNode {});
-        println!("Adding node: {:?}", node_id);
         commands.entity(entity).insert(GraphId(node_id));
     }
 }

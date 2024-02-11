@@ -1,5 +1,8 @@
 use std::borrow::Cow;
 
+use bevy::core_pipeline::core_2d::Transparent2d;
+use bevy::render::view::{ViewUniform, ViewUniformOffset, ViewUniforms};
+use bevy::utils::FloatOrd;
 use bevy::{
     ecs::{
         query::ROQueryItem,
@@ -31,9 +34,6 @@ use bevy::{
         Extract, ExtractSchedule, Render, RenderApp, RenderSet,
     },
 };
-use bevy::core_pipeline::core_2d::Transparent2d;
-use bevy::render::view::{ViewUniform, ViewUniformOffset, ViewUniforms};
-use bevy::utils::FloatOrd;
 
 use crate::ui::grid::{GridFrustumIntersect, InfiniteGridSettings};
 
@@ -286,7 +286,6 @@ fn prepare_infinite_grids(
         .write_buffer(&render_device, &render_queue);
 }
 
-
 fn prepare_bind_groups_for_infinite_grids(
     mut commands: Commands,
     position_uniforms: Res<InfiniteGridUniforms>,
@@ -349,7 +348,7 @@ fn queue_infinite_grids(
             {
                 phase.items.push(Transparent2d {
                     sort_key: FloatOrd(0.0),
-                    pipeline:  base_pipeline,
+                    pipeline: base_pipeline,
                     entity,
                     draw_function: draw_function_id,
                     batch_range: 0..1,
@@ -498,14 +497,11 @@ pub fn render_app_builder(app: &mut App) {
         .init_resource::<SpecializedRenderPipelines<InfiniteGridPipeline>>()
         .add_render_command::<Transparent2d, DrawInfiniteGrid>()
         .add_systems(
-            ExtractSchedule, extract_infinite_grids, // order to minimize move overhead
+            ExtractSchedule,
+            extract_infinite_grids, // order to minimize move overhead
         )
         .add_systems(ExtractSchedule, extract_per_camera_settings)
-        .add_systems(
-            Render,
-            (prepare_infinite_grids, )
-                .in_set(RenderSet::Prepare),
-        )
+        .add_systems(Render, (prepare_infinite_grids,).in_set(RenderSet::Prepare))
         .add_systems(
             Render,
             (

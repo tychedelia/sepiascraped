@@ -8,8 +8,7 @@ mod render;
 pub struct InfiniteGridPlugin;
 
 impl Plugin for InfiniteGridPlugin {
-    fn build(&self, app: &mut App) {
-    }
+    fn build(&self, app: &mut App) {}
 
     fn finish(&self, app: &mut App) {
         render::render_app_builder(app);

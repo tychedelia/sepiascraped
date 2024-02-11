@@ -39,7 +39,8 @@ pub fn ui_setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    commands.spawn(InfiniteGridBundle {
+
+    let id = commands.spawn(InfiniteGridBundle {
         settings: InfiniteGridSettings {
             // shadow_color: None,
             x_axis_color: Color::rgb(1.0, 0.2, 0.2),
@@ -47,7 +48,7 @@ pub fn ui_setup(
             ..default()
         },
         ..default()
-    });
+    }).id();
 
     // // Circle
     // commands.spawn(MaterialMesh2dBundle {
@@ -56,7 +57,6 @@ pub fn ui_setup(
     //     transform: Transform::from_translation(Vec3::new(-150., 0., 0.)),
     //     ..default()
     // });
-
 
     commands.spawn((
         Camera2dBundle {
@@ -70,10 +70,10 @@ pub fn ui_setup(
 mod camera_controller {
     use std::f32::consts::*;
 
-    use bevy::{input::mouse::MouseMotion, prelude::*};
+    use crate::ui::grid::InfiniteGridSettings;
     use bevy::input::mouse::MouseWheel;
     use bevy::input::touchpad::TouchpadMagnify;
-    use crate::ui::grid::InfiniteGridSettings;
+    use bevy::{input::mouse::MouseMotion, prelude::*};
 
     pub const RADIANS_PER_DOT: f32 = 1.0 / 180.0;
 
@@ -119,7 +119,7 @@ mod camera_controller {
             }
 
             if mouse_delta != Vec2::ZERO {
-                state.velocity = Vec3::new(-mouse_delta.x, mouse_delta.y, 0.0);
+                state.velocity = Vec3::new(mouse_delta.x, -mouse_delta.y, 0.0);
             } else {
                 state.velocity *= 0.9; // friction
                 if state.velocity.length_squared() < 1e-6 {
@@ -143,7 +143,7 @@ mod camera_controller {
 
             for ev_magnify in evr_touchpad_magnify.read() {
                 for (mut settings, _transform) in grid_settings.iter_mut() {
-                    settings.scale = (settings.scale + ev_magnify.0 * 0.5) .clamp(min, max);
+                    settings.scale = (settings.scale + ev_magnify.0 * 0.5).clamp(min, max);
                 }
             }
         }
