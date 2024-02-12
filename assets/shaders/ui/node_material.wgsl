@@ -10,11 +10,12 @@ struct NodeMaterial {
 
 @fragment
 fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
-    let border_width = 0.05;
 
     if (distance(mesh.uv, vec2<f32>(0.5, 0.5)) > 0.7) {
         return vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
+
+    let border_width = 0.05;
 
     if (mesh.uv.x > 1.0 - border_width || mesh.uv.x < border_width || mesh.uv.y > 1.0 - border_width || mesh.uv.y < border_width) {
         let hilight_border_width = 0.02;
@@ -25,6 +26,6 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
         }
         return vec4<f32>(0.1, 0.1, 0.1, 1.0);
     } else {
-        return textureSample(image_texture, image_sampler, mesh.uv * vec2<f32>(0.9, 0.9));
+        return textureSample(image_texture, image_sampler, mesh.uv / vec2<f32>(0.9, 0.9));
     }
 }

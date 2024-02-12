@@ -78,14 +78,20 @@ fn click_node(
     mut commands: Commands,
     mut click_events: EventReader<ClickNode>,
     mut prev_selected: Query<(Entity), With<SelectedNode>>,
-    mut graph_ref: Query<(&GraphRef, &Handle<NodeMaterial>)>,
+    mut all_mats: Query<&Handle<NodeMaterial>>,
+    mut clicked_q: Query<(&GraphRef, &Handle<NodeMaterial>)>,
     mut materials: ResMut<Assets<NodeMaterial>>,
 ) {
     for event in click_events.read() {
+        for mat in all_mats.iter_mut() {
+            let mut mat = materials.get_mut(&*mat).unwrap();
+            mat.selected = 0;
+        }
+
         for (entity) in prev_selected.iter_mut() {
             commands.entity(entity).remove::<SelectedNode>();
         }
-        let q = graph_ref.get(**event).unwrap();
+        let q = clicked_q.get(**event).unwrap();
         let entity = **q.0;
         commands.entity(entity).insert(SelectedNode);
         let material = materials.get_mut(q.1).unwrap();
@@ -109,9 +115,9 @@ pub fn ui(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<NodeMaterial>>,
     mut parent: Query<(Entity, &InheritedVisibility), With<InfiniteGridSettings>>,
-    entities: Query<(Entity, &TextureNodeImage), Added<GraphId>>,
+    entities: Query<(Entity, &TextureNodeImage, &GraphId), Added<GraphId>>,
 ) {
-    for (entity, image) in entities.iter() {
+    for (entity, image, graph_id) in entities.iter() {
         let (grid, _) = parent.single_mut();
         commands.entity(grid).with_children(|parent| {
             parent
@@ -125,7 +131,7 @@ pub fn ui(
                             selected: 0,
                             color_texture: (**image).clone(),
                         }),
-                        transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
+                        transform: Transform::from_translation(Vec3::new(0.0, 0.0, (*graph_id).index() as f32 + 1.0)),
                         ..Default::default()
                     },
                     PickableBundle::default(), // <- Makes the mesh pickable.

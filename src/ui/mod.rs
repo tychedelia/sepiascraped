@@ -60,7 +60,7 @@ pub fn ui_setup(
         MaterialMesh2dBundle {
             mesh: meshes
                 .add(Mesh::from(shape::Quad {
-                    size: Vec2::new(window.width() * 100.0, window.height() * 100.0),
+                    size: Vec2::new(window.width(), window.height()),
                     ..Default::default()
                 }))
                 .into(),
@@ -69,12 +69,12 @@ pub fn ui_setup(
             ..Default::default()
         },
         PickableBundle::default(), // <- Makes the mesh pickable.
-        // On::<Pointer<DragStart>>::target_insert(Pickable::IGNORE), // Disable picking
-        // On::<Pointer<DragEnd>>::target_insert(Pickable::default()), // Re-enable picking
-        // On::<Pointer<Drag>>::target_component_mut::<Transform>(|drag, transform| {
-        //     transform.translation.x += drag.delta.x; // Make the square follow the mouse
-        //     transform.translation.y -= drag.delta.y;
-        // }),
+        On::<Pointer<DragStart>>::target_insert(Pickable::IGNORE), // Disable picking
+        On::<Pointer<DragEnd>>::target_insert(Pickable::default()), // Re-enable picking
+        On::<Pointer<Drag>>::target_component_mut::<Transform>(|drag, transform| {
+            transform.translation.x += drag.delta.x; // Make the square follow the mouse
+            transform.translation.y -= drag.delta.y;
+        }),
     ));
 
     commands.spawn((
