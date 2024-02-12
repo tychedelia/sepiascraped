@@ -1,12 +1,17 @@
 use bevy::ecs::query::{QueryItem, WorldQuery};
 use bevy::prelude::*;
+use bevy::render::view::VisibleEntities;
 use bevy::sprite::MaterialMesh2dBundle;
 use bevy_egui::{egui, EguiContexts};
-
+use bevy_mod_picking::prelude::*;
+use bevy_mod_picking::{DefaultPickingPlugins, PickableBundle};
+use camera_controller::CameraControllerPlugin;
 use crate::texture::TextureNodeImage;
-use crate::ui::graph::GraphPlugin;
-use crate::ui::grid::{InfiniteGridBundle, InfiniteGridPlugin, InfiniteGridSettings};
+use crate::ui::event::ClickNode;
+use crate::ui::graph::{GraphPlugin, SelectedNode};
+use crate::ui::grid::{InfiniteGrid, InfiniteGridPlugin, InfiniteGridSettings};
 
+mod event;
 pub mod graph;
 pub mod grid;
 
@@ -16,9 +21,11 @@ impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
             GraphPlugin,
-            camera_controller::CameraControllerPlugin,
+            CameraControllerPlugin,
             InfiniteGridPlugin,
+            DefaultPickingPlugins,
         ))
+        .add_event::<ClickNode>()
         .init_resource::<UiState>()
         .insert_resource(AmbientLight {
             color: Color::WHITE,
@@ -38,25 +45,37 @@ pub fn ui_setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    window: Query<&Window>,
 ) {
-
-    let id = commands.spawn(InfiniteGridBundle {
-        settings: InfiniteGridSettings {
+    let window = window.single();
+    commands.spawn((
+        InfiniteGridSettings {
             // shadow_color: None,
             x_axis_color: Color::rgb(1.0, 0.2, 0.2),
             z_axis_color: Color::rgb(0.2, 0.2, 1.0),
             ..default()
         },
-        ..default()
-    }).id();
-
-    // // Circle
-    // commands.spawn(MaterialMesh2dBundle {
-    //     mesh: meshes.add(<shape::Circle as Into<Mesh>>::into(shape::Circle::new(50.))).into(),
-    //     material: materials.add(ColorMaterial::from(Color::PURPLE)),
-    //     transform: Transform::from_translation(Vec3::new(-150., 0., 0.)),
-    //     ..default()
-    // });
+        InfiniteGrid,
+        VisibleEntities::default(),
+        MaterialMesh2dBundle {
+            mesh: meshes
+                .add(Mesh::from(shape::Quad {
+                    size: Vec2::new(window.width() * 100.0, window.height() * 100.0),
+                    ..Default::default()
+                }))
+                .into(),
+            material: materials.add(Color::rgba(0.0, 0.0, 0.0, 0.0)),
+            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
+            ..Default::default()
+        },
+        PickableBundle::default(), // <- Makes the mesh pickable.
+        // On::<Pointer<DragStart>>::target_insert(Pickable::IGNORE), // Disable picking
+        // On::<Pointer<DragEnd>>::target_insert(Pickable::default()), // Re-enable picking
+        // On::<Pointer<Drag>>::target_component_mut::<Transform>(|drag, transform| {
+        //     transform.translation.x += drag.delta.x; // Make the square follow the mouse
+        //     transform.translation.y -= drag.delta.y;
+        // }),
+    ));
 
     commands.spawn((
         Camera2dBundle {
@@ -68,14 +87,12 @@ pub fn ui_setup(
 }
 
 mod camera_controller {
-    use std::f32::consts::*;
-
-    use crate::ui::grid::InfiniteGridSettings;
     use bevy::input::mouse::MouseWheel;
     use bevy::input::touchpad::TouchpadMagnify;
-    use bevy::{input::mouse::MouseMotion, prelude::*};
+    use bevy::prelude::*;
+    use bevy::sprite::Mesh2dHandle;
 
-    pub const RADIANS_PER_DOT: f32 = 1.0 / 180.0;
+    use crate::ui::grid::InfiniteGridSettings;
 
     #[derive(Component)]
     pub struct CameraController {
@@ -99,51 +116,32 @@ mod camera_controller {
     }
 
     fn camera_controller(
-        time: Res<Time>,
-        mut mouse_events: EventReader<MouseMotion>,
-        mouse_button_input: Res<ButtonInput<MouseButton>>,
         mut evr_touchpad_magnify: EventReader<TouchpadMagnify>,
         mut scroll_evr: EventReader<MouseWheel>,
-        mut grid_settings: Query<(&mut InfiniteGridSettings, &mut Transform)>,
+        mut grid_settings: Query<(&mut InfiniteGridSettings, &mut Transform, &Mesh2dHandle)>,
+        mut meshes: ResMut<Assets<Mesh>>,
         mut query: Query<(&mut CameraController), With<Camera>>,
     ) {
-        let dt = time.delta_seconds();
-
         if let Ok((mut state)) = query.get_single_mut() {
-            // Handle mouse input
-            let mut mouse_delta = Vec2::ZERO;
-            if mouse_button_input.pressed(MouseButton::Left) {
-                for mouse_event in mouse_events.read() {
-                    mouse_delta += mouse_event.delta;
-                }
-            }
-
-            if mouse_delta != Vec2::ZERO {
-                state.velocity = Vec3::new(mouse_delta.x, -mouse_delta.y, 0.0);
-            } else {
-                state.velocity *= 0.9; // friction
-                if state.velocity.length_squared() < 1e-6 {
-                    state.velocity = Vec3::ZERO;
-                }
-            }
-
-            for (_settings, mut transform) in grid_settings.iter_mut() {
-                transform.translation += state.velocity;
-            }
-
             // Handle zoom input
             let min = 0.1;
-            let max = 2.0;
+            let max = 3.0;
 
             for ev_scroll in scroll_evr.read() {
-                for (mut settings, _transform) in grid_settings.iter_mut() {
-                    settings.scale = (settings.scale + ev_scroll.y * 0.001).clamp(min, max);
+                if ev_scroll.y != 0.0 {
+                    for (mut settings, mut transform, mesh) in grid_settings.iter_mut() {
+                        let scale = (settings.scale + ev_scroll.y * 0.001).clamp(min, max);
+                        transform.scale = Vec3::new(1.0 / scale, 1.0 / scale, transform.scale.z);
+                        settings.scale = scale;
+                    }
                 }
             }
 
             for ev_magnify in evr_touchpad_magnify.read() {
-                for (mut settings, _transform) in grid_settings.iter_mut() {
-                    settings.scale = (settings.scale + ev_magnify.0 * 0.5).clamp(min, max);
+                for (mut settings, mut transform, mesh) in grid_settings.iter_mut() {
+                    let scale = (settings.scale + ev_magnify.0 * 0.001).clamp(min, max);
+                    transform.scale = Vec3::new(1.0 / scale, 1.0 / scale, transform.scale.z);
+                    settings.scale = scale;
                 }
             }
         }

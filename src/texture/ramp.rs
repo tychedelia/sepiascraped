@@ -61,8 +61,9 @@ fn side_panel_ui(
 ) {
     let ctx = egui_contexts.ctx_mut();
     if let Ok((entity, mut settings, _selected_node)) = selected_node.get_single_mut() {
+        println!("Selected texture ramp node: {:?}", entity);
         ui_state.side_panel = Some(
-            egui::Window::new("texture_ramp_side_panel")
+            egui::SidePanel::left("texture_ramp_side_panel")
                 .resizable(false)
                 .show(ctx, |ui| {
                     ui.heading("Ramp");
@@ -86,7 +87,6 @@ fn side_panel_ui(
                         });
                     settings.mode = mode.as_u32();
                 })
-                .unwrap()
                 .response,
         );
     }

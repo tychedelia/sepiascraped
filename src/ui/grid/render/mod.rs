@@ -316,7 +316,6 @@ fn queue_infinite_grids(
     pipeline: Res<InfiniteGridPipeline>,
     mut pipelines: ResMut<SpecializedRenderPipelines<InfiniteGridPipeline>>,
     infinite_grids: Query<&ExtractedInfiniteGrid>,
-    intersects: Query<&GridFrustumIntersect>,
     mut views: Query<(
         &VisibleEntities,
         &mut RenderPhase<Transparent2d>,

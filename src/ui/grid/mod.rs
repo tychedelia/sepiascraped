@@ -22,11 +22,8 @@ pub struct InfiniteGrid;
 pub struct InfiniteGridSettings {
     pub x_axis_color: Color,
     pub z_axis_color: Color,
-    pub shadow_color: Option<Color>,
     pub minor_line_color: Color,
     pub major_line_color: Color,
-    pub fadeout_distance: f32,
-    pub dot_fadeout_strength: f32,
     pub scale: f32,
 }
 
@@ -35,11 +32,8 @@ impl Default for InfiniteGridSettings {
         Self {
             x_axis_color: Color::rgb(1.0, 0.2, 0.2),
             z_axis_color: Color::rgb(0.2, 0.2, 1.0),
-            shadow_color: Some(Color::rgba(0.2, 0.2, 0.2, 0.7)),
             minor_line_color: Color::rgb(0.1, 0.1, 0.1),
             major_line_color: Color::rgb(0.25, 0.25, 0.25),
-            fadeout_distance: 100.,
-            dot_fadeout_strength: 0.25,
             scale: 1.,
         }
     }
@@ -60,7 +54,6 @@ pub struct InfiniteGridBundle {
     pub global_transform: GlobalTransform,
     pub settings: InfiniteGridSettings,
     pub grid: InfiniteGrid,
-    pub frustum_intersect: GridFrustumIntersect,
     pub visibility: Visibility,
     pub view_visibility: ViewVisibility,
     pub inherited_visibility: InheritedVisibility,
