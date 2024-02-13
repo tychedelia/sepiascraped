@@ -21,20 +21,18 @@ pub struct InfiniteGrid;
 #[derive(Component, Copy, Clone)]
 pub struct InfiniteGridSettings {
     pub x_axis_color: Color,
-    pub z_axis_color: Color,
+    pub y_axis_color: Color,
     pub minor_line_color: Color,
     pub major_line_color: Color,
-    pub scale: f32,
 }
 
 impl Default for InfiniteGridSettings {
     fn default() -> Self {
         Self {
             x_axis_color: Color::rgb(1.0, 0.2, 0.2),
-            z_axis_color: Color::rgb(0.2, 0.2, 1.0),
+            y_axis_color: Color::rgb(0.2, 0.2, 1.0),
             minor_line_color: Color::rgb(0.1, 0.1, 0.1),
             major_line_color: Color::rgb(0.25, 0.25, 0.25),
-            scale: 1.,
         }
     }
 }

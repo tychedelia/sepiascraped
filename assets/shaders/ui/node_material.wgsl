@@ -26,6 +26,10 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
         }
         return vec4<f32>(0.1, 0.1, 0.1, 1.0);
     } else {
-        return textureSample(image_texture, image_sampler, mesh.uv / vec2<f32>(0.9, 0.9));
+        return textureSample(image_texture, image_sampler, map_uv(mesh.uv));
     }
+}
+
+fn map_uv(uv: vec2<f32>) -> vec2<f32> {
+    return (uv - vec2<f32>(0.05, 0.05)) / 0.9;
 }

@@ -54,10 +54,8 @@ pub struct InfiniteGridUniform {
 
 #[derive(Debug, ShaderType)]
 pub struct GridDisplaySettingsUniform {
-    scale: f32,
-    // 1 / fadeout_distance
     x_axis_color: Vec3,
-    z_axis_color: Vec3,
+    y_axis_color: Vec3,
     minor_line_color: Vec4,
     major_line_color: Vec4,
 }
@@ -244,9 +242,8 @@ fn prepare_infinite_grids(
             settings_offset: settings_uniforms
                 .uniforms
                 .push(&GridDisplaySettingsUniform {
-                    scale: extracted.grid.scale,
                     x_axis_color: Vec3::from_slice(&extracted.grid.x_axis_color.as_rgba_f32()),
-                    z_axis_color: Vec3::from_slice(&extracted.grid.z_axis_color.as_rgba_f32()),
+                    y_axis_color: Vec3::from_slice(&extracted.grid.y_axis_color.as_rgba_f32()),
                     minor_line_color: Vec4::from_slice(
                         &extracted.grid.minor_line_color.as_rgba_f32(),
                     ),
@@ -264,9 +261,8 @@ fn prepare_infinite_grids(
                 offset: settings_uniforms
                     .uniforms
                     .push(&GridDisplaySettingsUniform {
-                        scale: settings.scale,
                         x_axis_color: Vec3::from_slice(&settings.x_axis_color.as_rgba_f32()),
-                        z_axis_color: Vec3::from_slice(&settings.z_axis_color.as_rgba_f32()),
+                        y_axis_color: Vec3::from_slice(&settings.y_axis_color.as_rgba_f32()),
                         minor_line_color: Vec4::from_slice(
                             &settings.minor_line_color.as_rgba_f32(),
                         ),

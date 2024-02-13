@@ -83,6 +83,8 @@ fn click_node(
     mut materials: ResMut<Assets<NodeMaterial>>,
 ) {
     for event in click_events.read() {
+        println!("click event");
+
         for mat in all_mats.iter_mut() {
             let mut mat = materials.get_mut(&*mat).unwrap();
             mat.selected = 0;
@@ -91,11 +93,13 @@ fn click_node(
         for (entity) in prev_selected.iter_mut() {
             commands.entity(entity).remove::<SelectedNode>();
         }
-        let q = clicked_q.get(**event).unwrap();
-        let entity = **q.0;
-        commands.entity(entity).insert(SelectedNode);
-        let material = materials.get_mut(q.1).unwrap();
-        material.selected = 1;
+
+        if let Ok(q) = clicked_q.get(**event) {
+            let entity = **q.0;
+            commands.entity(entity).insert(SelectedNode);
+            let material = materials.get_mut(q.1).unwrap();
+            material.selected = 1;
+        }
     }
 }
 
@@ -114,11 +118,16 @@ pub fn ui(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<NodeMaterial>>,
+    mut color_materials: ResMut<Assets<ColorMaterial>>,
     mut parent: Query<(Entity, &InheritedVisibility), With<InfiniteGridSettings>>,
     entities: Query<(Entity, &TextureNodeImage, &GraphId), Added<GraphId>>,
 ) {
     for (entity, image, graph_id) in entities.iter() {
         let (grid, _) = parent.single_mut();
+
+        let index = (*graph_id).index() as f32 + 10.0;
+
+        println!("index: {}", index);
         commands.entity(grid).with_children(|parent| {
             parent
                 .spawn((
@@ -131,36 +140,41 @@ pub fn ui(
                             selected: 0,
                             color_texture: (**image).clone(),
                         }),
-                        transform: Transform::from_translation(Vec3::new(0.0, 0.0, (*graph_id).index() as f32 + 1.0)),
+                        transform: Transform::from_translation(Vec3::new(0.0, 0.0, index)),
                         ..Default::default()
                     },
                     PickableBundle::default(), // <- Makes the mesh pickable.
                     On::<Pointer<Down>>::send_event::<ClickNode>(), // <- Send SelectedNode event on pointer down
                     On::<Pointer<DragStart>>::target_insert(Pickable::IGNORE), // Disable picking
                     On::<Pointer<DragEnd>>::target_insert(Pickable::default()), // Re-enable picking
-                    On::<Pointer<Drag>>::target_component_mut::<Transform>(|drag, transform| {
-                        transform.translation.x += drag.delta.x; // Make the square follow the mouse
-                        transform.translation.y -= drag.delta.y;
-                    }),
-                ));
-                // .with_children(|parent| {
-                //     parent.spawn((
-                //         PickableBundle {
-                //             pickable: Pickable::IGNORE,
-                //             ..default()
-                //         }, // <- Makes the mesh pickable.
-                //         GraphRef(entity),
-                //         SpriteBundle {
-                //             sprite: Sprite {
-                //                 custom_size: Some(Vec2::new(90.0, 90.0)),
-                //                 ..Default::default()
-                //             },
-                //             texture: (**image).clone(),
-                //             transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
-                //             ..default()
-                //         },
-                //     ));
-                // });
+                    On::<Pointer<Drag>>::run(
+                        |mut drag: ListenerMut<Pointer<Drag>>,
+                         projection: Query<&OrthographicProjection>,
+                         mut transform: Query<&mut Transform, With<GraphRef>>
+                        | {
+                            drag.stop_propagation();
+                            let mut transform = transform.get_mut(drag.target).unwrap();
+                            let projection = projection.single();
+
+                            transform.translation.x += drag.delta.x * projection.scale;
+                            transform.translation.y -= drag.delta.y * projection.scale;
+                        },
+                    ),
+                ))
+                .with_children(|parent| {
+                    parent.spawn((
+                        MaterialMesh2dBundle {
+                            mesh: meshes.add(Mesh::from(shape::Circle::new(10.0))).into(),
+                            material: color_materials.add(Color::rgb(0.5, 0.5, 0.5)),
+                            transform: Transform::from_translation(Vec3::new(50.0, 0.0, -1.0)),
+                            ..Default::default()
+                        },
+                        PickableBundle {
+                            pickable: Pickable::IGNORE,
+                            ..Default::default()
+                        }, // <- Makes the mesh pickable.
+                    ));
+                });
         });
     }
 }
