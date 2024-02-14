@@ -33,13 +33,7 @@ struct FirstPassCube;
 #[derive(Component)]
 struct MainPassCube;
 
-fn setup(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut images: ResMut<Assets<Image>>,
-    mut egui_user_textures: ResMut<EguiUserTextures>,
-) {
+fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     let size = Extent3d {
         width: 512,
         height: 512,
@@ -67,7 +61,6 @@ fn setup(
     image.resize(size);
 
     let image_handle_1 = images.add(image);
-    egui_user_textures.add_image(image_handle_1.clone());
 
     commands.spawn((
         TextureNodeBundle {
@@ -121,7 +114,6 @@ fn setup(
     image.resize(size);
 
     let image_handle_2 = images.add(image);
-    egui_user_textures.add_image(image_handle_2.clone());
 
     commands.spawn((
         TextureNodeBundle {

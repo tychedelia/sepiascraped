@@ -8,4 +8,11 @@ bevy = { git = "https://github.com/bevyengine/bevy" }
 bevy_egui = { git = "https://github.com/eerii/bevy_egui", features = ["immutable_ctx"] }
 egui_graph = { path = "../../mitchmindtree/egui_graph" }
 petgraph = "0.6.4"
-bevy_mod_picking = { path = "../../aevyrie/bevy_mod_picking", features = ["backend_egui"] }
+bevy_mod_picking = { path = "../../aevyrie/bevy_mod_picking", default-features = false, features = [
+    "backend_raycast",
+    "backend_bevy_ui",
+    "backend_sprite",
+#    "debug",
+    "selection",
+#    "highlight",
+    "backend_egui" ] }

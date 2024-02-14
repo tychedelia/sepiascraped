@@ -83,8 +83,6 @@ fn click_node(
     mut materials: ResMut<Assets<NodeMaterial>>,
 ) {
     for event in click_events.read() {
-        println!("click event");
-
         for mat in all_mats.iter_mut() {
             let mut mat = materials.get_mut(&*mat).unwrap();
             mat.selected = 0;
@@ -127,7 +125,6 @@ pub fn ui(
 
         let index = (*graph_id).index() as f32 + 10.0;
 
-        println!("index: {}", index);
         commands.entity(grid).with_children(|parent| {
             parent
                 .spawn((
