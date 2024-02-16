@@ -4,6 +4,9 @@ use bevy::sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle};
 use bevy::utils::{HashMap, HashSet};
 use bevy_mod_picking::prelude::*;
 use bevy_mod_picking::PickableBundle;
+use bevy_prototype_lyon::draw::Stroke;
+use bevy_prototype_lyon::prelude::{Fill, GeometryBuilder, Path, ShapeBundle};
+use bevy_prototype_lyon::shapes;
 use egui_graph::node::SocketKind;
 use petgraph::stable_graph::{DefaultIx, EdgeIndex, IndexType, NodeIndex};
 
@@ -149,32 +152,98 @@ pub fn ui(
                          projection: Query<&OrthographicProjection>,
                          mut transform: Query<&mut Transform, With<GraphRef>>
                         | {
-                            drag.stop_propagation();
-                            let mut transform = transform.get_mut(drag.target).unwrap();
-                            let projection = projection.single();
+                            if let Ok(mut transform) = transform.get_mut(drag.target) {
+                                let projection = projection.single();
 
-                            transform.translation.x += drag.delta.x * projection.scale;
-                            transform.translation.y -= drag.delta.y * projection.scale;
+                                transform.translation.x += drag.delta.x * projection.scale;
+                                transform.translation.y -= drag.delta.y * projection.scale;
+                            }
                         },
                     ),
                 ))
                 .with_children(|parent| {
-                    parent.spawn((
-                        MaterialMesh2dBundle {
-                            mesh: meshes.add(Mesh::from(shape::Circle::new(10.0))).into(),
-                            material: color_materials.add(Color::rgb(0.5, 0.5, 0.5)),
-                            transform: Transform::from_translation(Vec3::new(50.0, 0.0, -1.0)),
-                            ..Default::default()
-                        },
-                        PickableBundle {
-                            pickable: Pickable::IGNORE,
-                            ..Default::default()
-                        }, // <- Makes the mesh pickable.
-                    ));
+                    spawn_port(&mut meshes, &mut color_materials, parent, InPort(0), Vec3::new(50.0, 0.0, -1.0));
+                    spawn_port(&mut meshes, &mut color_materials, parent, OutPort(0), -Vec3::new(50.0, 0.0, -1.0));
                 });
         });
     }
 }
+
+fn spawn_port<T: Component>(
+    mut meshes: &mut ResMut<Assets<Mesh>>,
+    mut color_materials: &mut ResMut<Assets<ColorMaterial>>,
+    parent: &mut ChildBuilder,
+    port: T,
+    translation: Vec3,
+) {
+    parent.spawn((
+        port,
+        MaterialMesh2dBundle {
+            mesh: meshes.add(Mesh::from(shape::Circle::new(10.0))).into(),
+            material: color_materials.add(Color::rgb(0.5, 0.5, 0.5)),
+            transform: Transform::from_translation(translation),
+            ..Default::default()
+        },
+        PickableBundle::default(),
+        On::<Pointer<DragStart>>::target_insert((Pickable::IGNORE, ConnectStart)), // Disable picking
+        On::<Pointer<DragEnd>>::run(
+            move |event: Listener<Pointer<DragEnd>>, mut commands: Commands| {
+                println!("drag end");
+                commands
+                    .entity(event.target())
+                    .insert((Pickable::default(), ConnectEnd));
+            },
+        ),
+        On::<Pointer<Drag>>::run(
+            |event: Listener<Pointer<Drag>>,
+             mut commands: Commands,
+             projection: Query<(&Camera, &OrthographicProjection, &GlobalTransform)>,
+             mut me_q: Query<(&GlobalTransform, Option<&Children>)>| {
+                let (transform, children) = me_q.get_mut(event.target()).unwrap();
+
+                if let Some(children) = children {
+                    for child in children.iter() {
+                        commands.entity(*child).despawn_recursive();
+                    }
+                }
+
+                let (camera, projection, camera_transform) = projection.single();
+                let start = Vec2::ZERO;
+                let end = camera
+                    .viewport_to_world_2d(camera_transform, event.pointer_location.position)
+                    .expect("Failed to convert screen center to world coordinates")
+                    - transform.translation().xy();
+
+                commands.entity(event.target()).with_children(|parent| {
+                    parent.spawn((
+                        ShapeBundle {
+                            path: GeometryBuilder::build_as(&shapes::Line(start, end)),
+                            spatial: SpatialBundle {
+                                transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
+                                ..default()
+                            },
+                            ..default()
+                        },
+                        Stroke::new(Color::BLACK, 4.0),
+                        Pickable::IGNORE,
+                    ));
+                });
+            },
+        ),
+    ));
+}
+
+#[derive(Component)]
+pub struct InPort(u8);
+
+#[derive(Component)]
+pub struct OutPort(u8);
+
+#[derive(Component, Clone)]
+pub struct ConnectStart;
+
+#[derive(Component, Clone)]
+pub struct ConnectEnd;
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 pub struct NodeMaterial {

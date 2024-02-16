@@ -6,7 +6,8 @@ use bevy::{
         Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
     },
 };
-use bevy_egui::{EguiPlugin, EguiUserTextures};
+use bevy_egui::EguiPlugin;
+use bevy_prototype_lyon::plugin::ShapePlugin;
 
 use crate::texture::ramp::{TextureRampSettings, TextureRampSubGraph};
 use crate::texture::{
@@ -20,7 +21,13 @@ mod ui;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, EguiPlugin, TexturePlugin, UiPlugin))
+        .add_plugins((
+            DefaultPlugins,
+            EguiPlugin,
+            TexturePlugin,
+            UiPlugin,
+            ShapePlugin,
+        ))
         .add_systems(Startup, setup)
         .run();
 }

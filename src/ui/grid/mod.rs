@@ -17,7 +17,7 @@ impl Plugin for InfiniteGridPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(PreviousScale { scale: 1.0 })
             .add_systems(Startup, grid_setup)
-            .add_systems(Update, resize_grid_drag);
+            .add_systems(Update, resize_grid_drag_mesh);
     }
 
     fn finish(&self, app: &mut App) {
@@ -154,7 +154,7 @@ pub fn grid_setup(
         });
 }
 
-pub fn resize_grid_drag(
+pub fn resize_grid_drag_mesh(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     grid_drag: Query<(Entity, &Mesh2dHandle), With<GridDrag>>,

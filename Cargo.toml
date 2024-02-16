@@ -12,7 +12,8 @@ bevy_mod_picking = { path = "../../aevyrie/bevy_mod_picking", default-features =
     "backend_raycast",
     "backend_bevy_ui",
     "backend_sprite",
-#    "debug",
+    "debug",
     "selection",
-#    "highlight",
+    "highlight",
     "backend_egui" ] }
+bevy_prototype_lyon = { path = "../../Nilirad/bevy_prototype_lyon" }
