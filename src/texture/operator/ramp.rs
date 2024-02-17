@@ -3,13 +3,12 @@ use bevy::render::extract_component::{ComponentUniforms, ExtractComponent};
 use bevy::render::render_graph::{RenderLabel, RenderSubGraph};
 use bevy::render::render_resource::binding_types::uniform_buffer;
 use bevy::render::render_resource::{
-    BindGroupEntries, IntoBindGroupLayoutEntryBuilderArray, IntoBindingArray, ShaderType,
+    IntoBindGroupLayoutEntryBuilderArray, IntoBindingArray, ShaderType,
 };
 use bevy_egui::{egui, EguiContexts};
 
-use crate::texture::node::composite::CompositePlugin;
-use crate::texture::render::{TextureNodeRenderPlugin, TextureRenderNode};
-use crate::texture::{NodeType, TextureNodeInputs, TextureNodePlugin};
+use crate::texture::render::{TextureOpRenderNode, TextureOpRenderPlugin};
+use crate::texture::{Op, TextureOpInputs, TextureOpPlugin};
 use crate::ui::event::{Connect, Disconnect};
 use crate::ui::graph::SelectedNode;
 use crate::ui::UiState;
@@ -20,13 +19,13 @@ pub struct TextureRampPlugin;
 impl Plugin for TextureRampPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            TextureNodePlugin::<TextureRampPlugin>::default(),
-            TextureNodeRenderPlugin::<TextureRampPlugin, 1>::default(),
+            TextureOpPlugin::<TextureRampPlugin>::default(),
+            TextureOpRenderPlugin::<TextureRampPlugin, 1>::default(),
         ));
     }
 }
 
-impl TextureRenderNode<1> for TextureRampPlugin {
+impl TextureOpRenderNode<1> for TextureRampPlugin {
     const SHADER: &'static str = "shaders/texture/ramp.wgsl";
     type Uniform = TextureRampSettings;
 
@@ -43,7 +42,7 @@ impl TextureRenderNode<1> for TextureRampPlugin {
     }
 
     fn bind_group_entries<'a>(
-        inputs: &'a TextureNodeInputs,
+        inputs: &'a TextureOpInputs,
         world: &'a World,
     ) -> impl IntoBindingArray<'a, 1> {
         let settings_uniforms = world.resource::<ComponentUniforms<Self::Uniform>>();
@@ -58,7 +57,7 @@ pub struct TextureRampSubGraph;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
 struct TextureRampLabel;
 
-impl NodeType for TextureRampPlugin {
+impl Op for TextureRampPlugin {
     type Bundle = ();
     type SidePanelQuery = (
         Entity,
@@ -114,7 +113,7 @@ impl NodeType for TextureRampPlugin {
 
     fn connect_handler(
         mut ev_connect: EventReader<Connect>,
-        mut node_q: Query<Self::ConnectNodeQuery>,
+        mut node_q: Query<Self::ConnectOpQuery>,
         input_q: Query<Self::ConnectInputQuery>,
     ) {
         Self::add_image_inputs(&mut ev_connect, &mut node_q, input_q);
@@ -122,7 +121,7 @@ impl NodeType for TextureRampPlugin {
 
     fn disconnect_handler(
         mut ev_disconnect: EventReader<Disconnect>,
-        mut node_q: Query<Self::DisconnectNodeQuery>,
+        mut node_q: Query<Self::DisconnectOpQuery>,
         input_q: Query<Self::DisconnectInputQuery>,
     ) {
         Self::remove_image_inputs(&mut ev_disconnect, &mut node_q, input_q);

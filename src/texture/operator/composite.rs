@@ -4,13 +4,13 @@ use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_graph::{RenderLabel, RenderSubGraph};
 use bevy::render::render_resource::binding_types::{sampler, texture_2d, uniform_buffer};
 use bevy::render::render_resource::{
-    BindGroupEntries, IntoBindGroupLayoutEntryBuilderArray, IntoBindingArray, SamplerBindingType,
-    ShaderType, TextureSampleType,
+    IntoBindGroupLayoutEntryBuilderArray, IntoBindingArray, SamplerBindingType, ShaderType,
+    TextureSampleType,
 };
 use bevy_egui::{egui, EguiContexts};
 
-use crate::texture::render::{TextureNodeRenderPlugin, TextureRenderNode};
-use crate::texture::{NodeType, TextureNodeBundle, TextureNodeInputs, TextureNodePlugin};
+use crate::texture::render::{TextureOpRenderNode, TextureOpRenderPlugin};
+use crate::texture::{Op, TextureOpBundle, TextureOpInputs, TextureOpPlugin};
 use crate::ui::event::{Connect, Disconnect};
 use crate::ui::graph::SelectedNode;
 use crate::ui::UiState;
@@ -21,13 +21,13 @@ pub struct CompositePlugin;
 impl Plugin for CompositePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            TextureNodePlugin::<CompositePlugin>::default(),
-            TextureNodeRenderPlugin::<CompositePlugin, 5>::default(),
+            TextureOpPlugin::<CompositePlugin>::default(),
+            TextureOpRenderPlugin::<CompositePlugin, 5>::default(),
         ));
     }
 }
 
-impl TextureRenderNode<5> for CompositePlugin {
+impl TextureOpRenderNode<5> for CompositePlugin {
     const SHADER: &'static str = "shaders/texture/composite.wgsl";
     type Uniform = CompositeSettings;
 
@@ -50,7 +50,7 @@ impl TextureRenderNode<5> for CompositePlugin {
     }
 
     fn bind_group_entries<'a>(
-        inputs: &'a TextureNodeInputs,
+        inputs: &'a TextureOpInputs,
         world: &'a World,
     ) -> impl IntoBindingArray<'a, 5> {
         let settings_uniforms = world.resource::<ComponentUniforms<CompositeSettings>>();
@@ -68,11 +68,11 @@ impl TextureRenderNode<5> for CompositePlugin {
 
 #[derive(Bundle, Default)]
 pub struct CompositeNodeBundle {
-    node: TextureNodeBundle,
+    node: TextureOpBundle,
     settings: CompositeSettings,
 }
 
-impl NodeType for CompositePlugin {
+impl Op for CompositePlugin {
     type Bundle = ();
     type SidePanelQuery = (
         Entity,
@@ -112,7 +112,7 @@ impl NodeType for CompositePlugin {
 
     fn connect_handler(
         mut ev_connect: EventReader<Connect>,
-        mut node_q: Query<Self::ConnectNodeQuery>,
+        mut node_q: Query<Self::ConnectOpQuery>,
         input_q: Query<Self::ConnectInputQuery>,
     ) {
         Self::add_image_inputs(&mut ev_connect, &mut node_q, input_q);
@@ -120,7 +120,7 @@ impl NodeType for CompositePlugin {
 
     fn disconnect_handler(
         mut ev_disconnect: EventReader<Disconnect>,
-        mut node_q: Query<Self::DisconnectNodeQuery>,
+        mut node_q: Query<Self::DisconnectOpQuery>,
         input_q: Query<Self::DisconnectInputQuery>,
     ) {
         Self::remove_image_inputs(&mut ev_disconnect, &mut node_q, input_q);

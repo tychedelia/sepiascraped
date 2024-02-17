@@ -1,4 +1,5 @@
 #![feature(associated_type_defaults)]
+use crate::render::RenderPlugin;
 use bevy::prelude::*;
 use bevy::render::camera::{CameraOutputMode, CameraRenderGraph};
 use bevy::{
@@ -10,15 +11,16 @@ use bevy::{
 use bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::plugin::ShapePlugin;
 
-use crate::texture::node::composite::{CompositePlugin, CompositeSettings};
-use crate::texture::node::ramp::{TextureRampPlugin, TextureRampSettings};
-use crate::texture::render::TextureRenderNode;
+use crate::texture::operator::composite::{CompositePlugin, CompositeSettings};
+use crate::texture::operator::ramp::{TextureRampPlugin, TextureRampSettings};
+use crate::texture::render::TextureOpRenderNode;
 use crate::texture::{
-    TextureNode, TextureNodeBundle, TextureNodeImage, TextureNodeInputs, TextureNodeOutputs,
-    TextureNodeType, TexturePlugin,
+    TextureOp, TextureOpBundle, TextureOpImage, TextureOpInputs, TextureOpOutputs, TextureOpType,
+    TexturePlugin,
 };
 use crate::ui::UiPlugin;
 
+mod render;
 mod texture;
 mod ui;
 
@@ -27,6 +29,7 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             EguiPlugin,
+            RenderPlugin,
             TexturePlugin,
             UiPlugin,
             ShapePlugin,
@@ -73,25 +76,24 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     let image_handle_1 = images.add(image);
 
     commands.spawn((
-        TextureNodeBundle {
+        TextureOpBundle {
             camera: Camera3dBundle {
                 camera_render_graph: CameraRenderGraph::new(TextureRampPlugin::render_sub_graph()),
                 camera: Camera {
-                    output_mode: CameraOutputMode::Skip,
                     target: image_handle_1.clone().into(),
                     order: 1,
                     ..default()
                 },
                 ..default()
             },
-            node: TextureNode,
-            node_type: TextureNodeType("texture_ramp".into()),
-            image: TextureNodeImage(image_handle_1.clone()),
-            inputs: TextureNodeInputs {
+            op: TextureOp,
+            op_type: TextureOpType("texture_ramp".into()),
+            image: TextureOpImage(image_handle_1.clone()),
+            inputs: TextureOpInputs {
                 count: 0,
                 connections: vec![],
             },
-            outputs: TextureNodeOutputs { count: 1 },
+            outputs: TextureOpOutputs { count: 1 },
         },
         TextureRampSettings {
             color_a: Vec4::new(1.0, 0.0, 0.0, 1.0),
@@ -122,25 +124,24 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     let image_handle_2 = images.add(image);
 
     commands.spawn((
-        TextureNodeBundle {
+        TextureOpBundle {
             camera: Camera3dBundle {
                 camera_render_graph: CameraRenderGraph::new(TextureRampPlugin::render_sub_graph()),
                 camera: Camera {
-                    output_mode: CameraOutputMode::Skip,
                     order: 2,
                     target: image_handle_2.clone().into(),
                     ..default()
                 },
                 ..default()
             },
-            node: TextureNode,
-            node_type: TextureNodeType("texture_ramp".into()),
-            image: TextureNodeImage(image_handle_2.clone()),
-            inputs: TextureNodeInputs {
+            op: TextureOp,
+            op_type: TextureOpType("texture_ramp".into()),
+            image: TextureOpImage(image_handle_2.clone()),
+            inputs: TextureOpInputs {
                 count: 0,
                 connections: vec![],
             },
-            outputs: TextureNodeOutputs { count: 1 },
+            outputs: TextureOpOutputs { count: 1 },
         },
         TextureRampSettings {
             color_a: Vec4::new(1.0, 0.0, 0.0, 1.0),
@@ -171,25 +172,24 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     let image_handle_3 = images.add(image);
 
     commands.spawn((
-        TextureNodeBundle {
+        TextureOpBundle {
             camera: Camera3dBundle {
                 camera_render_graph: CameraRenderGraph::new(CompositePlugin::render_sub_graph()),
                 camera: Camera {
-                    output_mode: CameraOutputMode::Skip,
                     order: 3,
                     target: image_handle_3.clone().into(),
                     ..default()
                 },
                 ..default()
             },
-            node: TextureNode,
-            node_type: TextureNodeType("composite".into()),
-            image: TextureNodeImage(image_handle_3.clone()),
-            inputs: TextureNodeInputs {
+            op: TextureOp,
+            op_type: TextureOpType("composite".into()),
+            image: TextureOpImage(image_handle_3.clone()),
+            inputs: TextureOpInputs {
                 count: 1,
                 connections: vec![],
             },
-            outputs: TextureNodeOutputs { count: 0 },
+            outputs: TextureOpOutputs { count: 0 },
         },
         CompositeSettings { mode: 0 },
     ));

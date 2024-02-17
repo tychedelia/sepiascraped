@@ -21,20 +21,20 @@ use bevy::render::texture::BevyDefault;
 use bevy::render::view::ViewTarget;
 use bevy::render::{render_graph, RenderApp};
 
-use crate::texture::TextureNodeInputs;
+use crate::texture::TextureOpInputs;
 
 #[derive(Default)]
-pub struct TextureNodeRenderPlugin<P, const N: usize = 0> {
+pub struct TextureOpRenderPlugin<P, const N: usize = 0> {
     _marker: std::marker::PhantomData<P>,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderSubGraph)]
 pub struct TextureSubGraph;
 
-impl<P, const N: usize> Plugin for TextureNodeRenderPlugin<P, N>
+impl<P, const N: usize> Plugin for TextureOpRenderPlugin<P, N>
 where
-    P: TextureRenderNode<N> + Sync + Send + 'static,
-    ViewNodeRunner<TextureViewNode<P, N>>: FromWorld,
+    P: TextureOpRenderNode<N> + Sync + Send + 'static,
+    ViewNodeRunner<TextureOperatorViewNode<P, N>>: FromWorld,
 {
     fn build(&self, app: &mut App) {
         app.add_plugins((
@@ -45,7 +45,7 @@ where
         app.get_sub_app_mut(RenderApp)
             .unwrap()
             .add_render_sub_graph(P::render_sub_graph())
-            .add_render_graph_node::<ViewNodeRunner<TextureViewNode<P, N>>>(
+            .add_render_graph_node::<ViewNodeRunner<TextureOperatorViewNode<P, N>>>(
                 P::render_sub_graph(),
                 P::render_label(),
             );
@@ -56,11 +56,11 @@ where
             return;
         };
 
-        render_app.init_resource::<TextureNodePipeline<P, N>>();
+        render_app.init_resource::<TextureOpPipeline<P, N>>();
     }
 }
 
-pub trait TextureRenderNode<const N: usize = 1> {
+pub trait TextureOpRenderNode<const N: usize = 1> {
     const SHADER: &'static str;
     type Uniform: Component + ExtractComponent + ShaderType + WriteInto + Clone;
 
@@ -71,21 +71,21 @@ pub trait TextureRenderNode<const N: usize = 1> {
     fn bind_group_layout_entries() -> impl IntoBindGroupLayoutEntryBuilderArray<N>;
 
     fn bind_group_entries<'a>(
-        inputs: &'a TextureNodeInputs,
+        inputs: &'a TextureOpInputs,
         world: &'a World,
     ) -> impl IntoBindingArray<'a, N>;
 }
 
 #[derive(Resource)]
-struct TextureNodePipeline<P, const N: usize> {
+struct TextureOpPipeline<P, const N: usize> {
     layout: BindGroupLayout,
     pipeline_id: CachedRenderPipelineId,
     _plugin: std::marker::PhantomData<P>,
 }
 
-impl<P, const N: usize> FromWorld for TextureNodePipeline<P, N>
+impl<P, const N: usize> FromWorld for TextureOpPipeline<P, N>
 where
-    P: TextureRenderNode<N> + Sync + Send + 'static,
+    P: TextureOpRenderNode<N> + Sync + Send + 'static,
 {
     fn from_world(world: &mut World) -> Self {
         let render_device = world.resource::<RenderDevice>();
@@ -134,18 +134,18 @@ where
 }
 
 #[derive(Default)]
-struct TextureViewNode<P, const N: usize> {
+struct TextureOperatorViewNode<P, const N: usize> {
     _plugin: std::marker::PhantomData<P>,
 }
 
-impl<P, const N: usize> render_graph::ViewNode for TextureViewNode<P, N>
+impl<P, const N: usize> render_graph::ViewNode for TextureOperatorViewNode<P, N>
 where
-    P: TextureRenderNode<N> + Sync + Send + 'static,
+    P: TextureOpRenderNode<N> + Sync + Send + 'static,
 {
     type ViewQuery = (
         &'static ViewTarget,
         &'static DynamicUniformIndex<P::Uniform>,
-        &'static TextureNodeInputs,
+        &'static TextureOpInputs,
     );
 
     fn run(
@@ -159,7 +159,7 @@ where
             return Ok(());
         }
 
-        let composite_pipeline = world.resource::<TextureNodePipeline<P, N>>();
+        let composite_pipeline = world.resource::<TextureOpPipeline<P, N>>();
         let pipeline_cache = world.resource::<PipelineCache>();
 
         let Some(pipeline) = pipeline_cache.get_render_pipeline(composite_pipeline.pipeline_id)

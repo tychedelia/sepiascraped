@@ -17,9 +17,7 @@ use layout::topo::layout::VisualGraph;
 use layout::topo::placer::Placer;
 use petgraph::stable_graph::{DefaultIx, EdgeIndex, IndexType, NodeIndex};
 
-use crate::texture::{
-    TextureNode, TextureNodeImage, TextureNodeInputs, TextureNodeOutputs, TextureNodeType,
-};
+use crate::texture::{TextureOp, TextureOpImage, TextureOpInputs, TextureOpOutputs, TextureOpType};
 use crate::ui::event::{ClickNode, Connect, Disconnect};
 use crate::ui::grid::InfiniteGridSettings;
 use crate::ui::UiState;
@@ -38,7 +36,7 @@ impl Plugin for GraphPlugin {
                 (
                     ui,
                     texture_ui,
-                    update_graph,
+                    update_graph.after(texture_ui),
                     update_connections,
                     click_node.run_if(on_event::<ClickNode>()),
                 ),
@@ -89,9 +87,9 @@ pub struct ConnectedTo(Entity);
 
 #[derive(Resource, Default)]
 pub struct GraphState {
-    graph: Graph,
-    entity_map: HashMap<GraphId, Entity>,
-    layout: Layout,
+    pub graph: Graph,
+    pub entity_map: HashMap<NodeIndex, Entity>,
+    pub layout: Layout,
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -148,12 +146,12 @@ fn click_node(
 
 fn startup(mut state: ResMut<GraphState>) {}
 
-fn update_graph(
+pub fn update_graph(
     mut state: ResMut<GraphState>,
     mut added: Query<(Entity, &GraphId), Added<GraphId>>,
 ) {
     for (entity, graph_id) in added.iter_mut() {
-        state.entity_map.insert(*graph_id, entity);
+        state.entity_map.insert(graph_id.0, entity);
         state.layout = layout(
             state.graph.node_indices().map(|index| (index, Vec2::ZERO)),
             state.graph.edge_indices().map(|index| {
@@ -173,9 +171,9 @@ pub fn ui(
     entities: Query<
         (
             Entity,
-            &TextureNodeImage,
-            &TextureNodeInputs,
-            &TextureNodeOutputs,
+            &TextureOpImage,
+            &TextureOpInputs,
+            &TextureOpOutputs,
             &GraphId,
         ),
         Added<GraphId>,
@@ -449,7 +447,7 @@ fn update_connections(
 fn texture_ui(
     mut commands: Commands,
     mut graph: ResMut<GraphState>,
-    mut textures: Query<(Entity, &TextureNodeType, &TextureNode), Without<GraphId>>,
+    mut textures: Query<(Entity, &TextureOpType, &TextureOp), Without<GraphId>>,
 ) {
     for (entity, node_type, _node) in textures.iter_mut() {
         let node_id = graph.graph.add_node(GraphNode {

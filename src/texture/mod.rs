@@ -10,7 +10,7 @@ use bevy_egui::EguiContexts;
 use crate::ui::event::{Connect, Disconnect};
 use crate::ui::UiState;
 
-pub mod node;
+pub mod operator;
 pub mod render;
 
 pub struct TexturePlugin;
@@ -18,53 +18,53 @@ pub struct TexturePlugin;
 impl Plugin for TexturePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            ExtractComponentPlugin::<TextureNodeImage>::default(),
-            ExtractComponentPlugin::<TextureNodeType>::default(),
-            ExtractComponentPlugin::<TextureNodeInputs>::default(),
-            node::ramp::TextureRampPlugin,
-            node::composite::CompositePlugin,
+            ExtractComponentPlugin::<TextureOpImage>::default(),
+            ExtractComponentPlugin::<TextureOpType>::default(),
+            ExtractComponentPlugin::<TextureOpInputs>::default(),
+            operator::ramp::TextureRampPlugin,
+            operator::composite::CompositePlugin,
         ));
     }
 }
 
 #[derive(Component, Clone, Copy, Default)]
-pub struct TextureNode;
+pub struct TextureOp;
 
 #[derive(Component, Clone, ExtractComponent, Default)]
-pub struct TextureNodeType(pub String);
+pub struct TextureOpType(pub String);
 
 #[derive(Component, Clone, Debug, Deref, DerefMut, ExtractComponent, Default)]
-pub struct TextureNodeImage(pub Handle<Image>);
+pub struct TextureOpImage(pub Handle<Image>);
 
 #[derive(Component, ExtractComponent, Clone, Default)]
-pub struct TextureNodeInputs {
+pub struct TextureOpInputs {
     pub(crate) count: usize,
     pub(crate) connections: Vec<Handle<Image>>,
 }
 
 #[derive(Component, Default)]
-pub struct TextureNodeOutputs {
+pub struct TextureOpOutputs {
     pub(crate) count: usize,
 }
 
 #[derive(Bundle, Default)]
-pub struct TextureNodeBundle {
+pub struct TextureOpBundle {
     pub camera: Camera3dBundle,
-    pub node: TextureNode,
-    pub node_type: TextureNodeType,
-    pub image: TextureNodeImage,
-    pub inputs: TextureNodeInputs,
-    pub outputs: TextureNodeOutputs,
+    pub op: TextureOp,
+    pub op_type: TextureOpType,
+    pub image: TextureOpImage,
+    pub inputs: TextureOpInputs,
+    pub outputs: TextureOpOutputs,
 }
 
 #[derive(Default)]
-pub struct TextureNodePlugin<P> {
+pub struct TextureOpPlugin<P> {
     _marker: std::marker::PhantomData<P>,
 }
 
-impl<T> Plugin for TextureNodePlugin<T>
+impl<T> Plugin for TextureOpPlugin<T>
 where
-    T: NodeType + Send + Sync + 'static,
+    T: Op + Send + Sync + 'static,
 {
     fn build(&self, app: &mut App) {
         app.add_systems(
@@ -74,34 +74,34 @@ where
     }
 }
 
-pub trait NodeType {
+pub trait Op {
     type Bundle: Bundle;
     type SidePanelQuery: QueryData;
-    type ConnectNodeQuery: QueryData = (&'static mut TextureNodeInputs);
-    type ConnectInputQuery: QueryData = (&'static TextureNodeImage);
-    type DisconnectNodeQuery: QueryData = (&'static mut TextureNodeInputs);
-    type DisconnectInputQuery: QueryData = (&'static TextureNodeImage);
+    type ConnectOpQuery: QueryData = (&'static mut TextureOpInputs);
+    type ConnectInputQuery: QueryData = (&'static TextureOpImage);
+    type DisconnectOpQuery: QueryData = (&'static mut TextureOpInputs);
+    type DisconnectInputQuery: QueryData = (&'static TextureOpImage);
 
     fn side_panel_ui(
         ui_state: ResMut<UiState>,
         egui_contexts: EguiContexts,
-        selected_node: Query<Self::SidePanelQuery>,
+        selected_op: Query<Self::SidePanelQuery>,
     );
 
     fn connect_handler(
         ev_connect: EventReader<Connect>,
-        node_q: Query<Self::ConnectNodeQuery>,
+        node_q: Query<Self::ConnectOpQuery>,
         input_q: Query<Self::ConnectInputQuery>,
     );
 
     fn add_image_inputs(
         ev_connect: &mut EventReader<Connect>,
-        node_q: &mut Query<&mut TextureNodeInputs>,
-        input_q: Query<&TextureNodeImage>,
+        op_q: &mut Query<&mut TextureOpInputs>,
+        input_q: Query<&TextureOpImage>,
     ) {
         for ev in ev_connect.read() {
-            if let Ok((mut input)) = node_q.get_mut(ev.input) {
-                let input: &mut Mut<TextureNodeInputs> = &mut input;
+            if let Ok((mut input)) = op_q.get_mut(ev.input) {
+                let input: &mut Mut<TextureOpInputs> = &mut input;
                 if let Ok(image) = input_q.get(ev.output) {
                     input.connections.push(image.0.clone());
                 }
@@ -111,17 +111,17 @@ pub trait NodeType {
 
     fn disconnect_handler(
         ev_disconnect: EventReader<Disconnect>,
-        node_q: Query<Self::DisconnectNodeQuery>,
+        op_q: Query<Self::DisconnectOpQuery>,
         input_q: Query<Self::DisconnectInputQuery>,
     );
 
     fn remove_image_inputs(
         ev_disconnect: &mut EventReader<Disconnect>,
-        node_q: &mut Query<&mut TextureNodeInputs>,
-        input_q: Query<&TextureNodeImage>,
+        op_q: &mut Query<&mut TextureOpInputs>,
+        input_q: Query<&TextureOpImage>,
     ) {
         for ev in ev_disconnect.read() {
-            if let Ok((mut input)) = node_q.get_mut(ev.input) {
+            if let Ok((mut input)) = op_q.get_mut(ev.input) {
                 if let Ok(image) = input_q.get(ev.output) {
                     input.connections = input
                         .connections
