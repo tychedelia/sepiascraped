@@ -5,6 +5,7 @@ use bevy::utils::{HashMap, HashSet};
 use bevy_mod_picking::prelude::*;
 use bevy_mod_picking::PickableBundle;
 use bevy_prototype_lyon::draw::Stroke;
+use bevy_prototype_lyon::path::PathBuilder;
 use bevy_prototype_lyon::prelude::{Fill, GeometryBuilder, Path, ShapeBundle};
 use bevy_prototype_lyon::shapes;
 use egui_graph::node::SocketKind;
@@ -190,7 +191,7 @@ pub fn ui(
                 ))
                 .with_children(|parent| {
                     spawn_port(&mut meshes, &mut color_materials, parent, InPort(0), Vec3::new(50.0, 0.0, -1.0));
-                    spawn_port(&mut meshes, &mut color_materials, parent, OutPort(0), -Vec3::new(50.0, 0.0, -1.0));
+                    spawn_port(&mut meshes, &mut color_materials, parent, OutPort(0), Vec3::new(-50.0, 0.0, -1.0));
                 });
         });
     }
@@ -321,9 +322,22 @@ fn connection_drag_end(
 
 fn draw_connection(commands: &mut Commands, start: &Vec2, end: &Vec2, entity: Entity) {
     commands.entity(entity).with_children(|parent| {
+
+        let control_scale = ((end.x - start.x) / 2.0).max(30.0);
+        let src_control = *start + Vec2::X * control_scale;
+        let dst_control = *end - Vec2::X * control_scale;
+
+        let mut path_builder = PathBuilder::new();
+        path_builder.move_to(*start);
+        path_builder.cubic_bezier_to(
+            src_control,
+            dst_control,
+            *end,
+        );
+        let path = path_builder.build();
         parent.spawn((
             ShapeBundle {
-                path: GeometryBuilder::build_as(&shapes::Line(*start, *end)),
+                path,
                 spatial: SpatialBundle {
                     transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
                     ..default()
