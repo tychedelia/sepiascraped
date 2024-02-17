@@ -13,3 +13,9 @@ impl From<ListenerInput<Pointer<Down>>> for ClickNode {
 
 #[derive(Event)]
 pub struct Deselect;
+
+#[derive(Event, Debug)]
+pub struct Connect {
+    pub from: Entity,
+    pub to: Entity,
+}

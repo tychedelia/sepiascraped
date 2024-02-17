@@ -12,7 +12,7 @@ use egui_graph::node::SocketKind;
 use petgraph::stable_graph::{DefaultIx, EdgeIndex, IndexType, NodeIndex};
 
 use crate::texture::{TextureNode, TextureNodeImage, TextureNodeInputs, TextureNodeOutputs, TextureNodeType};
-use crate::ui::event::ClickNode;
+use crate::ui::event::{ClickNode, Connect};
 use crate::ui::grid::InfiniteGridSettings;
 use crate::ui::UiState;
 
@@ -21,6 +21,7 @@ pub struct GraphPlugin;
 impl Plugin for GraphPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GraphState>()
+            .add_event::<Connect>()
             .add_plugins(Material2dPlugin::<NodeMaterial>::default())
             .add_systems(Startup, startup)
             .add_systems(
@@ -302,6 +303,7 @@ fn connection_drag_end(
     graph_ref_q: Query<&GraphRef>,
     graph_id_q: Query<&GraphId>,
     mut graph_state: ResMut<GraphState>,
+    mut ev_connect: EventWriter<Connect>,
 ) {
     let (from_entity, children, from_parent, is_input, is_output) = me_q.get_mut(event.target()).unwrap();
     assert_ne!(is_input, is_output);
@@ -342,10 +344,18 @@ fn connection_drag_end(
             draw_connection(&mut commands, &start, &end, from_entity);
             commands.entity(from_entity).insert(ConnectedTo(to_entity));
             graph_state.graph.add_edge(from_graph_id.0, to_graph_id.0, (0, 0));
+            ev_connect.send(Connect {
+                from: from_graph_ref.0,
+                to: to_graph_ref.0,
+            });
         } else {
             draw_connection(&mut commands, &start, &end, to_entity);
             commands.entity(to_entity).insert(ConnectedTo(from_entity));
             graph_state.graph.add_edge(to_graph_id.0, from_graph_id.0, (0, 0));
+            ev_connect.send(Connect {
+                from: to_graph_ref.0,
+                to: from_graph_ref.0,
+            });
         }
     } else {
         if let Some(children) = children {

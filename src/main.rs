@@ -199,6 +199,6 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             },
         },
         CompositeSettings { mode: 0 },
-        CompositeInput(vec![image_handle_1, image_handle_2]),
+        CompositeInput(vec![]),
     ));
 }

@@ -25,6 +25,8 @@ use bevy::render::texture::BevyDefault;
 use bevy::render::view::ViewTarget;
 use bevy::render::{render_graph, RenderApp};
 use bevy_egui::{egui, EguiContexts};
+use crate::texture::TextureNodeImage;
+use crate::ui::event::Connect;
 
 pub struct CompositePlugin;
 
@@ -38,7 +40,7 @@ impl Plugin for CompositePlugin {
             UniformComponentPlugin::<CompositeSettings>::default(),
             ExtractComponentPlugin::<CompositeInput>::default(),
         ))
-        .add_systems(Update, side_panel_ui);
+        .add_systems(Update, (side_panel_ui, connection_listener));
 
         app.get_sub_app_mut(RenderApp)
             .unwrap()
@@ -214,6 +216,10 @@ impl render_graph::ViewNode for CompositeNode {
         (view_target, uniform_index, composite_input): QueryItem<Self::ViewQuery>,
         world: &World,
     ) -> Result<(), NodeRunError> {
+        if composite_input.0.len() != 2 {
+            return Ok(());
+        }
+
         let composite_pipeline = world.resource::<CompositePipeline>();
         let pipeline_cache = world.resource::<PipelineCache>();
         let images = world.resource::<RenderAssets<Image>>();
@@ -260,5 +266,19 @@ impl render_graph::ViewNode for CompositeNode {
         render_pass.draw(0..3, 0..1);
 
         Ok(())
+    }
+}
+
+fn connection_listener(
+    mut ev_connection: EventReader<Connect>,
+    mut composite_q: Query<(&mut CompositeInput)>,
+    mut input_q: Query<&TextureNodeImage>
+) {
+    for ev in ev_connection.read() {
+        if let Ok((mut input)) = composite_q.get_mut(ev.to) {
+            if let Ok(image) = input_q.get(ev.from) {
+                input.0.push(image.0.clone());
+            }
+        }
     }
 }

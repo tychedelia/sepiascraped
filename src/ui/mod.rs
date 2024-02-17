@@ -13,7 +13,7 @@ use crate::ui::graph::GraphPlugin;
 use crate::ui::grid::InfiniteGridPlugin;
 
 mod camera;
-mod event;
+pub mod event;
 pub mod graph;
 pub mod grid;
 
