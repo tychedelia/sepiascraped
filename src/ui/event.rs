@@ -16,6 +16,12 @@ pub struct Deselect;
 
 #[derive(Event, Debug)]
 pub struct Connect {
-    pub from: Entity,
-    pub to: Entity,
+    pub output: Entity,
+    pub input: Entity,
+}
+
+#[derive(Event, Debug)]
+pub struct Disconnect {
+    pub output: Entity,
+    pub input: Entity,
 }

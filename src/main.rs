@@ -1,3 +1,4 @@
+#![feature(associated_type_defaults)]
 use bevy::prelude::*;
 use bevy::render::camera::{CameraOutputMode, CameraRenderGraph};
 use bevy::{
@@ -9,8 +10,9 @@ use bevy::{
 use bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::plugin::ShapePlugin;
 
-use crate::texture::composite::{CompositeInput, CompositeSettings, CompositeSubGraph};
-use crate::texture::ramp::{TextureRampSettings, TextureRampSubGraph};
+use crate::texture::node::composite::{CompositePlugin, CompositeSettings};
+use crate::texture::node::ramp::{TextureRampPlugin, TextureRampSettings};
+use crate::texture::render::TextureRenderNode;
 use crate::texture::{
     TextureNode, TextureNodeBundle, TextureNodeImage, TextureNodeInputs, TextureNodeOutputs,
     TextureNodeType, TexturePlugin,
@@ -73,7 +75,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     commands.spawn((
         TextureNodeBundle {
             camera: Camera3dBundle {
-                camera_render_graph: CameraRenderGraph::new(TextureRampSubGraph),
+                camera_render_graph: CameraRenderGraph::new(TextureRampPlugin::render_sub_graph()),
                 camera: Camera {
                     output_mode: CameraOutputMode::Skip,
                     target: image_handle_1.clone().into(),
@@ -89,10 +91,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
                 count: 0,
                 connections: vec![],
             },
-            outputs: TextureNodeOutputs {
-                count: 1,
-                connections: vec![],
-            },
+            outputs: TextureNodeOutputs { count: 1 },
         },
         TextureRampSettings {
             color_a: Vec4::new(1.0, 0.0, 0.0, 1.0),
@@ -125,7 +124,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     commands.spawn((
         TextureNodeBundle {
             camera: Camera3dBundle {
-                camera_render_graph: CameraRenderGraph::new(TextureRampSubGraph),
+                camera_render_graph: CameraRenderGraph::new(TextureRampPlugin::render_sub_graph()),
                 camera: Camera {
                     output_mode: CameraOutputMode::Skip,
                     order: 2,
@@ -141,10 +140,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
                 count: 0,
                 connections: vec![],
             },
-            outputs: TextureNodeOutputs {
-                count: 1,
-                connections: vec![],
-            },
+            outputs: TextureNodeOutputs { count: 1 },
         },
         TextureRampSettings {
             color_a: Vec4::new(1.0, 0.0, 0.0, 1.0),
@@ -177,7 +173,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     commands.spawn((
         TextureNodeBundle {
             camera: Camera3dBundle {
-                camera_render_graph: CameraRenderGraph::new(CompositeSubGraph),
+                camera_render_graph: CameraRenderGraph::new(CompositePlugin::render_sub_graph()),
                 camera: Camera {
                     output_mode: CameraOutputMode::Skip,
                     order: 3,
@@ -193,12 +189,8 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
                 count: 1,
                 connections: vec![],
             },
-            outputs: TextureNodeOutputs {
-                count: 0,
-                connections: vec![],
-            },
+            outputs: TextureNodeOutputs { count: 0 },
         },
         CompositeSettings { mode: 0 },
-        CompositeInput(vec![]),
     ));
 }

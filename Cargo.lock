@@ -3479,6 +3479,7 @@ dependencies = [
  "bevy_mod_picking",
  "bevy_prototype_lyon",
  "egui_graph",
+ "layout-rs",
  "petgraph",
 ]
 

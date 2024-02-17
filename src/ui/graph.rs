@@ -9,10 +9,18 @@ use bevy_prototype_lyon::path::PathBuilder;
 use bevy_prototype_lyon::prelude::{Fill, GeometryBuilder, Path, ShapeBundle};
 use bevy_prototype_lyon::shapes;
 use egui_graph::node::SocketKind;
+use layout::core::base::Orientation;
+use layout::core::geometry::Point;
+use layout::core::style::StyleAttr;
+use layout::std_shapes::shapes::{Arrow, Element, ShapeKind};
+use layout::topo::layout::VisualGraph;
+use layout::topo::placer::Placer;
 use petgraph::stable_graph::{DefaultIx, EdgeIndex, IndexType, NodeIndex};
 
-use crate::texture::{TextureNode, TextureNodeImage, TextureNodeInputs, TextureNodeOutputs, TextureNodeType};
-use crate::ui::event::{ClickNode, Connect};
+use crate::texture::{
+    TextureNode, TextureNodeImage, TextureNodeInputs, TextureNodeOutputs, TextureNodeType,
+};
+use crate::ui::event::{ClickNode, Connect, Disconnect};
 use crate::ui::grid::InfiniteGridSettings;
 use crate::ui::UiState;
 
@@ -22,6 +30,7 @@ impl Plugin for GraphPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GraphState>()
             .add_event::<Connect>()
+            .add_event::<Disconnect>()
             .add_plugins(Material2dPlugin::<NodeMaterial>::default())
             .add_systems(Startup, startup)
             .add_systems(
@@ -82,6 +91,7 @@ pub struct ConnectedTo(Entity);
 pub struct GraphState {
     graph: Graph,
     entity_map: HashMap<GraphId, Entity>,
+    layout: Layout,
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -144,6 +154,13 @@ fn update_graph(
 ) {
     for (entity, graph_id) in added.iter_mut() {
         state.entity_map.insert(*graph_id, entity);
+        state.layout = layout(
+            state.graph.node_indices().map(|index| (index, Vec2::ZERO)),
+            state.graph.edge_indices().map(|index| {
+                let (a, b) = state.graph.edge_endpoints(index).unwrap();
+                (a, b)
+            }),
+        );
     }
 }
 
@@ -298,14 +315,24 @@ fn connection_drag_end(
     mut commands: Commands,
     event: Listener<Pointer<DragEnd>>,
     camera_q: Query<(&Camera, &GlobalTransform), With<OrthographicProjection>>,
-    mut me_q: Query<(Entity, Option<&Children>, &Parent, Has<InPort>, Has<OutPort>), With<Connecting>>,
+    mut me_q: Query<
+        (
+            Entity,
+            Option<&Children>,
+            &Parent,
+            Has<InPort>,
+            Has<OutPort>,
+        ),
+        With<Connecting>,
+    >,
     mut port_q: Query<(Entity, &Parent, &GlobalTransform, Has<InPort>, Has<OutPort>), With<Port>>,
     graph_ref_q: Query<&GraphRef>,
     graph_id_q: Query<&GraphId>,
     mut graph_state: ResMut<GraphState>,
     mut ev_connect: EventWriter<Connect>,
 ) {
-    let (from_entity, children, from_parent, is_input, is_output) = me_q.get_mut(event.target()).unwrap();
+    let (from_entity, children, from_parent, is_input, is_output) =
+        me_q.get_mut(event.target()).unwrap();
     assert_ne!(is_input, is_output);
 
     commands.entity(event.target()).insert(Pickable::default());
@@ -317,7 +344,7 @@ fn connection_drag_end(
         .expect("Failed to convert screen center to world coordinates");
 
     let mut closest_port = None;
-    for (entity, parent, transform, target_is_input, target_is_output, ) in port_q.iter() {
+    for (entity, parent, transform, target_is_input, target_is_output) in port_q.iter() {
         if is_input && target_is_input || is_output && target_is_output {
             continue;
         }
@@ -343,18 +370,22 @@ fn connection_drag_end(
         if is_output {
             draw_connection(&mut commands, &start, &end, from_entity);
             commands.entity(from_entity).insert(ConnectedTo(to_entity));
-            graph_state.graph.add_edge(from_graph_id.0, to_graph_id.0, (0, 0));
+            graph_state
+                .graph
+                .add_edge(from_graph_id.0, to_graph_id.0, (0, 0));
             ev_connect.send(Connect {
-                from: from_graph_ref.0,
-                to: to_graph_ref.0,
+                output: from_graph_ref.0,
+                input: to_graph_ref.0,
             });
         } else {
             draw_connection(&mut commands, &start, &end, to_entity);
             commands.entity(to_entity).insert(ConnectedTo(from_entity));
-            graph_state.graph.add_edge(to_graph_id.0, from_graph_id.0, (0, 0));
+            graph_state
+                .graph
+                .add_edge(to_graph_id.0, from_graph_id.0, (0, 0));
             ev_connect.send(Connect {
-                from: to_graph_ref.0,
-                to: from_graph_ref.0,
+                output: to_graph_ref.0,
+                input: from_graph_ref.0,
             });
         }
     } else {
@@ -421,7 +452,74 @@ fn texture_ui(
     mut textures: Query<(Entity, &TextureNodeType, &TextureNode), Without<GraphId>>,
 ) {
     for (entity, node_type, _node) in textures.iter_mut() {
-        let node_id = graph.graph.add_node(GraphNode { node_type: node_type.0.clone() });
+        let node_id = graph.graph.add_node(GraphNode {
+            node_type: node_type.0.clone(),
+        });
         commands.entity(entity).insert(GraphId(node_id));
     }
+}
+
+pub type Layout = HashMap<NodeIndex, Vec2>;
+
+pub fn layout(
+    nodes: impl IntoIterator<Item = (NodeIndex, Vec2)>,
+    edges: impl IntoIterator<Item = (NodeIndex, NodeIndex)>,
+) -> Layout {
+    let orientation = Orientation::LeftToRight;
+    let mut vg = VisualGraph::new(orientation);
+
+    let mut handles = HashMap::new();
+    let mut ids = Vec::new();
+    for (id, size) in nodes {
+        let shape = ShapeKind::new_box("");
+        let style = StyleAttr::simple();
+        let size = Point::new(size.x.into(), size.y.into());
+        let node = Element::create(shape, style, orientation, size);
+        let handle = vg.add_node(node);
+        handles.insert(id, handle);
+        ids.push((handle, id));
+    }
+
+    for (a, b) in edges {
+        let edge = Arrow::default();
+        let na = handles[&a];
+        let nb = handles[&b];
+        vg.add_edge(edge, na, nb);
+    }
+
+    vg.to_valid_dag();
+    vg.split_text_edges();
+    let disable_opts = false;
+    vg.split_long_edges(disable_opts);
+    Placer::new(&mut vg).layout(true);
+
+    // `layout-rs` lays out nodes down and to the right starting from the middle.
+    // We find the bounding box and shift the nodes up and to the right in order
+    // to centre them under the default `camera` position.
+    let mut min = None;
+    let mut max = None;
+    let mut layout = Layout::new();
+    for (handle, id) in ids {
+        let pos = vg.pos(handle);
+        let with_halo = false;
+        let (tl, br) = pos.bbox(with_halo);
+        let pos = [tl.x as f32, tl.y as f32].into();
+        layout.insert(id, pos);
+        let [x, y] = min.get_or_insert([tl.x, tl.y]);
+        *x = x.min(tl.x);
+        *y = y.min(tl.y);
+        let [x, y] = max.get_or_insert([br.x, br.y]);
+        *x = x.max(br.x);
+        *y = y.max(br.y);
+    }
+    if let (Some(min), Some(max)) = (min, max) {
+        let half_w = ((max[0] - min[0]) / 2.0) as f32;
+        let half_h = ((max[1] - min[1]) / 2.0) as f32;
+        for p in layout.values_mut() {
+            p.x -= half_w;
+            p.y -= half_h;
+        }
+    }
+
+    layout
 }
