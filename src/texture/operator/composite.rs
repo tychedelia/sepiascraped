@@ -56,12 +56,17 @@ impl TextureOpRenderNode<5> for CompositePlugin {
         let settings_uniforms = world.resource::<ComponentUniforms<CompositeSettings>>();
         let settings_binding = settings_uniforms.uniforms().binding().unwrap();
         let images = world.resource::<RenderAssets<Image>>();
+        let inputs = inputs
+            .connections
+            .iter()
+            .map(|(k, v)| v.clone())
+            .collect::<Vec<Handle<Image>>>();
         (
             settings_binding.clone(),
-            &images.get(&inputs.connections[0]).unwrap().texture_view,
-            &images.get(&inputs.connections[0]).unwrap().sampler,
-            &images.get(&inputs.connections[1]).unwrap().texture_view,
-            &images.get(&inputs.connections[1]).unwrap().sampler,
+            &images.get(&inputs[0]).unwrap().texture_view,
+            &images.get(&inputs[0]).unwrap().sampler,
+            &images.get(&inputs[1]).unwrap().texture_view,
+            &images.get(&inputs[1]).unwrap().sampler,
         )
     }
 }

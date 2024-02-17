@@ -6,6 +6,7 @@ use bevy_mod_picking::prelude::*;
 use bevy_mod_picking::PickableBundle;
 use bevy_prototype_lyon::draw::Stroke;
 use bevy_prototype_lyon::path::PathBuilder;
+use bevy_prototype_lyon::prelude::tess::math::Translation;
 use bevy_prototype_lyon::prelude::{Fill, GeometryBuilder, Path, ShapeBundle};
 use bevy_prototype_lyon::shapes;
 use egui_graph::node::SocketKind;
@@ -148,10 +149,16 @@ fn startup(mut state: ResMut<GraphState>) {}
 
 pub fn update_graph(
     mut state: ResMut<GraphState>,
-    mut added: Query<(Entity, &GraphId), Added<GraphId>>,
+    mut connected_q: Query<&Parent, Added<ConnectedTo>>,
+    mut added_q: Query<(Entity, &GraphId), Added<GraphId>>,
+    mut all_nodes_q: Query<(&GraphRef, &mut Transform)>,
+    graph_id_q: Query<&GraphId>,
 ) {
-    for (entity, graph_id) in added.iter_mut() {
+    for (entity, graph_id) in added_q.iter_mut() {
         state.entity_map.insert(graph_id.0, entity);
+    };
+
+    for parent in connected_q.iter_mut() {
         state.layout = layout(
             state.graph.node_indices().map(|index| (index, Vec2::ZERO)),
             state.graph.edge_indices().map(|index| {
@@ -159,6 +166,14 @@ pub fn update_graph(
                 (a, b)
             }),
         );
+    }
+
+    for (graph_ref, mut transform) in all_nodes_q.iter_mut() {
+        let graph_id = graph_id_q.get(**graph_ref).unwrap();
+        if let Some(pos) = state.layout.get(&graph_id.0) {
+            transform.translation.x = pos.x;
+            transform.translation.y = pos.y;
+        }
     }
 }
 
@@ -501,7 +516,8 @@ pub fn layout(
         let pos = vg.pos(handle);
         let with_halo = false;
         let (tl, br) = pos.bbox(with_halo);
-        let pos = [tl.x as f32, tl.y as f32].into();
+        let pos: Vec2 = [tl.x as f32, tl.y as f32].into();
+        let pos  = pos * 3.0;
         layout.insert(id, pos);
         let [x, y] = min.get_or_insert([tl.x, tl.y]);
         *x = x.min(tl.x);

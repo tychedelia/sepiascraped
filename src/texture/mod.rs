@@ -5,6 +5,7 @@ use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::render_graph::{RenderGraphApp, RenderLabel, RenderSubGraph, ViewNode};
 use bevy::render::render_resource::ShaderType;
 use bevy::render::texture::BevyDefault;
+use bevy::utils::HashMap;
 use bevy_egui::EguiContexts;
 
 use crate::ui::event::{Connect, Disconnect};
@@ -39,7 +40,7 @@ pub struct TextureOpImage(pub Handle<Image>);
 #[derive(Component, ExtractComponent, Clone, Default)]
 pub struct TextureOpInputs {
     pub(crate) count: usize,
-    pub(crate) connections: Vec<Handle<Image>>,
+    pub(crate) connections: HashMap<Entity, Handle<Image>>,
 }
 
 #[derive(Component, Default)]
@@ -101,9 +102,8 @@ pub trait Op {
     ) {
         for ev in ev_connect.read() {
             if let Ok((mut input)) = op_q.get_mut(ev.input) {
-                let input: &mut Mut<TextureOpInputs> = &mut input;
                 if let Ok(image) = input_q.get(ev.output) {
-                    input.connections.push(image.0.clone());
+                    input.connections.insert(ev.output, image.0.clone());
                 }
             }
         }
@@ -123,12 +123,7 @@ pub trait Op {
         for ev in ev_disconnect.read() {
             if let Ok((mut input)) = op_q.get_mut(ev.input) {
                 if let Ok(image) = input_q.get(ev.output) {
-                    input.connections = input
-                        .connections
-                        .iter()
-                        .filter(|i| *i != &image.0)
-                        .cloned()
-                        .collect();
+                    input.connections.remove(&ev.output);
                 }
             }
         }

@@ -8,6 +8,7 @@ use bevy::{
         Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
     },
 };
+use bevy::utils::hashbrown::HashMap;
 use bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::plugin::ShapePlugin;
 
@@ -91,7 +92,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             image: TextureOpImage(image_handle_1.clone()),
             inputs: TextureOpInputs {
                 count: 0,
-                connections: vec![],
+                connections: HashMap::new(),
             },
             outputs: TextureOpOutputs { count: 1 },
         },
@@ -139,7 +140,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             image: TextureOpImage(image_handle_2.clone()),
             inputs: TextureOpInputs {
                 count: 0,
-                connections: vec![],
+                connections: HashMap::new(),
             },
             outputs: TextureOpOutputs { count: 1 },
         },
@@ -186,8 +187,8 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             op_type: TextureOpType("composite".into()),
             image: TextureOpImage(image_handle_3.clone()),
             inputs: TextureOpInputs {
-                count: 1,
-                connections: vec![],
+                count: 2,
+                connections: HashMap::new(),
             },
             outputs: TextureOpOutputs { count: 0 },
         },
