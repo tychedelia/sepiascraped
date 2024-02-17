@@ -19,7 +19,7 @@ pub struct GraphPlugin;
 
 impl Plugin for GraphPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(GraphState::new())
+        app.init_resource::<GraphState>()
             .add_plugins(Material2dPlugin::<NodeMaterial>::default())
             .add_systems(Startup, startup)
             .add_systems(
@@ -28,11 +28,16 @@ impl Plugin for GraphPlugin {
                     ui,
                     texture_ui,
                     update_graph,
+                    update_connections,
                     click_node.run_if(on_event::<ClickNode>()),
                 ),
             );
     }
 }
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Components
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[derive(Component, Deref, DerefMut, Copy, Clone, PartialEq, Eq, Hash, Debug, Ord, PartialOrd)]
 pub struct GraphId(NodeIndex<DefaultIx>);
@@ -50,32 +55,55 @@ type Graph = petgraph::stable_graph::StableGraph<GraphNode, (usize, usize)>;
 #[derive(Component, Clone)]
 pub struct SelectedNode;
 
-#[derive(Resource)]
+#[derive(Component)]
+pub struct Port;
+
+#[derive(Component)]
+pub struct InPort(u8);
+
+#[derive(Component)]
+pub struct OutPort(u8);
+
+#[derive(Component, Clone)]
+pub struct ConnectStart;
+
+#[derive(Component)]
+pub struct ConnectedTo(Entity);
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Resources
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#[derive(Resource, Default)]
 pub struct GraphState {
     graph: Graph,
     entity_map: HashMap<GraphId, Entity>,
 }
 
-#[derive(Default)]
-struct Interaction {
-    selection: Selection,
-    edge_in_progress: Option<(NodeIndex, SocketKind, usize)>,
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Assets
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
+pub struct NodeMaterial {
+    #[uniform(0)]
+    selected: u32,
+    #[texture(1)]
+    #[sampler(2)]
+    color_texture: Handle<Image>,
 }
 
-#[derive(Default)]
-struct Selection {
-    nodes: HashSet<NodeIndex>,
-    edges: HashSet<EdgeIndex>,
-}
-
-impl GraphState {
-    fn new() -> Self {
-        Self {
-            graph: Graph::with_capacity(0, 0),
-            entity_map: Default::default(),
-        }
+// All functions on `Material2d` have default impls. You only need to implement the
+// functions that are relevant for your material.
+impl Material2d for NodeMaterial {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/ui/node_material.wgsl".into()
     }
 }
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Systems
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 fn click_node(
     mut commands: Commands,
@@ -125,7 +153,6 @@ pub fn ui(
 ) {
     for (entity, image, graph_id) in entities.iter() {
         let (grid, _) = parent.single_mut();
-
         let index = (*graph_id).index() as f32 + 10.0;
 
         commands.entity(grid).with_children(|parent| {
@@ -178,6 +205,7 @@ fn spawn_port<T: Component>(
 ) {
     parent.spawn((
         port,
+        Port,
         MaterialMesh2dBundle {
             mesh: meshes.add(Mesh::from(shape::Circle::new(10.0))).into(),
             material: color_materials.add(Color::rgb(0.5, 0.5, 0.5)),
@@ -186,79 +214,155 @@ fn spawn_port<T: Component>(
         },
         PickableBundle::default(),
         On::<Pointer<DragStart>>::target_insert((Pickable::IGNORE, ConnectStart)), // Disable picking
-        On::<Pointer<DragEnd>>::run(
-            move |event: Listener<Pointer<DragEnd>>, mut commands: Commands| {
-                println!("drag end");
-                commands
-                    .entity(event.target())
-                    .insert((Pickable::default(), ConnectEnd));
-            },
-        ),
-        On::<Pointer<Drag>>::run(
-            |event: Listener<Pointer<Drag>>,
-             mut commands: Commands,
-             projection: Query<(&Camera, &OrthographicProjection, &GlobalTransform)>,
-             mut me_q: Query<(&GlobalTransform, Option<&Children>)>| {
-                let (transform, children) = me_q.get_mut(event.target()).unwrap();
-
-                if let Some(children) = children {
-                    for child in children.iter() {
-                        commands.entity(*child).despawn_recursive();
-                    }
-                }
-
-                let (camera, projection, camera_transform) = projection.single();
-                let start = Vec2::ZERO;
-                let end = camera
-                    .viewport_to_world_2d(camera_transform, event.pointer_location.position)
-                    .expect("Failed to convert screen center to world coordinates")
-                    - transform.translation().xy();
-
-                commands.entity(event.target()).with_children(|parent| {
-                    parent.spawn((
-                        ShapeBundle {
-                            path: GeometryBuilder::build_as(&shapes::Line(start, end)),
-                            spatial: SpatialBundle {
-                                transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
-                                ..default()
-                            },
-                            ..default()
-                        },
-                        Stroke::new(Color::BLACK, 4.0),
-                        Pickable::IGNORE,
-                    ));
-                });
-            },
-        ),
+        On::<Pointer<Drag>>::run(connection_drag),
+        On::<Pointer<DragEnd>>::run(connection_drag_end),
     ));
 }
 
-#[derive(Component)]
-pub struct InPort(u8);
+fn connection_drag(
+    event: Listener<Pointer<Drag>>,
+    mut commands: Commands,
+    camera_q: Query<(&Camera, &GlobalTransform), With<OrthographicProjection>>,
+    mut me_q: Query<(&GlobalTransform, Option<&Children>, Has<InPort>, Has<OutPort>), With<ConnectStart>>,
+    mut port_q: Query<(Entity, &GlobalTransform, Has<InPort>, Has<OutPort>), With<Port>>,
+) {
+    let (transform, children, is_input, is_output) = me_q.get_mut(event.target()).unwrap();
+    assert_ne!(is_input, is_output);
 
-#[derive(Component)]
-pub struct OutPort(u8);
+    if let Some(children) = children {
+        for child in children.iter() {
+            commands.entity(*child).despawn_recursive();
+        }
+    }
 
-#[derive(Component, Clone)]
-pub struct ConnectStart;
+    let (camera, camera_transform) = camera_q.single();
+    let start = Vec2::ZERO;
+    let mut pointer_world = camera
+        .viewport_to_world_2d(camera_transform, event.pointer_location.position)
+        .expect("Failed to convert screen center to world coordinates");
 
-#[derive(Component, Clone)]
-pub struct ConnectEnd;
+    let mut end = pointer_world;
 
-#[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
-pub struct NodeMaterial {
-    #[uniform(0)]
-    selected: u32,
-    #[texture(1)]
-    #[sampler(2)]
-    color_texture: Handle<Image>,
+    // Snap to
+    let mut closest_port = None;
+    for (entity, transform, target_is_input, target_is_output) in port_q.iter() {
+        if is_input && target_is_input || is_output && target_is_output {
+            continue;
+        }
+
+        if transform.translation().xy().distance(pointer_world) < 40.0 {
+            closest_port = Some((entity, transform, is_input));
+        }
+    }
+
+    if let Some((to_entity, transform, is_input)) = closest_port {
+        println!("Closest port: {:?}", to_entity);
+        end = transform.translation().xy();
+    }
+
+    end -= transform.translation().xy();
+
+    let entity = event.target();
+    draw_connection(&mut commands, &start, &end, entity);
 }
 
-// All functions on `Material2d` have default impls. You only need to implement the
-// functions that are relevant for your material.
-impl Material2d for NodeMaterial {
-    fn fragment_shader() -> ShaderRef {
-        "shaders/ui/node_material.wgsl".into()
+fn connection_drag_end(
+    mut commands: Commands,
+    event: Listener<Pointer<DragEnd>>,
+    camera_q: Query<(&Camera, &GlobalTransform), With<OrthographicProjection>>,
+    mut me_q: Query<(Option<&Children>, Has<InPort>, Has<OutPort>), With<ConnectStart>>,
+    mut port_q: Query<(Entity, &GlobalTransform, Has<InPort>, Has<OutPort>), With<Port>>,
+) {
+    let (children, is_input, is_output) = me_q.get_mut(event.target()).unwrap();
+    assert_ne!(is_input, is_output);
+
+    commands.entity(event.target()).insert(Pickable::default());
+
+    let (camera, camera_transform) = camera_q.single();
+    let pointer_world = camera
+        .viewport_to_world_2d(camera_transform, event.pointer_location.position)
+        .expect("Failed to convert screen center to world coordinates");
+
+    let mut closest_port = None;
+    for (entity, transform, target_is_input, target_is_output) in port_q.iter() {
+        if is_input && target_is_input || is_output && target_is_output {
+            continue;
+        }
+
+        if transform.translation().xy().distance(pointer_world) < 40.0 {
+            closest_port = Some((entity, transform, is_input));
+        }
+    }
+
+    if let Some((to_entity, transform, is_input)) = closest_port {
+        let start = Vec2::ZERO;
+        let end = camera
+            .viewport_to_world_2d(camera_transform, event.pointer_location.position)
+            .expect("Failed to convert screen center to world coordinates")
+            - transform.translation().xy();
+        let from_entity = event.target();
+
+        // Ensure the connection is created on the input side
+        if is_input {
+            draw_connection(&mut commands, &start, &end, from_entity);
+            commands.entity(from_entity).insert(ConnectedTo(to_entity));
+        } else {
+            draw_connection(&mut commands, &start, &end, to_entity);
+            commands.entity(to_entity).insert(ConnectedTo(from_entity));
+        }
+    } else {
+        if let Some(children) = children {
+            for child in children.iter() {
+                commands.entity(*child).despawn_recursive();
+            }
+        }
+    }
+}
+
+fn draw_connection(commands: &mut Commands, start: &Vec2, end: &Vec2, entity: Entity) {
+    commands.entity(entity).with_children(|parent| {
+        parent.spawn((
+            ShapeBundle {
+                path: GeometryBuilder::build_as(&shapes::Line(*start, *end)),
+                spatial: SpatialBundle {
+                    transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
+                    ..default()
+                },
+                ..default()
+            },
+            Stroke::new(Color::BLACK, 4.0),
+            Pickable::IGNORE,
+        ));
+    });
+}
+
+fn update_connections(
+    mut commands: Commands,
+    in_port_q: Query<
+        (
+            Entity,
+            &GlobalTransform,
+            Option<&ConnectedTo>,
+            &mut Children,
+        ),
+        With<InPort>,
+    >,
+    out_port_q: Query<(Entity, &GlobalTransform, &Transform), With<OutPort>>,
+) {
+    // Connect inputs to outputs
+    for (in_entity, transform, in_connected_to, children) in in_port_q.iter() {
+        if let Some(in_connected_to) = in_connected_to {
+            let (out_entity, output_global_transform, output_transform) = out_port_q.get(in_connected_to.0).unwrap();
+
+            let start = Vec2::ZERO;
+            let end = output_global_transform.translation().xy() - transform.translation().xy();
+
+            for child in children.iter() {
+                commands.entity(*child).despawn_recursive();
+            }
+
+            draw_connection(&mut commands, &start, &end, in_entity);
+        }
     }
 }
 
