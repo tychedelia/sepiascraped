@@ -11,7 +11,7 @@ use bevy_prototype_lyon::shapes;
 use egui_graph::node::SocketKind;
 use petgraph::stable_graph::{DefaultIx, EdgeIndex, IndexType, NodeIndex};
 
-use crate::texture::{TextureNode, TextureNodeImage, TextureNodeInputs, TextureNodeOutputs};
+use crate::texture::{TextureNode, TextureNodeImage, TextureNodeInputs, TextureNodeOutputs, TextureNodeType};
 use crate::ui::event::ClickNode;
 use crate::ui::grid::InfiniteGridSettings;
 use crate::ui::UiState;
@@ -46,8 +46,10 @@ pub struct GraphId(NodeIndex<DefaultIx>);
 #[derive(Component, Deref, DerefMut, Copy, Clone, PartialEq, Eq, Hash, Debug, Ord, PartialOrd)]
 pub struct GraphRef(Entity);
 
-#[derive(Component)]
-pub struct GraphNode {}
+#[derive(Component, Debug)]
+pub struct GraphNode {
+    node_type: String,
+}
 
 impl GraphNode {}
 
@@ -66,7 +68,7 @@ pub struct InPort(u8);
 pub struct OutPort(u8);
 
 #[derive(Component, Clone)]
-pub struct ConnectStart;
+pub struct Connecting;
 
 #[derive(Component)]
 pub struct ConnectedTo(Entity);
@@ -229,7 +231,7 @@ fn spawn_port<T: Component>(
             ..Default::default()
         },
         PickableBundle::default(),
-        On::<Pointer<DragStart>>::target_insert((Pickable::IGNORE, ConnectStart)), // Disable picking
+        On::<Pointer<DragStart>>::target_insert((Pickable::IGNORE, Connecting)), // Disable picking
         On::<Pointer<Drag>>::run(connection_drag),
         On::<Pointer<DragEnd>>::run(connection_drag_end),
     ));
@@ -246,61 +248,66 @@ fn connection_drag(
             Has<InPort>,
             Has<OutPort>,
         ),
-        With<ConnectStart>,
+        With<Connecting>,
     >,
     mut port_q: Query<(Entity, &GlobalTransform, Has<InPort>, Has<OutPort>), With<Port>>,
 ) {
-    let (transform, children, is_input, is_output) = me_q.get_mut(event.target()).unwrap();
-    assert_ne!(is_input, is_output);
+    // TODO: this event sholdn't fire
+    if let Ok((transform, children, is_input, is_output)) = me_q.get_mut(event.target()) {
+        assert_ne!(is_input, is_output);
 
-    if let Some(children) = children {
-        for child in children.iter() {
-            commands.entity(*child).despawn_recursive();
-        }
-    }
-
-    let (camera, camera_transform) = camera_q.single();
-    let start = Vec2::ZERO;
-    let mut pointer_world = camera
-        .viewport_to_world_2d(camera_transform, event.pointer_location.position)
-        .expect("Failed to convert screen center to world coordinates");
-
-    let mut end = pointer_world;
-
-    // Snap to
-    let mut closest_port = None;
-    for (entity, transform, target_is_input, target_is_output) in port_q.iter() {
-        if is_input && target_is_input || is_output && target_is_output {
-            continue;
+        if let Some(children) = children {
+            for child in children.iter() {
+                commands.entity(*child).despawn_recursive();
+            }
         }
 
-        if transform.translation().xy().distance(pointer_world) < 40.0 {
-            closest_port = Some((entity, transform, is_input));
+        let (camera, camera_transform) = camera_q.single();
+        let start = Vec2::ZERO;
+        let mut pointer_world = camera
+            .viewport_to_world_2d(camera_transform, event.pointer_location.position)
+            .expect("Failed to convert screen center to world coordinates");
+
+        let mut end = pointer_world;
+
+        // Snap to
+        let mut closest_port = None;
+        for (entity, transform, target_is_input, target_is_output) in port_q.iter() {
+            if is_input && target_is_input || is_output && target_is_output {
+                continue;
+            }
+
+            if transform.translation().xy().distance(pointer_world) < 40.0 {
+                closest_port = Some((entity, transform, is_input));
+            }
         }
+
+        if let Some((to_entity, transform, is_input)) = closest_port {
+            end = transform.translation().xy();
+        }
+
+        end -= transform.translation().xy();
+
+        let entity = event.target();
+        draw_connection(&mut commands, &start, &end, entity);
     }
-
-    if let Some((to_entity, transform, is_input)) = closest_port {
-        println!("Closest port: {:?}", to_entity);
-        end = transform.translation().xy();
-    }
-
-    end -= transform.translation().xy();
-
-    let entity = event.target();
-    draw_connection(&mut commands, &start, &end, entity);
 }
 
 fn connection_drag_end(
     mut commands: Commands,
     event: Listener<Pointer<DragEnd>>,
     camera_q: Query<(&Camera, &GlobalTransform), With<OrthographicProjection>>,
-    mut me_q: Query<(Option<&Children>, Has<InPort>, Has<OutPort>), With<ConnectStart>>,
-    mut port_q: Query<(Entity, &GlobalTransform, Has<InPort>, Has<OutPort>), With<Port>>,
+    mut me_q: Query<(Entity, Option<&Children>, &Parent, Has<InPort>, Has<OutPort>), With<Connecting>>,
+    mut port_q: Query<(Entity, &Parent, &GlobalTransform, Has<InPort>, Has<OutPort>), With<Port>>,
+    graph_ref_q: Query<&GraphRef>,
+    graph_id_q: Query<&GraphId>,
+    mut graph_state: ResMut<GraphState>,
 ) {
-    let (children, is_input, is_output) = me_q.get_mut(event.target()).unwrap();
+    let (from_entity, children, from_parent, is_input, is_output) = me_q.get_mut(event.target()).unwrap();
     assert_ne!(is_input, is_output);
 
     commands.entity(event.target()).insert(Pickable::default());
+    commands.entity(event.target()).remove::<Connecting>();
 
     let (camera, camera_transform) = camera_q.single();
     let pointer_world = camera
@@ -308,31 +315,37 @@ fn connection_drag_end(
         .expect("Failed to convert screen center to world coordinates");
 
     let mut closest_port = None;
-    for (entity, transform, target_is_input, target_is_output) in port_q.iter() {
+    for (entity, parent, transform, target_is_input, target_is_output, ) in port_q.iter() {
         if is_input && target_is_input || is_output && target_is_output {
             continue;
         }
 
         if transform.translation().xy().distance(pointer_world) < 40.0 {
-            closest_port = Some((entity, transform, is_input));
+            closest_port = Some((entity, parent, transform, is_input));
         }
     }
 
-    if let Some((to_entity, transform, is_input)) = closest_port {
+    if let Some((to_entity, to_parent, transform, is_input)) = closest_port {
         let start = Vec2::ZERO;
         let end = camera
             .viewport_to_world_2d(camera_transform, event.pointer_location.position)
             .expect("Failed to convert screen center to world coordinates")
             - transform.translation().xy();
-        let from_entity = event.target();
 
-        // Ensure the connection is created on the input side
-        if is_input {
+        let from_graph_ref = graph_ref_q.get(**from_parent).unwrap();
+        let from_graph_id = graph_id_q.get(from_graph_ref.0).unwrap();
+        let to_graph_ref = graph_ref_q.get(**to_parent).unwrap();
+        let to_graph_id = graph_id_q.get(to_graph_ref.0).unwrap();
+
+        // Ensure the connection is created on the output side
+        if is_output {
             draw_connection(&mut commands, &start, &end, from_entity);
             commands.entity(from_entity).insert(ConnectedTo(to_entity));
+            graph_state.graph.add_edge(from_graph_id.0, to_graph_id.0, (0, 0));
         } else {
             draw_connection(&mut commands, &start, &end, to_entity);
             commands.entity(to_entity).insert(ConnectedTo(from_entity));
+            graph_state.graph.add_edge(to_graph_id.0, from_graph_id.0, (0, 0));
         }
     } else {
         if let Some(children) = children {
@@ -370,42 +383,35 @@ fn draw_connection(commands: &mut Commands, start: &Vec2, end: &Vec2, entity: En
 
 fn update_connections(
     mut commands: Commands,
-    in_port_q: Query<
-        (
-            Entity,
-            &GlobalTransform,
-            Option<&ConnectedTo>,
-            &mut Children,
-        ),
-        With<InPort>,
-    >,
-    out_port_q: Query<(Entity, &GlobalTransform, &Transform), With<OutPort>>,
+    port_children_q: Query<&Children, (With<Port>, Without<Connecting>)>,
+    out_port_q: Query<(Entity, &GlobalTransform, &ConnectedTo), With<OutPort>>,
+    in_port_q: Query<(Entity, &GlobalTransform, &Transform), With<InPort>>,
 ) {
-    // Connect inputs to outputs
-    for (in_entity, transform, in_connected_to, children) in in_port_q.iter() {
-        if let Some(in_connected_to) = in_connected_to {
-            let (out_entity, output_global_transform, output_transform) =
-                out_port_q.get(in_connected_to.0).unwrap();
-
-            let start = Vec2::ZERO;
-            let end = output_global_transform.translation().xy() - transform.translation().xy();
-
-            for child in children.iter() {
-                commands.entity(*child).despawn_recursive();
-            }
-
-            draw_connection(&mut commands, &start, &end, in_entity);
+    for children in port_children_q.iter() {
+        for child in children.iter() {
+            commands.entity(*child).despawn_recursive();
         }
+    }
+
+    // Connect inputs to outputs
+    for (in_entity, transform, in_connected_to) in out_port_q.iter() {
+        let (out_entity, output_global_transform, output_transform) =
+            in_port_q.get(in_connected_to.0).unwrap();
+
+        let start = Vec2::ZERO;
+        let end = output_global_transform.translation().xy() - transform.translation().xy();
+
+        draw_connection(&mut commands, &start, &end, in_entity);
     }
 }
 
 fn texture_ui(
     mut commands: Commands,
     mut graph: ResMut<GraphState>,
-    mut textures: Query<(Entity, &TextureNode), Without<GraphId>>,
+    mut textures: Query<(Entity, &TextureNodeType, &TextureNode), Without<GraphId>>,
 ) {
-    for (entity, _node) in textures.iter_mut() {
-        let node_id = graph.graph.add_node(GraphNode {});
+    for (entity, node_type, _node) in textures.iter_mut() {
+        let node_id = graph.graph.add_node(GraphNode { node_type: node_type.0.clone() });
         commands.entity(entity).insert(GraphId(node_id));
     }
 }
