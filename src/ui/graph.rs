@@ -11,7 +11,7 @@ use bevy_prototype_lyon::shapes;
 use egui_graph::node::SocketKind;
 use petgraph::stable_graph::{DefaultIx, EdgeIndex, IndexType, NodeIndex};
 
-use crate::texture::{TextureNode, TextureNodeImage};
+use crate::texture::{TextureNode, TextureNodeImage, TextureNodeInputs, TextureNodeOutputs};
 use crate::ui::event::ClickNode;
 use crate::ui::grid::InfiniteGridSettings;
 use crate::ui::UiState;
@@ -150,9 +150,18 @@ pub fn ui(
     mut materials: ResMut<Assets<NodeMaterial>>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
     mut parent: Query<(Entity, &InheritedVisibility), With<InfiniteGridSettings>>,
-    entities: Query<(Entity, &TextureNodeImage, &GraphId), Added<GraphId>>,
+    entities: Query<
+        (
+            Entity,
+            &TextureNodeImage,
+            &TextureNodeInputs,
+            &TextureNodeOutputs,
+            &GraphId,
+        ),
+        Added<GraphId>,
+    >,
 ) {
-    for (entity, image, graph_id) in entities.iter() {
+    for (entity, image, input_config, output_config, graph_id) in entities.iter() {
         let (grid, _) = parent.single_mut();
         let index = (*graph_id).index() as f32 + 10.0;
 
@@ -190,8 +199,14 @@ pub fn ui(
                     ),
                 ))
                 .with_children(|parent| {
-                    spawn_port(&mut meshes, &mut color_materials, parent, InPort(0), Vec3::new(50.0, 0.0, -1.0));
-                    spawn_port(&mut meshes, &mut color_materials, parent, OutPort(0), Vec3::new(-50.0, 0.0, -1.0));
+                    for i in 0..input_config.count {
+                        let offset = -50.0;
+                        spawn_port(&mut meshes, &mut color_materials, parent, InPort(i as u8), Vec3::new(offset, 0.0, -1.0));
+                    }
+                    for i in 0..output_config.count {
+                        let offset = 50.0;
+                        spawn_port(&mut meshes, &mut color_materials, parent, OutPort(i as u8), Vec3::new(offset, 0.0, -1.0));
+                    }
                 });
         });
     }
@@ -224,7 +239,15 @@ fn connection_drag(
     event: Listener<Pointer<Drag>>,
     mut commands: Commands,
     camera_q: Query<(&Camera, &GlobalTransform), With<OrthographicProjection>>,
-    mut me_q: Query<(&GlobalTransform, Option<&Children>, Has<InPort>, Has<OutPort>), With<ConnectStart>>,
+    mut me_q: Query<
+        (
+            &GlobalTransform,
+            Option<&Children>,
+            Has<InPort>,
+            Has<OutPort>,
+        ),
+        With<ConnectStart>,
+    >,
     mut port_q: Query<(Entity, &GlobalTransform, Has<InPort>, Has<OutPort>), With<Port>>,
 ) {
     let (transform, children, is_input, is_output) = me_q.get_mut(event.target()).unwrap();
@@ -322,18 +345,13 @@ fn connection_drag_end(
 
 fn draw_connection(commands: &mut Commands, start: &Vec2, end: &Vec2, entity: Entity) {
     commands.entity(entity).with_children(|parent| {
-
         let control_scale = ((end.x - start.x) / 2.0).max(30.0);
         let src_control = *start + Vec2::X * control_scale;
         let dst_control = *end - Vec2::X * control_scale;
 
         let mut path_builder = PathBuilder::new();
         path_builder.move_to(*start);
-        path_builder.cubic_bezier_to(
-            src_control,
-            dst_control,
-            *end,
-        );
+        path_builder.cubic_bezier_to(src_control, dst_control, *end);
         let path = path_builder.build();
         parent.spawn((
             ShapeBundle {
@@ -366,7 +384,8 @@ fn update_connections(
     // Connect inputs to outputs
     for (in_entity, transform, in_connected_to, children) in in_port_q.iter() {
         if let Some(in_connected_to) = in_connected_to {
-            let (out_entity, output_global_transform, output_transform) = out_port_q.get(in_connected_to.0).unwrap();
+            let (out_entity, output_global_transform, output_transform) =
+                out_port_q.get(in_connected_to.0).unwrap();
 
             let start = Vec2::ZERO;
             let end = output_global_transform.translation().xy() - transform.translation().xy();

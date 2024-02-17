@@ -5,7 +5,7 @@ use bevy::render::render_graph::{RenderGraphApp, RenderLabel, RenderSubGraph};
 use bevy::render::render_resource::ShaderType;
 use bevy::render::texture::BevyDefault;
 
-mod composite;
+pub mod composite;
 pub mod ramp;
 
 pub struct TexturePlugin;
@@ -16,6 +16,7 @@ impl Plugin for TexturePlugin {
             ExtractComponentPlugin::<TextureNodeImage>::default(),
             ExtractComponentPlugin::<TextureNodeType>::default(),
             ramp::TextureRampPlugin,
+            composite::CompositePlugin,
         ));
     }
 }

@@ -9,6 +9,7 @@ use bevy::{
 use bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::plugin::ShapePlugin;
 
+use crate::texture::composite::{CompositeInput, CompositeSettings, CompositeSubGraph};
 use crate::texture::ramp::{TextureRampSettings, TextureRampSubGraph};
 use crate::texture::{
     TextureNode, TextureNodeBundle, TextureNodeImage, TextureNodeInputs, TextureNodeOutputs,
@@ -89,7 +90,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
                 connections: vec![],
             },
             outputs: TextureNodeOutputs {
-                count: 0,
+                count: 1,
                 connections: vec![],
             },
         },
@@ -117,7 +118,6 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
         ..default()
     };
 
-    // fill image.data with zeroes
     image.resize(size);
 
     let image_handle_2 = images.add(image);
@@ -142,7 +142,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
                 connections: vec![],
             },
             outputs: TextureNodeOutputs {
-                count: 0,
+                count: 1,
                 connections: vec![],
             },
         },
@@ -151,5 +151,54 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             color_b: Vec4::new(0.0, 0.5, 1.0, 1.0),
             mode: 2,
         },
+    ));
+
+    // This is the texture that will be rendered to.
+    let mut image = Image {
+        texture_descriptor: TextureDescriptor {
+            label: None,
+            size,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Rgba8UnormSrgb,
+            mip_level_count: 1,
+            sample_count: 1,
+            usage: TextureUsages::TEXTURE_BINDING
+                | TextureUsages::COPY_DST
+                | TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        },
+        ..default()
+    };
+
+    image.resize(size);
+
+    let image_handle_3 = images.add(image);
+
+    commands.spawn((
+        TextureNodeBundle {
+            camera: Camera3dBundle {
+                camera_render_graph: CameraRenderGraph::new(CompositeSubGraph),
+                camera: Camera {
+                    output_mode: CameraOutputMode::Skip,
+                    order: 3,
+                    target: image_handle_3.clone().into(),
+                    ..default()
+                },
+                ..default()
+            },
+            node: TextureNode,
+            node_type: TextureNodeType("composite".into()),
+            image: TextureNodeImage(image_handle_3.clone()),
+            inputs: TextureNodeInputs {
+                count: 1,
+                connections: vec![],
+            },
+            outputs: TextureNodeOutputs {
+                count: 0,
+                connections: vec![],
+            },
+        },
+        CompositeSettings { mode: 0 },
+        CompositeInput(vec![image_handle_1, image_handle_2]),
     ));
 }
