@@ -2,13 +2,13 @@
 use crate::render::RenderPlugin;
 use bevy::prelude::*;
 use bevy::render::camera::{CameraOutputMode, CameraRenderGraph};
+use bevy::utils::hashbrown::HashMap;
 use bevy::{
     prelude::*,
     render::render_resource::{
         Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
     },
 };
-use bevy::utils::hashbrown::HashMap;
 use bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::plugin::ShapePlugin;
 

@@ -156,7 +156,7 @@ pub fn update_graph(
 ) {
     for (entity, graph_id) in added_q.iter_mut() {
         state.entity_map.insert(graph_id.0, entity);
-    };
+    }
 
     for parent in connected_q.iter_mut() {
         state.layout = layout(
@@ -506,33 +506,14 @@ pub fn layout(
     vg.split_long_edges(disable_opts);
     Placer::new(&mut vg).layout(true);
 
-    // `layout-rs` lays out nodes down and to the right starting from the middle.
-    // We find the bounding box and shift the nodes up and to the right in order
-    // to centre them under the default `camera` position.
-    let mut min = None;
-    let mut max = None;
     let mut layout = Layout::new();
     for (handle, id) in ids {
         let pos = vg.pos(handle);
         let with_halo = false;
         let (tl, br) = pos.bbox(with_halo);
         let pos: Vec2 = [tl.x as f32, tl.y as f32].into();
-        let pos  = pos * 3.0;
+        let pos = pos * 3.0;
         layout.insert(id, pos);
-        let [x, y] = min.get_or_insert([tl.x, tl.y]);
-        *x = x.min(tl.x);
-        *y = y.min(tl.y);
-        let [x, y] = max.get_or_insert([br.x, br.y]);
-        *x = x.max(br.x);
-        *y = y.max(br.y);
-    }
-    if let (Some(min), Some(max)) = (min, max) {
-        let half_w = ((max[0] - min[0]) / 2.0) as f32;
-        let half_h = ((max[1] - min[1]) / 2.0) as f32;
-        for p in layout.values_mut() {
-            p.x -= half_w;
-            p.y -= half_h;
-        }
     }
 
     layout

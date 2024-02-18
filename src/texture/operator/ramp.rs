@@ -5,6 +5,7 @@ use bevy::render::render_resource::binding_types::uniform_buffer;
 use bevy::render::render_resource::{
     IntoBindGroupLayoutEntryBuilderArray, IntoBindingArray, ShaderType,
 };
+use bevy_egui::egui::{Align, CollapsingHeader};
 use bevy_egui::{egui, EguiContexts};
 
 use crate::texture::render::{TextureOpRenderNode, TextureOpRenderPlugin};
@@ -76,35 +77,58 @@ impl Op for TextureRampPlugin {
                 egui::SidePanel::left("texture_ramp_side_panel")
                     .resizable(false)
                     .show(ctx, |ui| {
-                        ui.heading("Ramp");
-                        ui.separator();
-                        ui.label("Color A");
-                        ui.color_edit_button_rgba_premultiplied(settings.color_a.as_mut());
-                        ui.label("Color B");
-                        ui.color_edit_button_rgba_premultiplied(settings.color_b.as_mut());
-                        let mut mode =
-                            TextureRampMode::from_u32(settings.mode).expect("Invalid mode");
-                        egui::ComboBox::from_label("Mode")
-                            .selected_text(format!("{mode:?}"))
-                            .show_ui(ui, |ui| {
-                                ui.set_min_width(60.0);
-                                ui.selectable_value(
-                                    &mut mode,
-                                    TextureRampMode::Horizontal,
-                                    "Horizontal",
+                        egui::Grid::new("texture_ramp_params").show(ui, |ui| {
+                            ui.heading("Ramp");
+                            ui.end_row();
+                            ui.separator();
+                            ui.end_row();
+
+                            let collapse = ui.with_layout(egui::Layout::left_to_right(Align::Min), |ui| {
+                                ui.set_max_width(100.0);
+                                let collapse = CollapsingHeader::new("").show(ui, |ui| {});
+                                ui.label("Color A");
+                                ui.color_edit_button_rgba_premultiplied(settings.color_a.as_mut());
+                                collapse
+
+                            }).inner;
+                            if collapse.fully_open() {
+                                ui.end_row();
+                                ui.add(
+                                    egui::TextEdit::singleline(&mut String::new())
+                                        .hint_text("Write something here"),
                                 );
-                                ui.selectable_value(
-                                    &mut mode,
-                                    TextureRampMode::Vertical,
-                                    "Vertical",
-                                );
-                                ui.selectable_value(
-                                    &mut mode,
-                                    TextureRampMode::Circular,
-                                    "Circular",
-                                );
-                            });
-                        settings.mode = mode.as_u32();
+                            }
+
+                            ui.end_row();
+
+                            ui.label("Color B");
+                            ui.color_edit_button_rgba_premultiplied(settings.color_b.as_mut());
+                            ui.end_row();
+                            let mut mode =
+                                TextureRampMode::from_u32(settings.mode).expect("Invalid mode");
+                            egui::ComboBox::from_label("Mode")
+                                .selected_text(format!("{mode:?}"))
+                                .show_ui(ui, |ui| {
+                                    ui.set_min_width(60.0);
+                                    ui.selectable_value(
+                                        &mut mode,
+                                        TextureRampMode::Horizontal,
+                                        "Horizontal",
+                                    );
+                                    ui.selectable_value(
+                                        &mut mode,
+                                        TextureRampMode::Vertical,
+                                        "Vertical",
+                                    );
+                                    ui.selectable_value(
+                                        &mut mode,
+                                        TextureRampMode::Circular,
+                                        "Circular",
+                                    );
+                                });
+                            ui.end_row();
+                            settings.mode = mode.as_u32();
+                        });
                     })
                     .response,
             );

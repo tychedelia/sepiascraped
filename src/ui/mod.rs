@@ -16,6 +16,7 @@ mod camera;
 pub mod event;
 pub mod graph;
 pub mod grid;
+mod param;
 
 pub struct UiPlugin;
 
