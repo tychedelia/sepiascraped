@@ -1,12 +1,19 @@
 #![feature(associated_type_defaults)]
 #![feature(lazy_cell)]
 
+use crate::param::ParamPlugin;
 use crate::render::RenderPlugin;
 use crate::script::ScriptPlugin;
-use bevy::app::{AppExit, MainSchedulePlugin};
-use bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell;
+use crate::texture::operator::composite::{CompositePlugin, CompositeSettings};
+use crate::texture::operator::ramp::{TextureRampPlugin, TextureRampSettings};
+use crate::texture::render::TextureOpRenderNode;
+use crate::texture::{
+    TextureOp, TextureOpBundle, TextureOpImage, TextureOpInputs, TextureOpOutputs, TextureOpType,
+    TexturePlugin,
+};
+use crate::ui::UiPlugin;
 use bevy::prelude::*;
-use bevy::render::camera::{CameraOutputMode, CameraRenderGraph};
+use bevy::render::camera::CameraRenderGraph;
 use bevy::utils::hashbrown::HashMap;
 use bevy::{
     prelude::*,
@@ -16,17 +23,8 @@ use bevy::{
 };
 use bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::plugin::ShapePlugin;
-use std::cell::OnceCell;
-use std::ptr;
 
-use crate::texture::operator::composite::{CompositePlugin, CompositeSettings};
-use crate::texture::operator::ramp::{TextureRampPlugin, TextureRampSettings};
-use crate::texture::render::TextureOpRenderNode;
-use crate::texture::{
-    TextureOp, TextureOpBundle, TextureOpImage, TextureOpInputs, TextureOpOutputs, TextureOpType,
-    TexturePlugin,
-};
-use crate::ui::UiPlugin;
+mod param;
 mod render;
 mod script;
 mod texture;
@@ -35,16 +33,17 @@ mod ui;
 fn main() {
     App::new()
         .add_plugins((
-        ScriptPlugin,
-        DefaultPlugins,
-        EguiPlugin,
-        RenderPlugin,
-        TexturePlugin,
-        UiPlugin,
-        ShapePlugin,
-    ))
-    .add_systems(Startup, setup)
-    .run();
+            ScriptPlugin,
+            ParamPlugin,
+            DefaultPlugins,
+            EguiPlugin,
+            RenderPlugin,
+            TexturePlugin,
+            UiPlugin,
+            ShapePlugin,
+        ))
+        .add_systems(Startup, setup)
+        .run();
 }
 
 // Marks the first pass cube (rendered to a texture.)
