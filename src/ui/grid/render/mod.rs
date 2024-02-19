@@ -102,7 +102,7 @@ impl<const I: usize, P: PhaseItem> RenderCommand<P> for SetGridViewBindGroup<I> 
     fn render<'w>(
         _item: &P,
         (view_uniform, bind_group): ROQueryItem<'w, Self::ViewQuery>,
-        _entity: ROQueryItem<'w, Self::ItemQuery>,
+        _entity: Option<ROQueryItem<'w, Self::ItemQuery>>,
         _param: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut bevy::render::render_phase::TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
@@ -123,20 +123,22 @@ impl<const I: usize, P: PhaseItem> RenderCommand<P> for SetInfiniteGridBindGroup
     fn render<'w>(
         _item: &P,
         camera_settings_offset: ROQueryItem<'w, Self::ViewQuery>,
-        base_offsets: ROQueryItem<'w, Self::ItemQuery>,
+        base_offsets: Option<ROQueryItem<'w, Self::ItemQuery>>,
         bind_group: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut bevy::render::render_phase::TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
-        pass.set_bind_group(
-            I,
-            &bind_group.into_inner().value,
-            &[
-                base_offsets.position_offset,
-                camera_settings_offset
-                    .map(|cs| cs.offset)
-                    .unwrap_or(base_offsets.settings_offset),
-            ],
-        );
+        if let Some(base_offsets) = base_offsets {
+            pass.set_bind_group(
+                I,
+                &bind_group.into_inner().value,
+                &[
+                    base_offsets.position_offset,
+                    camera_settings_offset
+                        .map(|cs| cs.offset)
+                        .unwrap_or(base_offsets.settings_offset),
+                ],
+            );
+        }
         RenderCommandResult::Success
     }
 }
@@ -152,7 +154,7 @@ impl<P: PhaseItem> RenderCommand<P> for FinishDrawInfiniteGrid {
     fn render<'w>(
         _item: &P,
         _view: ROQueryItem<'w, Self::ViewQuery>,
-        _entity: ROQueryItem<'w, Self::ItemQuery>,
+        _entity: Option<ROQueryItem<'w, Self::ItemQuery>>,
         _param: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut bevy::render::render_phase::TrackedRenderPass<'w>,
     ) -> RenderCommandResult {

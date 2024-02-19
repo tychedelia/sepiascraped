@@ -18,3 +18,6 @@ bevy_mod_picking = { path = "../../aevyrie/bevy_mod_picking", default-features =
     "backend_egui" ] }
 bevy_prototype_lyon = { path = "../../Nilirad/bevy_prototype_lyon" }
 layout-rs = "0.1"
+boa_engine = { git = "https://github.com/boa-dev/boa" }
+boa_gc = { git = "https://github.com/boa-dev/boa" }
+boa_runtime = { git = "https://github.com/boa-dev/boa" }

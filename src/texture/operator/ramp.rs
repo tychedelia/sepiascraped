@@ -83,14 +83,17 @@ impl Op for TextureRampPlugin {
                             ui.separator();
                             ui.end_row();
 
-                            let collapse = ui.with_layout(egui::Layout::left_to_right(Align::Min), |ui| {
-                                ui.set_max_width(100.0);
-                                let collapse = CollapsingHeader::new("").show(ui, |ui| {});
-                                ui.label("Color A");
-                                ui.color_edit_button_rgba_premultiplied(settings.color_a.as_mut());
-                                collapse
-
-                            }).inner;
+                            let collapse = ui
+                                .with_layout(egui::Layout::left_to_right(Align::Min), |ui| {
+                                    ui.set_max_width(100.0);
+                                    let collapse = CollapsingHeader::new("").show(ui, |ui| {});
+                                    ui.label("Color A");
+                                    ui.color_edit_button_rgba_premultiplied(
+                                        settings.color_a.as_mut(),
+                                    );
+                                    collapse
+                                })
+                                .inner;
                             if collapse.fully_open() {
                                 ui.end_row();
                                 ui.add(
