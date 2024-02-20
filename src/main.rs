@@ -3,7 +3,7 @@
 
 use crate::param::ParamPlugin;
 use crate::render::RenderPlugin;
-use crate::script::ScriptPlugin;
+
 use crate::texture::operator::composite::{CompositeSettings, TextureCompositePlugin};
 use crate::texture::operator::ramp::{TextureRampPlugin, TextureRampSettings};
 use crate::texture::render::{TextureOpRender, TextureOpSubGraph};
@@ -16,7 +16,6 @@ use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
 use bevy::utils::hashbrown::HashMap;
 use bevy::{
-    prelude::*,
     render::render_resource::{
         Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
     },

@@ -1,27 +1,27 @@
 use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle};
-use bevy::utils::{HashMap, HashSet};
+use bevy::utils::{HashMap};
 use bevy_mod_picking::prelude::*;
 use bevy_mod_picking::PickableBundle;
 use bevy_prototype_lyon::draw::Stroke;
 use bevy_prototype_lyon::path::PathBuilder;
-use bevy_prototype_lyon::prelude::tess::math::Translation;
-use bevy_prototype_lyon::prelude::{Fill, GeometryBuilder, Path, ShapeBundle};
-use bevy_prototype_lyon::shapes;
-use egui_graph::node::SocketKind;
+
+use bevy_prototype_lyon::prelude::{ShapeBundle};
+
+
 use layout::core::base::Orientation;
 use layout::core::geometry::Point;
 use layout::core::style::StyleAttr;
 use layout::std_shapes::shapes::{Arrow, Element, ShapeKind};
 use layout::topo::layout::VisualGraph;
 use layout::topo::placer::Placer;
-use petgraph::stable_graph::{DefaultIx, EdgeIndex, IndexType, NodeIndex};
+use petgraph::stable_graph::{DefaultIx, IndexType, NodeIndex};
 
 use crate::texture::{TextureOp, TextureOpImage, TextureOpInputs, TextureOpOutputs, TextureOpType};
 use crate::ui::event::{ClickNode, Connect, Disconnect};
 use crate::ui::grid::InfiniteGridSettings;
-use crate::ui::UiState;
+
 
 pub struct GraphPlugin;
 
@@ -121,18 +121,18 @@ impl Material2d for NodeMaterial {
 fn click_node(
     mut commands: Commands,
     mut click_events: EventReader<ClickNode>,
-    mut prev_selected: Query<(Entity), With<SelectedNode>>,
+    mut prev_selected: Query<Entity, With<SelectedNode>>,
     mut all_mats: Query<&Handle<NodeMaterial>>,
-    mut clicked_q: Query<(&GraphRef, &Handle<NodeMaterial>)>,
+    clicked_q: Query<(&GraphRef, &Handle<NodeMaterial>)>,
     mut materials: ResMut<Assets<NodeMaterial>>,
 ) {
     for event in click_events.read() {
         for mat in all_mats.iter_mut() {
-            let mut mat = materials.get_mut(&*mat).unwrap();
+            let mat = materials.get_mut(mat).unwrap();
             mat.selected = 0;
         }
 
-        for (entity) in prev_selected.iter_mut() {
+        for entity in prev_selected.iter_mut() {
             commands.entity(entity).remove::<SelectedNode>();
         }
 
@@ -145,7 +145,7 @@ fn click_node(
     }
 }
 
-fn startup(mut state: ResMut<GraphState>) {}
+fn startup(state: ResMut<GraphState>) {}
 
 pub fn update_graph(
     mut state: ResMut<GraphState>,
@@ -218,7 +218,7 @@ pub fn ui(
                     On::<Pointer<DragStart>>::target_insert(Pickable::IGNORE), // Disable picking
                     On::<Pointer<DragEnd>>::target_insert(Pickable::default()), // Re-enable picking
                     On::<Pointer<Drag>>::run(
-                        |mut drag: ListenerMut<Pointer<Drag>>,
+                        |drag: ListenerMut<Pointer<Drag>>,
                          projection: Query<&OrthographicProjection>,
                          mut transform: Query<&mut Transform, With<GraphRef>>
                         | {
@@ -246,8 +246,8 @@ pub fn ui(
 }
 
 fn spawn_port<T: Component>(
-    mut meshes: &mut ResMut<Assets<Mesh>>,
-    mut color_materials: &mut ResMut<Assets<ColorMaterial>>,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    color_materials: &mut ResMut<Assets<ColorMaterial>>,
     parent: &mut ChildBuilder,
     port: T,
     translation: Vec3,
@@ -281,7 +281,7 @@ fn connection_drag(
         ),
         With<Connecting>,
     >,
-    mut port_q: Query<(Entity, &GlobalTransform, Has<InPort>, Has<OutPort>), With<Port>>,
+    port_q: Query<(Entity, &GlobalTransform, Has<InPort>, Has<OutPort>), With<Port>>,
 ) {
     // TODO: this event sholdn't fire
     if let Ok((transform, children, is_input, is_output)) = me_q.get_mut(event.target()) {
@@ -295,7 +295,7 @@ fn connection_drag(
 
         let (camera, camera_transform) = camera_q.single();
         let start = Vec2::ZERO;
-        let mut pointer_world = camera
+        let pointer_world = camera
             .viewport_to_world_2d(camera_transform, event.pointer_location.position)
             .expect("Failed to convert screen center to world coordinates");
 
@@ -338,7 +338,7 @@ fn connection_drag_end(
         ),
         With<Connecting>,
     >,
-    mut port_q: Query<(Entity, &Parent, &GlobalTransform, Has<InPort>, Has<OutPort>), With<Port>>,
+    port_q: Query<(Entity, &Parent, &GlobalTransform, Has<InPort>, Has<OutPort>), With<Port>>,
     graph_ref_q: Query<&GraphRef>,
     graph_id_q: Query<&GraphId>,
     mut graph_state: ResMut<GraphState>,
@@ -401,11 +401,9 @@ fn connection_drag_end(
                 input: from_graph_ref.0,
             });
         }
-    } else {
-        if let Some(children) = children {
-            for child in children.iter() {
-                commands.entity(*child).despawn_recursive();
-            }
+    } else if let Some(children) = children {
+        for child in children.iter() {
+            commands.entity(*child).despawn_recursive();
         }
     }
 }

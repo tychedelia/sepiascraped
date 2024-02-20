@@ -1,10 +1,10 @@
 use bevy::ecs::query::QueryData;
 use bevy::prelude::*;
-use bevy::prelude::*;
+
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
-use bevy::render::render_graph::{RenderGraphApp, RenderLabel, RenderSubGraph, ViewNode};
-use bevy::render::render_resource::ShaderType;
-use bevy::render::texture::BevyDefault;
+
+
+
 use bevy::utils::HashMap;
 use bevy_egui::EguiContexts;
 
@@ -78,10 +78,10 @@ where
 pub trait Op {
     type Bundle: Bundle;
     type SidePanelQuery: QueryData;
-    type ConnectOpQuery: QueryData = (&'static mut TextureOpInputs);
-    type ConnectInputQuery: QueryData = (&'static TextureOpImage);
-    type DisconnectOpQuery: QueryData = (&'static mut TextureOpInputs);
-    type DisconnectInputQuery: QueryData = (&'static TextureOpImage);
+    type ConnectOpQuery: QueryData = &'static mut TextureOpInputs;
+    type ConnectInputQuery: QueryData = &'static TextureOpImage;
+    type DisconnectOpQuery: QueryData = &'static mut TextureOpInputs;
+    type DisconnectInputQuery: QueryData = &'static TextureOpImage;
 
     fn side_panel_ui(
         ui_state: ResMut<UiState>,
@@ -101,7 +101,7 @@ pub trait Op {
         input_q: Query<&TextureOpImage>,
     ) {
         for ev in ev_connect.read() {
-            if let Ok((mut input)) = op_q.get_mut(ev.input) {
+            if let Ok(mut input) = op_q.get_mut(ev.input) {
                 if let Ok(image) = input_q.get(ev.output) {
                     input.connections.insert(ev.output, image.0.clone());
                 }
@@ -121,7 +121,7 @@ pub trait Op {
         input_q: Query<&TextureOpImage>,
     ) {
         for ev in ev_disconnect.read() {
-            if let Ok((mut input)) = op_q.get_mut(ev.input) {
+            if let Ok(mut input) = op_q.get_mut(ev.input) {
                 if let Ok(image) = input_q.get(ev.output) {
                     input.connections.remove(&ev.output);
                 }

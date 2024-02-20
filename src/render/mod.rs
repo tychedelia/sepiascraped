@@ -11,7 +11,7 @@ impl Plugin for RenderPlugin {
     }
 }
 
-fn order_cameras(mut graph: Res<GraphState>, mut cameras: Query<(&mut Camera), With<TextureOp>>) {
+fn order_cameras(graph: Res<GraphState>, mut cameras: Query<&mut Camera, With<TextureOp>>) {
     let sorted = petgraph::algo::toposort(&graph.graph, None);
     match sorted {
         Ok(sorted) => {

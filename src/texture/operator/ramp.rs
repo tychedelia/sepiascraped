@@ -1,15 +1,15 @@
 use bevy::prelude::*;
-use bevy::render::extract_component::{ComponentUniforms, ExtractComponent};
-use bevy::render::render_graph::{RenderLabel, RenderSubGraph};
-use bevy::render::render_resource::binding_types::uniform_buffer;
+use bevy::render::extract_component::{ExtractComponent};
+
+
 use bevy::render::render_resource::{
-    IntoBindGroupLayoutEntryBuilderArray, IntoBindingArray, ShaderType,
+    ShaderType,
 };
 use bevy_egui::egui::{Align, CollapsingHeader};
 use bevy_egui::{egui, EguiContexts};
 
 use crate::texture::render::{TextureOpRender, TextureOpRenderPlugin};
-use crate::texture::{Op, TextureOpInputs, TextureOpPlugin, TextureOpType};
+use crate::texture::{Op, TextureOpPlugin};
 use crate::ui::event::{Connect, Disconnect};
 use crate::ui::graph::SelectedNode;
 use crate::ui::UiState;

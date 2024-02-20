@@ -26,9 +26,9 @@ impl Plugin for CameraControllerPlugin {
 fn camera_controller(
     mut evr_touchpad_magnify: EventReader<TouchpadMagnify>,
     mut scroll_evr: EventReader<MouseWheel>,
-    mut query: Query<(&mut OrthographicProjection)>,
+    mut query: Query<&mut OrthographicProjection>,
 ) {
-    if let Ok((mut projection)) = query.get_single_mut() {
+    if let Ok(mut projection) = query.get_single_mut() {
         // Handle zoom input
         let min = 0.1;
         let max = 3.0;

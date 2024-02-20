@@ -1,4 +1,4 @@
-use bevy::math::{Vec3Swizzles, Vec4Swizzles};
+
 use bevy::prelude::*;
 use bevy::render::primitives::Aabb;
 use bevy::render::view::NoFrustumCulling;
@@ -123,7 +123,7 @@ pub fn grid_setup(
     let window = window.single();
     commands
         .spawn(
-            (InfiniteGridBundle {
+            InfiniteGridBundle {
                 settings: InfiniteGridSettings {
                     // shadow_color: None,
                     x_axis_color: Color::rgb(1.0, 0.2, 0.2),
@@ -131,7 +131,7 @@ pub fn grid_setup(
                     ..default()
                 },
                 ..default()
-            }),
+            },
         )
         .with_children(|parent| {
             parent.spawn((

@@ -2,11 +2,11 @@ use bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell;
 use bevy::prelude::*;
 use boa_engine::{
     class::{Class, ClassBuilder},
-    Context,
     error::JsNativeError,
     js_string,
-    JsData,
-    JsResult, JsValue, native_function::NativeFunction, property::Attribute, Source,
+    native_function::NativeFunction,
+    property::Attribute,
+    Context, JsData, JsResult, JsValue, Source,
 };
 use boa_gc::{Finalize, Trace};
 use boa_runtime::Console;
@@ -42,13 +42,13 @@ impl WorldHolder {
 }
 
 trait WorldScope {
-    fn with_world_scope<'w, F, R>(&mut self, world: UnsafeWorldCell<'w>, f: F) -> R
+    fn with_world_scope<F, R>(&mut self, world: UnsafeWorldCell<'_>, f: F) -> R
     where
         F: FnOnce(&mut Self) -> R;
 }
 
 impl WorldScope for Context {
-    fn with_world_scope<'w, F, R>(&mut self, world: UnsafeWorldCell<'w>, f: F) -> R
+    fn with_world_scope<F, R>(&mut self, world: UnsafeWorldCell<'_>, f: F) -> R
     where
         F: FnOnce(&mut Self) -> R,
     {
@@ -82,7 +82,7 @@ fn startup(world: &mut World) {
 }
 
 fn update(world: &mut World) {
-let world_cell = world.as_unsafe_world_cell();
+    let world_cell = world.as_unsafe_world_cell();
     unsafe {
         world_cell
             .world_mut()
@@ -95,7 +95,7 @@ let world_cell = world.as_unsafe_world_cell();
 		        counter.set_count(Math.floor(Math.random() * 100));
     ",
                 ))
-                    .unwrap();
+                .unwrap();
             });
     }
 }

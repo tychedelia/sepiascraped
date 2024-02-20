@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use bevy::asset::LoadState;
 use bevy::core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_state;
 use bevy::ecs::query::QueryItem;
@@ -13,11 +15,9 @@ use bevy::render::render_graph::{
 use bevy::render::render_resource::binding_types::{sampler, texture_2d, uniform_buffer};
 use bevy::render::render_resource::encase::internal::WriteInto;
 use bevy::render::render_resource::{
-    BindGroup, BindGroupEntries, BindGroupEntry, BindGroupLayout, BindGroupLayoutEntries,
-    BindGroupLayoutEntry, CachedRenderPipelineId, ColorTargetState, ColorWrites, FragmentState,
-    IntoBindGroupLayoutEntryBuilderArray, IntoBinding, IntoBindingArray, LoadOp, MultisampleState,
+    BindGroup, BindGroupEntry, BindGroupLayout, CachedRenderPipelineId, ColorTargetState, ColorWrites, FragmentState, IntoBinding, LoadOp, MultisampleState,
     Operations, PipelineCache, PrimitiveState, RenderPassColorAttachment, RenderPassDescriptor,
-    RenderPipelineDescriptor, SamplerBindingType, SamplerDescriptor, ShaderStages, ShaderType,
+    RenderPipelineDescriptor, SamplerBindingType, ShaderStages, ShaderType,
     SpecializedRenderPipeline, SpecializedRenderPipelines, StoreOp, TextureFormat,
     TextureSampleType,
 };
@@ -25,11 +25,10 @@ use bevy::render::renderer::{RenderContext, RenderDevice};
 use bevy::render::texture::BevyDefault;
 use bevy::render::view::{ExtractedView, ViewTarget};
 use bevy::render::{render_graph, Render, RenderApp, RenderSet};
-use bevy::utils::{warn, HashMap};
-use bevy_mod_picking::input::debug::print;
-use std::marker::PhantomData;
+use bevy::utils::{HashMap};
 
-use crate::texture::{TextureOp, TextureOpImage, TextureOpInputs, TextureOpType};
+
+use crate::texture::{TextureOpInputs, TextureOpType};
 
 #[derive(Default)]
 pub struct TextureOpRenderPlugin<P> {
@@ -284,7 +283,7 @@ impl render_graph::ViewNode for TextureOpViewNode {
         let mut render_pass = render_context.begin_tracked_render_pass(RenderPassDescriptor {
             label: Some("texture_op_pass"),
             color_attachments: &[Some(RenderPassColorAttachment {
-                view: &view_target.out_texture(),
+                view: view_target.out_texture(),
                 resolve_target: None,
                 ops: Operations {
                     load: LoadOp::Clear(Color::BLACK.into()),
