@@ -8,8 +8,8 @@ use bevy::render::render_resource::{
 use bevy_egui::egui::{Align, CollapsingHeader};
 use bevy_egui::{egui, EguiContexts};
 
-use crate::texture::render::{TextureOpRenderNode, TextureOpRenderPlugin};
-use crate::texture::{Op, TextureOpInputs, TextureOpPlugin};
+use crate::texture::render::{TextureOpRender, TextureOpRenderPlugin};
+use crate::texture::{Op, TextureOpInputs, TextureOpPlugin, TextureOpType};
 use crate::ui::event::{Connect, Disconnect};
 use crate::ui::graph::SelectedNode;
 use crate::ui::UiState;
@@ -21,42 +21,16 @@ impl Plugin for TextureRampPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
             TextureOpPlugin::<TextureRampPlugin>::default(),
-            TextureOpRenderPlugin::<TextureRampPlugin, 1>::default(),
+            TextureOpRenderPlugin::<TextureRampPlugin>::default(),
         ));
     }
 }
 
-impl TextureOpRenderNode<1> for TextureRampPlugin {
+impl TextureOpRender for TextureRampPlugin {
     const SHADER: &'static str = "shaders/texture/ramp.wgsl";
+    const OP_TYPE: &'static str = "ramp";
     type Uniform = TextureRampSettings;
-
-    fn render_sub_graph() -> impl RenderSubGraph {
-        TextureRampSubGraph
-    }
-
-    fn render_label() -> impl RenderLabel {
-        TextureRampLabel
-    }
-
-    fn bind_group_layout_entries() -> impl IntoBindGroupLayoutEntryBuilderArray<1> {
-        (uniform_buffer::<Self::Uniform>(true),)
-    }
-
-    fn bind_group_entries<'a>(
-        inputs: &'a TextureOpInputs,
-        world: &'a World,
-    ) -> impl IntoBindingArray<'a, 1> {
-        let settings_uniforms = world.resource::<ComponentUniforms<Self::Uniform>>();
-        let settings_binding = settings_uniforms.uniforms().binding().unwrap();
-        (settings_binding.clone(),)
-    }
 }
-
-#[derive(Debug, Hash, PartialEq, Eq, Clone, RenderSubGraph)]
-pub struct TextureRampSubGraph;
-
-#[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
-struct TextureRampLabel;
 
 impl Op for TextureRampPlugin {
     type Bundle = ();

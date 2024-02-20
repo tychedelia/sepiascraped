@@ -4,9 +4,9 @@
 use crate::param::ParamPlugin;
 use crate::render::RenderPlugin;
 use crate::script::ScriptPlugin;
-use crate::texture::operator::composite::{CompositePlugin, CompositeSettings};
+use crate::texture::operator::composite::{CompositeSettings, TextureCompositePlugin};
 use crate::texture::operator::ramp::{TextureRampPlugin, TextureRampSettings};
-use crate::texture::render::TextureOpRenderNode;
+use crate::texture::render::{TextureOpRender, TextureOpSubGraph};
 use crate::texture::{
     TextureOp, TextureOpBundle, TextureOpImage, TextureOpInputs, TextureOpOutputs, TextureOpType,
     TexturePlugin,
@@ -33,7 +33,7 @@ mod ui;
 fn main() {
     App::new()
         .add_plugins((
-            ScriptPlugin,
+            // ScriptPlugin,
             ParamPlugin,
             DefaultPlugins,
             EguiPlugin,
@@ -86,7 +86,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     commands.spawn((
         TextureOpBundle {
             camera: Camera3dBundle {
-                camera_render_graph: CameraRenderGraph::new(TextureRampPlugin::render_sub_graph()),
+                camera_render_graph: CameraRenderGraph::new(TextureOpSubGraph),
                 camera: Camera {
                     target: image_handle_1.clone().into(),
                     order: 1,
@@ -95,7 +95,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
                 ..default()
             },
             op: TextureOp,
-            op_type: TextureOpType("texture_ramp".into()),
+            op_type: TextureOpType(TextureRampPlugin::OP_TYPE),
             image: TextureOpImage(image_handle_1.clone()),
             inputs: TextureOpInputs {
                 count: 0,
@@ -134,7 +134,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     commands.spawn((
         TextureOpBundle {
             camera: Camera3dBundle {
-                camera_render_graph: CameraRenderGraph::new(TextureRampPlugin::render_sub_graph()),
+                camera_render_graph: CameraRenderGraph::new(TextureOpSubGraph),
                 camera: Camera {
                     order: 2,
                     target: image_handle_2.clone().into(),
@@ -143,7 +143,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
                 ..default()
             },
             op: TextureOp,
-            op_type: TextureOpType("texture_ramp".into()),
+            op_type: TextureOpType(TextureRampPlugin::OP_TYPE),
             image: TextureOpImage(image_handle_2.clone()),
             inputs: TextureOpInputs {
                 count: 0,
@@ -182,7 +182,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     commands.spawn((
         TextureOpBundle {
             camera: Camera3dBundle {
-                camera_render_graph: CameraRenderGraph::new(CompositePlugin::render_sub_graph()),
+                camera_render_graph: CameraRenderGraph::new(TextureOpSubGraph),
                 camera: Camera {
                     order: 3,
                     target: image_handle_3.clone().into(),
@@ -191,7 +191,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
                 ..default()
             },
             op: TextureOp,
-            op_type: TextureOpType("composite".into()),
+            op_type: TextureOpType(TextureCompositePlugin::OP_TYPE),
             image: TextureOpImage(image_handle_3.clone()),
             inputs: TextureOpInputs {
                 count: 2,

@@ -57,7 +57,7 @@ pub struct GraphRef(Entity);
 
 #[derive(Component, Debug)]
 pub struct GraphNode {
-    node_type: String,
+    node_type: &'static str,
 }
 
 impl GraphNode {}
@@ -466,7 +466,7 @@ fn texture_ui(
 ) {
     for (entity, node_type, _node) in textures.iter_mut() {
         let node_id = graph.graph.add_node(GraphNode {
-            node_type: node_type.0.clone(),
+            node_type: node_type.0,
         });
         commands.entity(entity).insert(GraphId(node_id));
     }

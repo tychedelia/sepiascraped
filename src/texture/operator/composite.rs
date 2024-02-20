@@ -9,66 +9,28 @@ use bevy::render::render_resource::{
 };
 use bevy_egui::{egui, EguiContexts};
 
-use crate::texture::render::{TextureOpRenderNode, TextureOpRenderPlugin};
-use crate::texture::{Op, TextureOpBundle, TextureOpInputs, TextureOpPlugin};
+use crate::texture::render::{TextureOpRender, TextureOpRenderPlugin};
+use crate::texture::{Op, TextureOpBundle, TextureOpInputs, TextureOpPlugin, TextureOpType};
 use crate::ui::event::{Connect, Disconnect};
 use crate::ui::graph::SelectedNode;
 use crate::ui::UiState;
 
 #[derive(Default)]
-pub struct CompositePlugin;
+pub struct TextureCompositePlugin;
 
-impl Plugin for CompositePlugin {
+impl Plugin for TextureCompositePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            TextureOpPlugin::<CompositePlugin>::default(),
-            TextureOpRenderPlugin::<CompositePlugin, 5>::default(),
+            TextureOpPlugin::<TextureCompositePlugin>::default(),
+            TextureOpRenderPlugin::<TextureCompositePlugin>::default(),
         ));
     }
 }
 
-impl TextureOpRenderNode<5> for CompositePlugin {
+impl TextureOpRender for TextureCompositePlugin {
     const SHADER: &'static str = "shaders/texture/composite.wgsl";
+    const OP_TYPE: &'static str = "composite";
     type Uniform = CompositeSettings;
-
-    fn render_sub_graph() -> impl RenderSubGraph {
-        CompositeSubGraph
-    }
-
-    fn render_label() -> impl RenderLabel {
-        CompositeLabel
-    }
-
-    fn bind_group_layout_entries() -> impl IntoBindGroupLayoutEntryBuilderArray<5> {
-        (
-            uniform_buffer::<CompositeSettings>(true),
-            texture_2d(TextureSampleType::Float { filterable: true }),
-            sampler(SamplerBindingType::Filtering),
-            texture_2d(TextureSampleType::Float { filterable: true }),
-            sampler(SamplerBindingType::Filtering),
-        )
-    }
-
-    fn bind_group_entries<'a>(
-        inputs: &'a TextureOpInputs,
-        world: &'a World,
-    ) -> impl IntoBindingArray<'a, 5> {
-        let settings_uniforms = world.resource::<ComponentUniforms<CompositeSettings>>();
-        let settings_binding = settings_uniforms.uniforms().binding().unwrap();
-        let images = world.resource::<RenderAssets<Image>>();
-        let inputs = inputs
-            .connections
-            .iter()
-            .map(|(k, v)| v.clone())
-            .collect::<Vec<Handle<Image>>>();
-        (
-            settings_binding.clone(),
-            &images.get(&inputs[0]).unwrap().texture_view,
-            &images.get(&inputs[0]).unwrap().sampler,
-            &images.get(&inputs[1]).unwrap().texture_view,
-            &images.get(&inputs[1]).unwrap().sampler,
-        )
-    }
 }
 
 #[derive(Bundle, Default)]
@@ -77,7 +39,7 @@ pub struct CompositeNodeBundle {
     settings: CompositeSettings,
 }
 
-impl Op for CompositePlugin {
+impl Op for TextureCompositePlugin {
     type Bundle = ();
     type SidePanelQuery = (
         Entity,

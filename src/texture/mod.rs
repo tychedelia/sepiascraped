@@ -23,7 +23,7 @@ impl Plugin for TexturePlugin {
             ExtractComponentPlugin::<TextureOpType>::default(),
             ExtractComponentPlugin::<TextureOpInputs>::default(),
             operator::ramp::TextureRampPlugin,
-            operator::composite::CompositePlugin,
+            operator::composite::TextureCompositePlugin,
         ));
     }
 }
@@ -32,12 +32,12 @@ impl Plugin for TexturePlugin {
 pub struct TextureOp;
 
 #[derive(Component, Clone, ExtractComponent, Default)]
-pub struct TextureOpType(pub String);
+pub struct TextureOpType(pub(crate) &'static str);
 
 #[derive(Component, Clone, Debug, Deref, DerefMut, ExtractComponent, Default)]
 pub struct TextureOpImage(pub Handle<Image>);
 
-#[derive(Component, ExtractComponent, Clone, Default)]
+#[derive(Component, ExtractComponent, Clone, Default, Debug)]
 pub struct TextureOpInputs {
     pub(crate) count: usize,
     pub(crate) connections: HashMap<Entity, Handle<Image>>,

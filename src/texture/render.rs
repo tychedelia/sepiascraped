@@ -1,3 +1,4 @@
+use bevy::asset::LoadState;
 use bevy::core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_state;
 use bevy::ecs::query::QueryItem;
 use bevy::prelude::*;
@@ -5,36 +6,45 @@ use bevy::render::extract_component::{
     ComponentUniforms, DynamicUniformIndex, ExtractComponent, ExtractComponentPlugin,
     UniformComponentPlugin,
 };
+use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_graph::{
     NodeRunError, RenderGraphApp, RenderGraphContext, RenderLabel, RenderSubGraph, ViewNodeRunner,
 };
+use bevy::render::render_resource::binding_types::{sampler, texture_2d, uniform_buffer};
 use bevy::render::render_resource::encase::internal::WriteInto;
 use bevy::render::render_resource::{
-    BindGroupEntries, BindGroupLayout, BindGroupLayoutEntries, CachedRenderPipelineId,
-    ColorTargetState, ColorWrites, FragmentState, IntoBindGroupLayoutEntryBuilderArray,
-    IntoBindingArray, LoadOp, MultisampleState, Operations, PipelineCache, PrimitiveState,
-    RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor, SamplerDescriptor,
-    ShaderStages, ShaderType, StoreOp, TextureFormat,
+    BindGroup, BindGroupEntries, BindGroupEntry, BindGroupLayout, BindGroupLayoutEntries,
+    BindGroupLayoutEntry, CachedRenderPipelineId, ColorTargetState, ColorWrites, FragmentState,
+    IntoBindGroupLayoutEntryBuilderArray, IntoBinding, IntoBindingArray, LoadOp, MultisampleState,
+    Operations, PipelineCache, PrimitiveState, RenderPassColorAttachment, RenderPassDescriptor,
+    RenderPipelineDescriptor, SamplerBindingType, SamplerDescriptor, ShaderStages, ShaderType,
+    SpecializedRenderPipeline, SpecializedRenderPipelines, StoreOp, TextureFormat,
+    TextureSampleType,
 };
 use bevy::render::renderer::{RenderContext, RenderDevice};
 use bevy::render::texture::BevyDefault;
-use bevy::render::view::ViewTarget;
-use bevy::render::{render_graph, RenderApp};
+use bevy::render::view::{ExtractedView, ViewTarget};
+use bevy::render::{render_graph, Render, RenderApp, RenderSet};
+use bevy::utils::{warn, HashMap};
+use bevy_mod_picking::input::debug::print;
+use std::marker::PhantomData;
 
-use crate::texture::TextureOpInputs;
+use crate::texture::{TextureOp, TextureOpImage, TextureOpInputs, TextureOpType};
 
 #[derive(Default)]
-pub struct TextureOpRenderPlugin<P, const N: usize = 0> {
+pub struct TextureOpRenderPlugin<P> {
     _marker: std::marker::PhantomData<P>,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderSubGraph)]
-pub struct TextureSubGraph;
+pub struct TextureOpSubGraph;
 
-impl<P, const N: usize> Plugin for TextureOpRenderPlugin<P, N>
+#[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
+pub struct TextureOpRenderLabel;
+
+impl<P> Plugin for TextureOpRenderPlugin<P>
 where
-    P: TextureOpRenderNode<N> + Sync + Send + 'static,
-    ViewNodeRunner<TextureOperatorViewNode<P, N>>: FromWorld,
+    P: TextureOpRender + Sync + Send + 'static,
 {
     fn build(&self, app: &mut App) {
         app.add_plugins((
@@ -44,10 +54,18 @@ where
 
         app.get_sub_app_mut(RenderApp)
             .unwrap()
-            .add_render_sub_graph(P::render_sub_graph())
-            .add_render_graph_node::<ViewNodeRunner<TextureOperatorViewNode<P, N>>>(
-                P::render_sub_graph(),
-                P::render_label(),
+            .init_resource::<SpecializedRenderPipelines<TextureOpPipeline>>()
+            .add_render_sub_graph(TextureOpSubGraph)
+            .add_render_graph_node::<ViewNodeRunner<TextureOpViewNode>>(
+                TextureOpSubGraph,
+                TextureOpRenderLabel,
+            )
+            .add_systems(
+                Render,
+                (
+                    prepare_texture_op_pipelines::<P>.in_set(RenderSet::Prepare),
+                    prepare_texture_op_bind_group::<P>.in_set(RenderSet::PrepareBindGroups),
+                ),
             );
     }
 
@@ -56,130 +74,215 @@ where
             return;
         };
 
-        render_app.init_resource::<TextureOpPipeline<P, N>>();
+        let asset_server = render_app.world.resource_mut::<AssetServer>();
+        let shader_handle = asset_server.load(P::SHADER);
+        let shader_handle = TextureOpShaderHandle::<P>(shader_handle, PhantomData);
+        render_app
+            .insert_resource(shader_handle)
+            .init_resource::<TextureOpPipeline>();
     }
 }
 
-pub trait TextureOpRenderNode<const N: usize = 1> {
-    const SHADER: &'static str;
-    type Uniform: Component + ExtractComponent + ShaderType + WriteInto + Clone;
+#[derive(Resource, Debug)]
+pub struct TextureOpShaderHandle<P>(pub Handle<Shader>, PhantomData<P>);
 
-    fn render_sub_graph() -> impl RenderSubGraph;
-
-    fn render_label() -> impl RenderLabel;
-
-    fn bind_group_layout_entries() -> impl IntoBindGroupLayoutEntryBuilderArray<N>;
-
-    fn bind_group_entries<'a>(
-        inputs: &'a TextureOpInputs,
-        world: &'a World,
-    ) -> impl IntoBindingArray<'a, N>;
-}
-
-#[derive(Resource)]
-struct TextureOpPipeline<P, const N: usize> {
-    layout: BindGroupLayout,
-    pipeline_id: CachedRenderPipelineId,
-    _plugin: std::marker::PhantomData<P>,
-}
-
-impl<P, const N: usize> FromWorld for TextureOpPipeline<P, N>
-where
-    P: TextureOpRenderNode<N> + Sync + Send + 'static,
+pub fn prepare_texture_op_pipelines<P>(
+    mut commands: Commands,
+    mut pipeline: ResMut<TextureOpPipeline>,
+    pipeline_cache: Res<PipelineCache>,
+    mut pipelines: ResMut<SpecializedRenderPipelines<TextureOpPipeline>>,
+    views: Query<(Entity, &ExtractedView, &TextureOpType, &TextureOpInputs)>,
+    shader_handle: Res<TextureOpShaderHandle<P>>,
+    render_device: Res<RenderDevice>,
+    asset_server: Res<AssetServer>,
+) where
+    P: TextureOpRender + Sync + Send + 'static,
 {
-    fn from_world(world: &mut World) -> Self {
-        let render_device = world.resource::<RenderDevice>();
+    let load_state = asset_server.load_state(shader_handle.0.clone());
+    if let LoadState::Loading | LoadState::Failed | LoadState::NotLoaded = load_state {
+        warn!("TextureOp shader not loaded {:?}", shader_handle.0);
+        return;
+    }
 
-        let layout = render_device.create_bind_group_layout(
-            "composite_bind_group_layout",
-            &BindGroupLayoutEntries::sequential(
-                ShaderStages::FRAGMENT,
-                P::bind_group_layout_entries(),
-            ),
+    for (entity, view, op_type, inputs) in views.iter() {
+        if op_type.0 != P::OP_TYPE {
+            continue;
+        }
+
+        let mut entries = vec![uniform_buffer::<P::Uniform>(true).build(0, ShaderStages::FRAGMENT)];
+
+        for i in 0..inputs.count {
+            let idx = i as u32 * 2 + 1;
+            entries.push(
+                texture_2d(TextureSampleType::Float { filterable: true })
+                    .build(idx, ShaderStages::FRAGMENT),
+            );
+            entries.push(
+                sampler(SamplerBindingType::Filtering).build(idx + 1, ShaderStages::FRAGMENT),
+            );
+        }
+
+        let layout =
+            render_device.create_bind_group_layout("texture_op_bind_group_layout", &entries);
+        pipeline.layouts.insert(inputs.count, layout);
+
+        let key = TextureOpPipelineKey {
+            input_count: inputs.count,
+            shader: shader_handle.0.clone(),
+        };
+        let pipeline_id = pipelines.specialize(&pipeline_cache, &pipeline, key.clone());
+        commands
+            .entity(entity)
+            .insert(TextureOpPipelineId(pipeline_id));
+    }
+}
+
+pub fn prepare_texture_op_bind_group<P>(
+    mut commands: Commands,
+    pipeline: ResMut<TextureOpPipeline>,
+    uniforms: Res<ComponentUniforms<P::Uniform>>,
+    views: Query<(
+        Entity,
+        &ExtractedView,
+        &TextureOpType,
+        &TextureOpInputs,
+        &DynamicUniformIndex<P::Uniform>,
+    )>,
+    images: Res<RenderAssets<Image>>,
+    render_device: Res<RenderDevice>,
+) where
+    P: TextureOpRender + Sync + Send + 'static,
+{
+    for (entity, view, op_type, inputs, uniform_index) in views.iter() {
+        if op_type.0 != P::OP_TYPE {
+            continue;
+        }
+
+        if !inputs.count == 0 && inputs.count > inputs.connections.len() {
+            continue;
+        }
+
+        let mut gpu_images = vec![];
+        for connection in inputs.connections.iter() {
+            if let Some(image) = images.get(connection.1) {
+                gpu_images.push(image);
+            }
+        }
+
+        // Not all our images are loaded yet
+        if gpu_images.len() < inputs.count {
+            continue;
+        }
+
+        let Some(uniforms_binding) = uniforms.uniforms().binding() else {
+            warn!("TextureOp has no uniforms {}", P::SHADER);
+            continue;
+        };
+
+        let mut entries = vec![BindGroupEntry {
+            binding: 0,
+            resource: uniforms_binding,
+        }];
+
+        for (idx, image) in gpu_images.iter().enumerate() {
+            let idx = (idx * 2 + 1) as u32;
+            entries.push(BindGroupEntry {
+                binding: idx,
+                resource: image.texture_view.into_binding(),
+            });
+            entries.push(BindGroupEntry {
+                binding: idx + 1,
+                resource: image.sampler.into_binding(),
+            });
+        }
+
+        let bind_group = render_device.create_bind_group(
+            "texture_op_bind_group",
+            &pipeline.layouts[&inputs.count],
+            &entries[..],
         );
 
-        let sampler = render_device.create_sampler(&SamplerDescriptor::default());
+        commands
+            .entity(entity)
+            .insert(TextureOpBindGroup((bind_group, uniform_index.index())));
+    }
+}
 
-        let shader = world.resource::<AssetServer>().load(P::SHADER);
+pub trait TextureOpRender {
+    const SHADER: &'static str;
+    const OP_TYPE: &'static str;
+    type Uniform: Component + ExtractComponent + ShaderType + WriteInto + Clone;
+}
 
-        let pipeline_id =
-            world
-                .resource_mut::<PipelineCache>()
-                .queue_render_pipeline(RenderPipelineDescriptor {
-                    label: Some("composite_pipeline".into()),
-                    layout: vec![layout.clone()],
-                    vertex: fullscreen_shader_vertex_state(),
-                    fragment: Some(FragmentState {
-                        shader,
-                        shader_defs: vec![],
-                        entry_point: "fragment".into(),
-                        targets: vec![Some(ColorTargetState {
-                            format: TextureFormat::bevy_default(),
-                            blend: None,
-                            write_mask: ColorWrites::ALL,
-                        })],
-                    }),
-                    primitive: PrimitiveState::default(),
-                    depth_stencil: None,
-                    multisample: MultisampleState::default(),
-                    push_constant_ranges: vec![],
-                });
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub struct TextureOpPipelineKey {
+    input_count: usize,
+    shader: Handle<Shader>,
+}
 
-        Self {
-            layout,
-            pipeline_id,
-            _plugin: Default::default(),
+#[derive(Resource, Default)]
+struct TextureOpPipeline {
+    layouts: HashMap<usize, BindGroupLayout>,
+}
+
+impl SpecializedRenderPipeline for TextureOpPipeline {
+    type Key = TextureOpPipelineKey;
+
+    fn specialize(&self, key: Self::Key) -> RenderPipelineDescriptor {
+        let layout = self.layouts[&key.input_count].clone();
+        RenderPipelineDescriptor {
+            label: Some("texture_op_pipeline".into()),
+            layout: vec![layout],
+            vertex: fullscreen_shader_vertex_state(),
+            fragment: Some(FragmentState {
+                shader: key.shader,
+                shader_defs: vec![],
+                entry_point: "fragment".into(),
+                targets: vec![Some(ColorTargetState {
+                    format: TextureFormat::bevy_default(),
+                    blend: None,
+                    write_mask: ColorWrites::ALL,
+                })],
+            }),
+            primitive: PrimitiveState::default(),
+            depth_stencil: None,
+            multisample: MultisampleState::default(),
+            push_constant_ranges: vec![],
         }
     }
 }
 
-#[derive(Default)]
-struct TextureOperatorViewNode<P, const N: usize> {
-    _plugin: std::marker::PhantomData<P>,
-}
+#[derive(Component, Debug)]
+pub struct TextureOpPipelineId(pub CachedRenderPipelineId);
 
-impl<P, const N: usize> render_graph::ViewNode for TextureOperatorViewNode<P, N>
-where
-    P: TextureOpRenderNode<N> + Sync + Send + 'static,
-{
+#[derive(Component, Debug)]
+pub struct TextureOpBindGroup(pub (BindGroup, u32));
+
+#[derive(Default)]
+struct TextureOpViewNode;
+
+impl render_graph::ViewNode for TextureOpViewNode {
     type ViewQuery = (
         &'static ViewTarget,
-        &'static DynamicUniformIndex<P::Uniform>,
-        &'static TextureOpInputs,
+        &'static TextureOpBindGroup,
+        &'static TextureOpPipelineId,
     );
 
     fn run(
         &self,
-        graph: &mut RenderGraphContext,
+        _graph: &mut RenderGraphContext,
         render_context: &mut RenderContext,
-        (view_target, uniform_index, inputs): QueryItem<Self::ViewQuery>,
+        (view_target, bind_group, pipeline_id): QueryItem<Self::ViewQuery>,
         world: &World,
     ) -> Result<(), NodeRunError> {
-        if inputs.connections.len() < inputs.count {
-            return Ok(());
-        }
-
-        let composite_pipeline = world.resource::<TextureOpPipeline<P, N>>();
         let pipeline_cache = world.resource::<PipelineCache>();
-
-        let Some(pipeline) = pipeline_cache.get_render_pipeline(composite_pipeline.pipeline_id)
-        else {
+        let Some(pipeline) = pipeline_cache.get_render_pipeline(pipeline_id.0) else {
+            warn!("TextureOpViewNode missing pipeline {:?}", pipeline_id);
             return Ok(());
         };
-
-        let settings_uniforms = world.resource::<ComponentUniforms<P::Uniform>>();
-        let Some(settings_binding) = settings_uniforms.uniforms().binding() else {
-            return Ok(());
-        };
-
-        let bind_group = render_context.render_device().create_bind_group(
-            "composite_bind_group",
-            &composite_pipeline.layout,
-            &BindGroupEntries::sequential(P::bind_group_entries(inputs, world)),
-        );
 
         let mut render_pass = render_context.begin_tracked_render_pass(RenderPassDescriptor {
-            label: Some("composite_pass"),
+            label: Some("texture_op_pass"),
             color_attachments: &[Some(RenderPassColorAttachment {
                 view: &view_target.out_texture(),
                 resolve_target: None,
@@ -194,7 +297,7 @@ where
         });
 
         render_pass.set_render_pipeline(pipeline);
-        render_pass.set_bind_group(0, &bind_group, &[uniform_index.index()]);
+        render_pass.set_bind_group(0, &bind_group.0 .0, &[bind_group.0 .1]);
         render_pass.draw(0..3, 0..1);
 
         Ok(())
