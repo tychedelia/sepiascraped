@@ -23,10 +23,6 @@ name = "accesskit"
 version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6cb10ed32c63247e4e39a8f42e8e30fb9442fbf7878c8e4a9849e7e381619bea"
-dependencies = [
- "enumn",
- "serde",
-]
 
 [[package]]
 name = "accesskit_consumer"
@@ -91,7 +87,6 @@ dependencies = [
  "cfg-if",
  "getrandom",
  "once_cell",
- "serde",
  "version_check",
  "zerocopy",
 ]
@@ -1940,7 +1935,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b7637fc2e74d17e52931bac90ff4fc061ac776ada9c7fa272f24cdca5991972"
 dependencies = [
  "bytemuck",
- "serde",
 ]
 
 [[package]]
@@ -1949,20 +1943,9 @@ version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c55bcb864b764eb889515a38b8924757657a250738ad15126637ee2df291ee6b"
 dependencies = [
- "accesskit",
  "ahash",
  "epaint",
  "nohash-hasher",
- "serde",
-]
-
-[[package]]
-name = "egui_graph"
-version = "0.3.0"
-dependencies = [
- "egui",
- "layout-rs",
- "serde",
 ]
 
 [[package]]
@@ -1978,7 +1961,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a045c6c0b44b35e98513fc1e9d183ab42881ac27caccb9fa345465601f56cce4"
 dependencies = [
  "bytemuck",
- "serde",
 ]
 
 [[package]]
@@ -2014,17 +1996,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "enumn"
-version = "0.1.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fd000fd6988e73bbe993ea3db9b1aa64906ab88766d654973924340c8cddb42"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.49",
-]
-
-[[package]]
 name = "epaint"
 version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2037,7 +2008,6 @@ dependencies = [
  "emath",
  "nohash-hasher",
  "parking_lot",
- "serde",
 ]
 
 [[package]]
@@ -3947,7 +3917,6 @@ dependencies = [
  "boa_engine",
  "boa_gc",
  "boa_runtime",
- "egui_graph",
  "layout-rs",
  "petgraph",
 ]

@@ -20,13 +20,11 @@ use bevy::{
             RenderPhase, SetItemPipeline,
         },
         render_resource::{
-            BindGroup, BindGroupEntries, BindGroupLayout,
-            BindGroupLayoutEntry, BindingType, BlendState, BufferBindingType, BufferSize,
-            ColorTargetState, ColorWrites,
+            BindGroup, BindGroupEntries, BindGroupLayout, BindGroupLayoutEntry, BindingType,
+            BlendState, BufferBindingType, BufferSize, ColorTargetState, ColorWrites,
             DynamicUniformBuffer, FragmentState, MultisampleState, PipelineCache, PolygonMode,
             PrimitiveState, RenderPipelineDescriptor, ShaderStages, ShaderType,
-            SpecializedRenderPipeline, SpecializedRenderPipelines,
-            TextureFormat, VertexState,
+            SpecializedRenderPipeline, SpecializedRenderPipelines, TextureFormat, VertexState,
         },
         renderer::{RenderDevice, RenderQueue},
         texture::BevyDefault,
@@ -35,7 +33,7 @@ use bevy::{
     },
 };
 
-use crate::ui::grid::{InfiniteGridSettings};
+use crate::ui::grid::InfiniteGridSettings;
 
 static PLANE_RENDER: &str = include_str!("grid.wgsl");
 

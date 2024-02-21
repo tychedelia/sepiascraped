@@ -4,6 +4,7 @@ use bevy::asset::LoadState;
 use bevy::core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_state;
 use bevy::ecs::query::QueryItem;
 use bevy::prelude::*;
+use bevy::render::{Render, render_graph, RenderApp, RenderSet};
 use bevy::render::extract_component::{
     ComponentUniforms, DynamicUniformIndex, ExtractComponent, ExtractComponentPlugin,
     UniformComponentPlugin,
@@ -12,21 +13,19 @@ use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_graph::{
     NodeRunError, RenderGraphApp, RenderGraphContext, RenderLabel, RenderSubGraph, ViewNodeRunner,
 };
+use bevy::render::render_resource::{
+    BindGroup, BindGroupEntry, BindGroupLayout, CachedRenderPipelineId, ColorTargetState,
+    ColorWrites, FragmentState, IntoBinding, LoadOp, MultisampleState, Operations, PipelineCache,
+    PrimitiveState, RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor,
+    SamplerBindingType, ShaderStages, ShaderType, SpecializedRenderPipeline,
+    SpecializedRenderPipelines, StoreOp, TextureFormat, TextureSampleType,
+};
 use bevy::render::render_resource::binding_types::{sampler, texture_2d, uniform_buffer};
 use bevy::render::render_resource::encase::internal::WriteInto;
-use bevy::render::render_resource::{
-    BindGroup, BindGroupEntry, BindGroupLayout, CachedRenderPipelineId, ColorTargetState, ColorWrites, FragmentState, IntoBinding, LoadOp, MultisampleState,
-    Operations, PipelineCache, PrimitiveState, RenderPassColorAttachment, RenderPassDescriptor,
-    RenderPipelineDescriptor, SamplerBindingType, ShaderStages, ShaderType,
-    SpecializedRenderPipeline, SpecializedRenderPipelines, StoreOp, TextureFormat,
-    TextureSampleType,
-};
 use bevy::render::renderer::{RenderContext, RenderDevice};
 use bevy::render::texture::BevyDefault;
 use bevy::render::view::{ExtractedView, ViewTarget};
-use bevy::render::{render_graph, Render, RenderApp, RenderSet};
-use bevy::utils::{HashMap};
-
+use bevy::utils::HashMap;
 
 use crate::texture::{TextureOpInputs, TextureOpType};
 
@@ -90,7 +89,7 @@ pub fn prepare_texture_op_pipelines<P>(
     mut pipeline: ResMut<TextureOpPipeline>,
     pipeline_cache: Res<PipelineCache>,
     mut pipelines: ResMut<SpecializedRenderPipelines<TextureOpPipeline>>,
-    views: Query<(Entity, &ExtractedView, &TextureOpType, &TextureOpInputs)>,
+    views: Query<(Entity, &ExtractedView, &TextureOpType<P::OpType>, &TextureOpInputs)>,
     shader_handle: Res<TextureOpShaderHandle<P>>,
     render_device: Res<RenderDevice>,
     asset_server: Res<AssetServer>,
@@ -104,10 +103,6 @@ pub fn prepare_texture_op_pipelines<P>(
     }
 
     for (entity, view, op_type, inputs) in views.iter() {
-        if op_type.0 != P::OP_TYPE {
-            continue;
-        }
-
         let mut entries = vec![uniform_buffer::<P::Uniform>(true).build(0, ShaderStages::FRAGMENT)];
 
         for i in 0..inputs.count {
@@ -143,7 +138,7 @@ pub fn prepare_texture_op_bind_group<P>(
     views: Query<(
         Entity,
         &ExtractedView,
-        &TextureOpType,
+        &TextureOpType<P::OpType>,
         &TextureOpInputs,
         &DynamicUniformIndex<P::Uniform>,
     )>,
@@ -153,11 +148,7 @@ pub fn prepare_texture_op_bind_group<P>(
     P: TextureOpRender + Sync + Send + 'static,
 {
     for (entity, view, op_type, inputs, uniform_index) in views.iter() {
-        if op_type.0 != P::OP_TYPE {
-            continue;
-        }
-
-        if !inputs.count == 0 && inputs.count > inputs.connections.len() {
+        if !inputs.is_fully_connected() {
             continue;
         }
 
@@ -209,7 +200,7 @@ pub fn prepare_texture_op_bind_group<P>(
 
 pub trait TextureOpRender {
     const SHADER: &'static str;
-    const OP_TYPE: &'static str;
+    type OpType: Component + ExtractComponent + Send + Sync + 'static;
     type Uniform: Component + ExtractComponent + ShaderType + WriteInto + Clone;
 }
 

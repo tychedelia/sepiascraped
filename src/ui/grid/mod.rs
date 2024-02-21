@@ -1,4 +1,3 @@
-
 use bevy::prelude::*;
 use bevy::render::primitives::Aabb;
 use bevy::render::view::NoFrustumCulling;
@@ -122,17 +121,15 @@ pub fn grid_setup(
 ) {
     let window = window.single();
     commands
-        .spawn(
-            InfiniteGridBundle {
-                settings: InfiniteGridSettings {
-                    // shadow_color: None,
-                    x_axis_color: Color::rgb(1.0, 0.2, 0.2),
-                    y_axis_color: Color::rgb(0.2, 0.2, 1.0),
-                    ..default()
-                },
+        .spawn(InfiniteGridBundle {
+            settings: InfiniteGridSettings {
+                // shadow_color: None,
+                x_axis_color: Color::rgb(1.0, 0.2, 0.2),
+                y_axis_color: Color::rgb(0.2, 0.2, 1.0),
                 ..default()
             },
-        )
+            ..default()
+        })
         .with_children(|parent| {
             parent.spawn((
                 GridDrag,

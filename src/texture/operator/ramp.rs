@@ -1,132 +1,166 @@
 use bevy::prelude::*;
-use bevy::render::extract_component::{ExtractComponent};
-
-
-use bevy::render::render_resource::{
-    ShaderType,
-};
-use bevy_egui::egui::{Align, CollapsingHeader};
+use bevy::render::camera::CameraRenderGraph;
+use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
+use bevy::render::render_resource::{Extent3d, ShaderType, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages};
+use bevy::utils::hashbrown::HashMap;
 use bevy_egui::{egui, EguiContexts};
+use bevy_egui::egui::{Align, CollapsingHeader};
 
-use crate::texture::render::{TextureOpRender, TextureOpRenderPlugin};
-use crate::texture::{Op, TextureOpPlugin};
-use crate::ui::event::{Connect, Disconnect};
+use crate::texture::{TextureOp, TextureOpBundle, TextureOpImage, TextureOpInputs, TextureOpOutputs, TextureOpType, TextureOpUi};
+use crate::texture::render::{TextureOpRender, TextureOpRenderPlugin, TextureOpSubGraph};
 use crate::ui::graph::SelectedNode;
 use crate::ui::UiState;
 
 #[derive(Default)]
-pub struct TextureRampPlugin;
+pub struct TextureOpRampPlugin;
 
-impl Plugin for TextureRampPlugin {
+impl Plugin for TextureOpRampPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            TextureOpPlugin::<TextureRampPlugin>::default(),
-            TextureOpRenderPlugin::<TextureRampPlugin>::default(),
-        ));
+            ExtractComponentPlugin::<TextureOpType<TextureOpRamp>>::default(),
+            TextureOpRenderPlugin::<TextureOpRampPlugin>::default(),
+        ))
+        .add_systems(Startup, setup);
     }
 }
 
-impl TextureOpRender for TextureRampPlugin {
+#[derive(Component, Clone, Default)]
+pub struct TextureOpRamp;
+
+impl TextureOpRender for TextureOpRampPlugin {
     const SHADER: &'static str = "shaders/texture/ramp.wgsl";
-    const OP_TYPE: &'static str = "ramp";
+    type OpType = TextureOpType<TextureOpRamp>;
     type Uniform = TextureRampSettings;
 }
 
-impl Op for TextureRampPlugin {
-    type Bundle = ();
-    type SidePanelQuery = (
-        Entity,
-        &'static mut TextureRampSettings,
-        &'static SelectedNode,
-    );
+fn side_panel_ui(
+    mut ui_state: ResMut<UiState>,
+    mut egui_contexts: EguiContexts,
+    mut selected_node: Query<(Entity, &mut TextureRampSettings, &SelectedNode)>,
+) {
+    let ctx = egui_contexts.ctx_mut();
+    if let Ok((entity, mut settings, _selected_node)) = selected_node.get_single_mut() {
+        ui_state.side_panel = Some(
+            egui::SidePanel::left("texture_ramp_side_panel")
+                .resizable(false)
+                .show(ctx, |ui| {
+                    egui::Grid::new("texture_ramp_params").show(ui, |ui| {
+                        ui.heading("Ramp");
+                        ui.end_row();
+                        ui.separator();
+                        ui.end_row();
 
-    fn side_panel_ui(
-        mut ui_state: ResMut<UiState>,
-        mut egui_contexts: EguiContexts,
-        mut selected_node: Query<Self::SidePanelQuery>,
-    ) {
-        let ctx = egui_contexts.ctx_mut();
-        if let Ok((entity, mut settings, _selected_node)) = selected_node.get_single_mut() {
-            ui_state.side_panel = Some(
-                egui::SidePanel::left("texture_ramp_side_panel")
-                    .resizable(false)
-                    .show(ctx, |ui| {
-                        egui::Grid::new("texture_ramp_params").show(ui, |ui| {
-                            ui.heading("Ramp");
+                        let collapse = ui
+                            .with_layout(egui::Layout::left_to_right(Align::Min), |ui| {
+                                ui.set_max_width(100.0);
+                                let collapse = CollapsingHeader::new("").show(ui, |ui| {});
+                                ui.label("Color A");
+                                ui.color_edit_button_rgba_premultiplied(settings.color_a.as_mut());
+                                collapse
+                            })
+                            .inner;
+                        if collapse.fully_open() {
                             ui.end_row();
-                            ui.separator();
-                            ui.end_row();
+                            ui.add(
+                                egui::TextEdit::singleline(&mut String::new())
+                                    .hint_text("Write something here"),
+                            );
+                        }
 
-                            let collapse = ui
-                                .with_layout(egui::Layout::left_to_right(Align::Min), |ui| {
-                                    ui.set_max_width(100.0);
-                                    let collapse = CollapsingHeader::new("").show(ui, |ui| {});
-                                    ui.label("Color A");
-                                    ui.color_edit_button_rgba_premultiplied(
-                                        settings.color_a.as_mut(),
-                                    );
-                                    collapse
-                                })
-                                .inner;
-                            if collapse.fully_open() {
-                                ui.end_row();
-                                ui.add(
-                                    egui::TextEdit::singleline(&mut String::new())
-                                        .hint_text("Write something here"),
+                        ui.end_row();
+
+                        ui.label("Color B");
+                        ui.color_edit_button_rgba_premultiplied(settings.color_b.as_mut());
+                        ui.end_row();
+                        let mut mode =
+                            TextureRampMode::from_u32(settings.mode).expect("Invalid mode");
+                        egui::ComboBox::from_label("Mode")
+                            .selected_text(format!("{mode:?}"))
+                            .show_ui(ui, |ui| {
+                                ui.set_min_width(60.0);
+                                ui.selectable_value(
+                                    &mut mode,
+                                    TextureRampMode::Horizontal,
+                                    "Horizontal",
                                 );
-                            }
-
-                            ui.end_row();
-
-                            ui.label("Color B");
-                            ui.color_edit_button_rgba_premultiplied(settings.color_b.as_mut());
-                            ui.end_row();
-                            let mut mode =
-                                TextureRampMode::from_u32(settings.mode).expect("Invalid mode");
-                            egui::ComboBox::from_label("Mode")
-                                .selected_text(format!("{mode:?}"))
-                                .show_ui(ui, |ui| {
-                                    ui.set_min_width(60.0);
-                                    ui.selectable_value(
-                                        &mut mode,
-                                        TextureRampMode::Horizontal,
-                                        "Horizontal",
-                                    );
-                                    ui.selectable_value(
-                                        &mut mode,
-                                        TextureRampMode::Vertical,
-                                        "Vertical",
-                                    );
-                                    ui.selectable_value(
-                                        &mut mode,
-                                        TextureRampMode::Circular,
-                                        "Circular",
-                                    );
-                                });
-                            ui.end_row();
-                            settings.mode = mode.as_u32();
-                        });
-                    })
-                    .response,
-            );
-        }
+                                ui.selectable_value(
+                                    &mut mode,
+                                    TextureRampMode::Vertical,
+                                    "Vertical",
+                                );
+                                ui.selectable_value(
+                                    &mut mode,
+                                    TextureRampMode::Circular,
+                                    "Circular",
+                                );
+                            });
+                        ui.end_row();
+                        settings.mode = mode.as_u32();
+                    });
+                })
+                .response,
+        );
     }
+}
 
-    fn connect_handler(
-        mut ev_connect: EventReader<Connect>,
-        mut node_q: Query<Self::ConnectOpQuery>,
-        input_q: Query<Self::ConnectInputQuery>,
-    ) {
-        Self::add_image_inputs(&mut ev_connect, &mut node_q, input_q);
-    }
+fn setup(world: &mut World) {
+    let cb = world.register_system(side_panel_ui);
+    world.spawn((TextureOpType::<TextureOpRamp>::default(), TextureOpUi(cb)));
+}
 
-    fn disconnect_handler(
-        mut ev_disconnect: EventReader<Disconnect>,
-        mut node_q: Query<Self::DisconnectOpQuery>,
-        input_q: Query<Self::DisconnectInputQuery>,
-    ) {
-        Self::remove_image_inputs(&mut ev_disconnect, &mut node_q, input_q);
-    }
+fn spawn_op(mut commands: Commands, mut images: ResMut<Assets<Image>>, added_q: Query<Entity, Added<TextureOpType<TextureOpRamp>>>) {
+    let size = Extent3d {
+        width: 512,
+        height: 512,
+        ..default()
+    };
+
+    // This is the texture that will be rendered to.
+    let mut image = Image {
+        texture_descriptor: TextureDescriptor {
+            label: None,
+            size,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Rgba8UnormSrgb,
+            mip_level_count: 1,
+            sample_count: 1,
+            usage: TextureUsages::TEXTURE_BINDING
+                | TextureUsages::COPY_DST
+                | TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        },
+        ..default()
+    };
+
+    image.resize(size);
+
+    let image = images.add(image);
+
+    commands.spawn((
+        TextureOpBundle {
+            camera: Camera3dBundle {
+                camera_render_graph: CameraRenderGraph::new(TextureOpSubGraph),
+                camera: Camera {
+                    order: 2,
+                    target: image.clone().into(),
+                    ..default()
+                },
+                ..default()
+            },
+            op: TextureOp,
+            image: TextureOpImage(image.clone()),
+            inputs: TextureOpInputs {
+                count: 0,
+                connections: HashMap::new(),
+            },
+            outputs: TextureOpOutputs { count: 1 },
+        },
+        TextureRampSettings {
+            color_a: Vec4::new(1.0, 0.0, 0.0, 1.0),
+            color_b: Vec4::new(0.0, 0.5, 1.0, 1.0),
+            mode: 2,
+        },
+    ));
 }
 
 #[derive(Default, Clone, Copy, Debug, PartialEq)]

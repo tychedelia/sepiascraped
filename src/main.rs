@@ -4,8 +4,8 @@
 use crate::param::ParamPlugin;
 use crate::render::RenderPlugin;
 
-use crate::texture::operator::composite::{CompositeSettings, TextureCompositePlugin};
-use crate::texture::operator::ramp::{TextureRampPlugin, TextureRampSettings};
+use crate::texture::operator::composite::{CompositeSettings, TextureOpCompositePlugin};
+use crate::texture::operator::ramp::{TextureOpRamp, TextureOpRampPlugin, TextureRampSettings};
 use crate::texture::render::{TextureOpRender, TextureOpSubGraph};
 use crate::texture::{
     TextureOp, TextureOpBundle, TextureOpImage, TextureOpInputs, TextureOpOutputs, TextureOpType,
@@ -14,12 +14,10 @@ use crate::texture::{
 use crate::ui::UiPlugin;
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
-use bevy::utils::hashbrown::HashMap;
-use bevy::{
-    render::render_resource::{
-        Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
-    },
+use bevy::render::render_resource::{
+    Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
+use bevy::utils::hashbrown::HashMap;
 use bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::plugin::ShapePlugin;
 
@@ -28,6 +26,7 @@ mod render;
 mod script;
 mod texture;
 mod ui;
+mod index;
 
 fn main() {
     App::new()
@@ -54,150 +53,5 @@ struct FirstPassCube;
 struct MainPassCube;
 
 fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
-    let size = Extent3d {
-        width: 512,
-        height: 512,
-        ..default()
-    };
 
-    // This is the texture that will be rendered to.
-    let mut image = Image {
-        texture_descriptor: TextureDescriptor {
-            label: None,
-            size,
-            dimension: TextureDimension::D2,
-            format: TextureFormat::Rgba8UnormSrgb,
-            mip_level_count: 1,
-            sample_count: 1,
-            usage: TextureUsages::TEXTURE_BINDING
-                | TextureUsages::COPY_DST
-                | TextureUsages::RENDER_ATTACHMENT,
-            view_formats: &[],
-        },
-        ..default()
-    };
-
-    // fill image.data with zeroes
-    image.resize(size);
-
-    let image_handle_1 = images.add(image);
-
-    commands.spawn((
-        TextureOpBundle {
-            camera: Camera3dBundle {
-                camera_render_graph: CameraRenderGraph::new(TextureOpSubGraph),
-                camera: Camera {
-                    target: image_handle_1.clone().into(),
-                    order: 1,
-                    ..default()
-                },
-                ..default()
-            },
-            op: TextureOp,
-            op_type: TextureOpType(TextureRampPlugin::OP_TYPE),
-            image: TextureOpImage(image_handle_1.clone()),
-            inputs: TextureOpInputs {
-                count: 0,
-                connections: HashMap::new(),
-            },
-            outputs: TextureOpOutputs { count: 1 },
-        },
-        TextureRampSettings {
-            color_a: Vec4::new(1.0, 0.0, 0.0, 1.0),
-            color_b: Vec4::new(0.0, 0.0, 1.0, 1.0),
-            mode: 0,
-        },
-    ));
-
-    // This is the texture that will be rendered to.
-    let mut image = Image {
-        texture_descriptor: TextureDescriptor {
-            label: None,
-            size,
-            dimension: TextureDimension::D2,
-            format: TextureFormat::Rgba8UnormSrgb,
-            mip_level_count: 1,
-            sample_count: 1,
-            usage: TextureUsages::TEXTURE_BINDING
-                | TextureUsages::COPY_DST
-                | TextureUsages::RENDER_ATTACHMENT,
-            view_formats: &[],
-        },
-        ..default()
-    };
-
-    image.resize(size);
-
-    let image_handle_2 = images.add(image);
-
-    commands.spawn((
-        TextureOpBundle {
-            camera: Camera3dBundle {
-                camera_render_graph: CameraRenderGraph::new(TextureOpSubGraph),
-                camera: Camera {
-                    order: 2,
-                    target: image_handle_2.clone().into(),
-                    ..default()
-                },
-                ..default()
-            },
-            op: TextureOp,
-            op_type: TextureOpType(TextureRampPlugin::OP_TYPE),
-            image: TextureOpImage(image_handle_2.clone()),
-            inputs: TextureOpInputs {
-                count: 0,
-                connections: HashMap::new(),
-            },
-            outputs: TextureOpOutputs { count: 1 },
-        },
-        TextureRampSettings {
-            color_a: Vec4::new(1.0, 0.0, 0.0, 1.0),
-            color_b: Vec4::new(0.0, 0.5, 1.0, 1.0),
-            mode: 2,
-        },
-    ));
-
-    // This is the texture that will be rendered to.
-    let mut image = Image {
-        texture_descriptor: TextureDescriptor {
-            label: None,
-            size,
-            dimension: TextureDimension::D2,
-            format: TextureFormat::Rgba8UnormSrgb,
-            mip_level_count: 1,
-            sample_count: 1,
-            usage: TextureUsages::TEXTURE_BINDING
-                | TextureUsages::COPY_DST
-                | TextureUsages::RENDER_ATTACHMENT,
-            view_formats: &[],
-        },
-        ..default()
-    };
-
-    image.resize(size);
-
-    let image_handle_3 = images.add(image);
-
-    commands.spawn((
-        TextureOpBundle {
-            camera: Camera3dBundle {
-                camera_render_graph: CameraRenderGraph::new(TextureOpSubGraph),
-                camera: Camera {
-                    order: 3,
-                    target: image_handle_3.clone().into(),
-                    ..default()
-                },
-                ..default()
-            },
-            op: TextureOp,
-            op_type: TextureOpType(TextureCompositePlugin::OP_TYPE),
-            image: TextureOpImage(image_handle_3.clone()),
-            inputs: TextureOpInputs {
-                count: 2,
-                connections: HashMap::new(),
-            },
-            outputs: TextureOpOutputs { count: 0 },
-        },
-        CompositeSettings { mode: 0 },
-    ));
 }

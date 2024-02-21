@@ -1,96 +1,126 @@
 use bevy::prelude::*;
-use bevy::render::extract_component::{ExtractComponent};
-
+use bevy::render::camera::CameraRenderGraph;
+use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::render_graph::{RenderLabel, RenderSubGraph};
-
 use bevy::render::render_resource::{
-    ShaderType,
+    Extent3d, ShaderType, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
+use bevy::utils::hashbrown::HashMap;
 use bevy_egui::{egui, EguiContexts};
 
-use crate::texture::render::{TextureOpRender, TextureOpRenderPlugin};
-use crate::texture::{Op, TextureOpBundle, TextureOpPlugin};
-use crate::ui::event::{Connect, Disconnect};
+use crate::texture::{
+    TextureOp, TextureOpBundle, TextureOpImage, TextureOpInputs, TextureOpOutputs,
+    TextureOpType, TextureOpUi,
+};
+use crate::texture::render::{TextureOpRender, TextureOpRenderPlugin, TextureOpSubGraph};
 use crate::ui::graph::SelectedNode;
 use crate::ui::UiState;
 
 #[derive(Default)]
-pub struct TextureCompositePlugin;
+pub struct TextureOpCompositePlugin;
 
-impl Plugin for TextureCompositePlugin {
+impl Plugin for TextureOpCompositePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            TextureOpPlugin::<TextureCompositePlugin>::default(),
-            TextureOpRenderPlugin::<TextureCompositePlugin>::default(),
-        ));
+            ExtractComponentPlugin::<TextureOpType<TextureOpComposite>>::default(),
+            TextureOpRenderPlugin::<TextureOpCompositePlugin>::default(),
+        ))
+        .add_systems(Startup, setup);
     }
 }
 
-impl TextureOpRender for TextureCompositePlugin {
+impl TextureOpRender for TextureOpCompositePlugin {
     const SHADER: &'static str = "shaders/texture/composite.wgsl";
-    const OP_TYPE: &'static str = "composite";
+    type OpType = TextureOpType<TextureOpComposite>;
     type Uniform = CompositeSettings;
 }
 
-#[derive(Bundle, Default)]
-pub struct CompositeNodeBundle {
-    node: TextureOpBundle,
-    settings: CompositeSettings,
+fn side_panel_ui(
+    mut ui_state: ResMut<UiState>,
+    mut egui_contexts: EguiContexts,
+    mut selected_node: Query<(Entity, &mut CompositeSettings, &SelectedNode)>,
+) {
+    let ctx = egui_contexts.ctx_mut();
+    if let Ok((entity, mut settings, _selected_node)) = selected_node.get_single_mut() {
+        ui_state.side_panel = Some(
+            egui::SidePanel::left("composite_side_panel")
+                .resizable(false)
+                .show(ctx, |ui| {
+                    ui.heading("Composite");
+                    let mut mode = CompositeMode::from_u32(settings.mode).expect("Invalid mode");
+                    egui::ComboBox::from_label("Mode")
+                        .selected_text(format!("{mode:?}"))
+                        .show_ui(ui, |ui| {
+                            ui.set_min_width(60.0);
+                            ui.selectable_value(&mut mode, CompositeMode::Add, "Add");
+                            ui.selectable_value(&mut mode, CompositeMode::Multiply, "Multiply");
+                            ui.selectable_value(&mut mode, CompositeMode::Subtract, "Subtract");
+                            ui.selectable_value(&mut mode, CompositeMode::Divide, "Divide");
+                        });
+                    settings.mode = mode.as_u32();
+                })
+                .response,
+        );
+    }
 }
 
-impl Op for TextureCompositePlugin {
-    type Bundle = ();
-    type SidePanelQuery = (
-        Entity,
-        &'static mut CompositeSettings,
-        &'static SelectedNode,
-    );
+fn setup(world: &mut World) {
+    let cb = world.register_system(side_panel_ui);
+    world.spawn(TextureOpUi(cb));
+}
 
-    fn side_panel_ui(
-        mut ui_state: ResMut<UiState>,
-        mut egui_contexts: EguiContexts,
-        mut selected_node: Query<Self::SidePanelQuery>,
-    ) {
-        let ctx = egui_contexts.ctx_mut();
-        if let Ok((entity, mut settings, _selected_node)) = selected_node.get_single_mut() {
-            ui_state.side_panel = Some(
-                egui::SidePanel::left("composite_side_panel")
-                    .resizable(false)
-                    .show(ctx, |ui| {
-                        ui.heading("Composite");
-                        let mut mode =
-                            CompositeMode::from_u32(settings.mode).expect("Invalid mode");
-                        egui::ComboBox::from_label("Mode")
-                            .selected_text(format!("{mode:?}"))
-                            .show_ui(ui, |ui| {
-                                ui.set_min_width(60.0);
-                                ui.selectable_value(&mut mode, CompositeMode::Add, "Add");
-                                ui.selectable_value(&mut mode, CompositeMode::Multiply, "Multiply");
-                                ui.selectable_value(&mut mode, CompositeMode::Subtract, "Subtract");
-                                ui.selectable_value(&mut mode, CompositeMode::Divide, "Divide");
-                            });
-                        settings.mode = mode.as_u32();
-                    })
-                    .response,
-            );
-        }
-    }
+#[derive(Component, Clone, Default)]
+pub struct TextureOpComposite;
 
-    fn connect_handler(
-        mut ev_connect: EventReader<Connect>,
-        mut node_q: Query<Self::ConnectOpQuery>,
-        input_q: Query<Self::ConnectInputQuery>,
-    ) {
-        Self::add_image_inputs(&mut ev_connect, &mut node_q, input_q);
-    }
+fn spawn_op(mut commands: Commands, mut images: ResMut<Assets<Image>>, added_q: Query<Entity, Added<TextureOpType<TextureOpComposite>>>) {
+    let size = Extent3d {
+        width: 512,
+        height: 512,
+        ..default()
+    };
 
-    fn disconnect_handler(
-        mut ev_disconnect: EventReader<Disconnect>,
-        mut node_q: Query<Self::DisconnectOpQuery>,
-        input_q: Query<Self::DisconnectInputQuery>,
-    ) {
-        Self::remove_image_inputs(&mut ev_disconnect, &mut node_q, input_q);
-    }
+    // This is the texture that will be rendered to.
+    let mut image = Image {
+        texture_descriptor: TextureDescriptor {
+            label: None,
+            size,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Rgba8UnormSrgb,
+            mip_level_count: 1,
+            sample_count: 1,
+            usage: TextureUsages::TEXTURE_BINDING
+                | TextureUsages::COPY_DST
+                | TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        },
+        ..default()
+    };
+
+    image.resize(size);
+
+    let image = images.add(image);
+
+    commands.spawn((
+        TextureOpBundle {
+            camera: Camera3dBundle {
+                camera_render_graph: CameraRenderGraph::new(TextureOpSubGraph),
+                camera: Camera {
+                    order: 3,
+                    target: image.clone().into(),
+                    ..default()
+                },
+                ..default()
+            },
+            op: TextureOp,
+            image: TextureOpImage(image.clone()),
+            inputs: TextureOpInputs {
+                count: 2,
+                connections: HashMap::new(),
+            },
+            outputs: TextureOpOutputs { count: 0 },
+        },
+        CompositeSettings { mode: 0 },
+    ));
 }
 
 #[derive(Default, Clone, Copy, Debug, PartialEq)]

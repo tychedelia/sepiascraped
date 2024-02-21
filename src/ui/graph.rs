@@ -1,14 +1,13 @@
 use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle};
-use bevy::utils::{HashMap};
+use bevy::utils::HashMap;
 use bevy_mod_picking::prelude::*;
 use bevy_mod_picking::PickableBundle;
 use bevy_prototype_lyon::draw::Stroke;
 use bevy_prototype_lyon::path::PathBuilder;
 
-use bevy_prototype_lyon::prelude::{ShapeBundle};
-
+use bevy_prototype_lyon::prelude::ShapeBundle;
 
 use layout::core::base::Orientation;
 use layout::core::geometry::Point;
@@ -18,10 +17,12 @@ use layout::topo::layout::VisualGraph;
 use layout::topo::placer::Placer;
 use petgraph::stable_graph::{DefaultIx, IndexType, NodeIndex};
 
-use crate::texture::{TextureOp, TextureOpImage, TextureOpInputs, TextureOpOutputs, TextureOpType};
+use crate::texture::{
+    TextureOp, TextureOpDefaultImage, TextureOpImage, TextureOpInputs, TextureOpOutputs,
+    TextureOpType,
+};
 use crate::ui::event::{ClickNode, Connect, Disconnect};
 use crate::ui::grid::InfiniteGridSettings;
-
 
 pub struct GraphPlugin;
 
@@ -56,11 +57,7 @@ pub struct GraphId(NodeIndex<DefaultIx>);
 pub struct GraphRef(Entity);
 
 #[derive(Component, Debug)]
-pub struct GraphNode {
-    node_type: &'static str,
-}
-
-impl GraphNode {}
+pub struct GraphNode;
 
 type Graph = petgraph::stable_graph::StableGraph<GraphNode, (usize, usize)>;
 
@@ -100,10 +97,10 @@ pub struct GraphState {
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 pub struct NodeMaterial {
     #[uniform(0)]
-    selected: u32,
+    pub selected: u32,
     #[texture(1)]
     #[sampler(2)]
-    color_texture: Handle<Image>,
+    pub color_texture: Handle<Image>,
 }
 
 // All functions on `Material2d` have default impls. You only need to implement the
@@ -182,6 +179,7 @@ pub fn ui(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<NodeMaterial>>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
+    default_image: Res<TextureOpDefaultImage>,
     mut parent: Query<(Entity, &InheritedVisibility), With<InfiniteGridSettings>>,
     entities: Query<
         (
@@ -208,7 +206,11 @@ pub fn ui(
                             .into(),
                         material: materials.add(NodeMaterial {
                             selected: 0,
-                            color_texture: (**image).clone(),
+                            color_texture: if input_config.count == 0 {
+                                (**image).clone()
+                            } else {
+                                default_image.0.clone()
+                            },
                         }),
                         transform: Transform::from_translation(Vec3::new(0.0, 0.0, index)),
                         ..Default::default()
@@ -460,11 +462,10 @@ fn update_connections(
 fn texture_ui(
     mut commands: Commands,
     mut graph: ResMut<GraphState>,
-    mut textures: Query<(Entity, &TextureOpType, &TextureOp), Without<GraphId>>,
+    mut textures: Query<(Entity, &TextureOp), Without<GraphId>>,
 ) {
-    for (entity, node_type, _node) in textures.iter_mut() {
+    for (entity, _node) in textures.iter_mut() {
         let node_id = graph.graph.add_node(GraphNode {
-            node_type: node_type.0,
         });
         commands.entity(entity).insert(GraphId(node_id));
     }
