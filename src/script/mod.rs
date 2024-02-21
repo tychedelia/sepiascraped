@@ -147,8 +147,8 @@ impl Class for CounterClass {
         let world = world_holder.world_mut();
         let entity = world.spawn(Counter { count: 0 });
         let entity = entity.id();
-        let Counter = CounterClass { entity, count: 0 };
-        Ok(Counter)
+        let counter = CounterClass { entity, count: 0 };
+        Ok(counter)
     }
 
     fn init(class: &mut ClassBuilder<'_>) -> JsResult<()> {

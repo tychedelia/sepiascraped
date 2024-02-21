@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use bevy_egui::egui;
-
 use bevy_mod_picking::DefaultPickingPlugins;
 
 use camera::CameraControllerPlugin;

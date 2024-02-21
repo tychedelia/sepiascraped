@@ -4,7 +4,6 @@ use bevy::asset::LoadState;
 use bevy::core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_state;
 use bevy::ecs::query::QueryItem;
 use bevy::prelude::*;
-use bevy::render::{Render, render_graph, RenderApp, RenderSet};
 use bevy::render::extract_component::{
     ComponentUniforms, DynamicUniformIndex, ExtractComponent, ExtractComponentPlugin,
     UniformComponentPlugin,
@@ -13,6 +12,8 @@ use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_graph::{
     NodeRunError, RenderGraphApp, RenderGraphContext, RenderLabel, RenderSubGraph, ViewNodeRunner,
 };
+use bevy::render::render_resource::binding_types::{sampler, texture_2d, uniform_buffer};
+use bevy::render::render_resource::encase::internal::WriteInto;
 use bevy::render::render_resource::{
     BindGroup, BindGroupEntry, BindGroupLayout, CachedRenderPipelineId, ColorTargetState,
     ColorWrites, FragmentState, IntoBinding, LoadOp, MultisampleState, Operations, PipelineCache,
@@ -20,14 +21,15 @@ use bevy::render::render_resource::{
     SamplerBindingType, ShaderStages, ShaderType, SpecializedRenderPipeline,
     SpecializedRenderPipelines, StoreOp, TextureFormat, TextureSampleType,
 };
-use bevy::render::render_resource::binding_types::{sampler, texture_2d, uniform_buffer};
-use bevy::render::render_resource::encase::internal::WriteInto;
 use bevy::render::renderer::{RenderContext, RenderDevice};
 use bevy::render::texture::BevyDefault;
 use bevy::render::view::{ExtractedView, ViewTarget};
+use bevy::render::{render_graph, Render, RenderApp, RenderSet};
 use bevy::utils::HashMap;
 
-use crate::texture::{TextureOpInputs, TextureOpType};
+use crate::texture::{TextureOpInputs, TextureOpMeta, TextureOpType};
+use crate::texture::operator::composite::TextureOpComposite;
+use crate::texture::operator::ramp::TextureOpRamp;
 
 #[derive(Default)]
 pub struct TextureOpRenderPlugin<P> {
@@ -42,7 +44,7 @@ pub struct TextureOpRenderLabel;
 
 impl<P> Plugin for TextureOpRenderPlugin<P>
 where
-    P: TextureOpRender + Sync + Send + 'static,
+    P: TextureOpMeta + Sync + Send + 'static,
 {
     fn build(&self, app: &mut App) {
         app.add_plugins((
@@ -89,20 +91,17 @@ pub fn prepare_texture_op_pipelines<P>(
     mut pipeline: ResMut<TextureOpPipeline>,
     pipeline_cache: Res<PipelineCache>,
     mut pipelines: ResMut<SpecializedRenderPipelines<TextureOpPipeline>>,
-    views: Query<(Entity, &ExtractedView, &TextureOpType<P::OpType>, &TextureOpInputs)>,
+    views: Query<(Entity, &ExtractedView, &TextureOpInputs), With<P::OpType>>,
     shader_handle: Res<TextureOpShaderHandle<P>>,
     render_device: Res<RenderDevice>,
-    asset_server: Res<AssetServer>,
 ) where
-    P: TextureOpRender + Sync + Send + 'static,
+    P: TextureOpMeta + Sync + Send + 'static,
 {
-    let load_state = asset_server.load_state(shader_handle.0.clone());
-    if let LoadState::Loading | LoadState::Failed | LoadState::NotLoaded = load_state {
-        warn!("TextureOp shader not loaded {:?}", shader_handle.0);
-        return;
-    }
+    for (entity, view, inputs) in views.iter() {
+        if !inputs.is_fully_connected() {
+            continue;
+        }
 
-    for (entity, view, op_type, inputs) in views.iter() {
         let mut entries = vec![uniform_buffer::<P::Uniform>(true).build(0, ShaderStages::FRAGMENT)];
 
         for i in 0..inputs.count {
@@ -135,19 +134,21 @@ pub fn prepare_texture_op_bind_group<P>(
     mut commands: Commands,
     pipeline: ResMut<TextureOpPipeline>,
     uniforms: Res<ComponentUniforms<P::Uniform>>,
-    views: Query<(
-        Entity,
-        &ExtractedView,
-        &TextureOpType<P::OpType>,
-        &TextureOpInputs,
-        &DynamicUniformIndex<P::Uniform>,
-    )>,
+    views: Query<
+        (
+            Entity,
+            &ExtractedView,
+            &TextureOpInputs,
+            &DynamicUniformIndex<P::Uniform>,
+        ),
+        With<P::OpType>,
+    >,
     images: Res<RenderAssets<Image>>,
     render_device: Res<RenderDevice>,
 ) where
-    P: TextureOpRender + Sync + Send + 'static,
+    P: TextureOpMeta + Sync + Send + 'static,
 {
-    for (entity, view, op_type, inputs, uniform_index) in views.iter() {
+    for (entity, view, inputs, uniform_index) in views.iter() {
         if !inputs.is_fully_connected() {
             continue;
         }
@@ -196,12 +197,6 @@ pub fn prepare_texture_op_bind_group<P>(
             .entity(entity)
             .insert(TextureOpBindGroup((bind_group, uniform_index.index())));
     }
-}
-
-pub trait TextureOpRender {
-    const SHADER: &'static str;
-    type OpType: Component + ExtractComponent + Send + Sync + 'static;
-    type Uniform: Component + ExtractComponent + ShaderType + WriteInto + Clone;
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
@@ -253,6 +248,7 @@ struct TextureOpViewNode;
 
 impl render_graph::ViewNode for TextureOpViewNode {
     type ViewQuery = (
+        Entity,
         &'static ViewTarget,
         &'static TextureOpBindGroup,
         &'static TextureOpPipelineId,
@@ -262,7 +258,7 @@ impl render_graph::ViewNode for TextureOpViewNode {
         &self,
         _graph: &mut RenderGraphContext,
         render_context: &mut RenderContext,
-        (view_target, bind_group, pipeline_id): QueryItem<Self::ViewQuery>,
+        (entity, view_target, bind_group, pipeline_id): QueryItem<Self::ViewQuery>,
         world: &World,
     ) -> Result<(), NodeRunError> {
         let pipeline_cache = world.resource::<PipelineCache>();

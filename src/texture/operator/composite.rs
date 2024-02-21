@@ -1,18 +1,11 @@
 use bevy::prelude::*;
-use bevy::render::camera::CameraRenderGraph;
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::render_graph::{RenderLabel, RenderSubGraph};
-use bevy::render::render_resource::{
-    Extent3d, ShaderType, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
-};
-use bevy::utils::hashbrown::HashMap;
+use bevy::render::render_resource::ShaderType;
 use bevy_egui::{egui, EguiContexts};
 
-use crate::texture::{
-    TextureOp, TextureOpBundle, TextureOpImage, TextureOpInputs, TextureOpOutputs,
-    TextureOpType, TextureOpUi,
-};
-use crate::texture::render::{TextureOpRender, TextureOpRenderPlugin, TextureOpSubGraph};
+use crate::texture::render::TextureOpRenderPlugin;
+use crate::texture::{spawn_op, TextureOpMeta, TextureOpType, TextureOpUi};
 use crate::ui::graph::SelectedNode;
 use crate::ui::UiState;
 
@@ -23,15 +16,17 @@ impl Plugin for TextureOpCompositePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
             ExtractComponentPlugin::<TextureOpType<TextureOpComposite>>::default(),
-            TextureOpRenderPlugin::<TextureOpCompositePlugin>::default(),
+            TextureOpRenderPlugin::<TextureOpComposite>::default(),
         ))
-        .add_systems(Startup, setup);
+        .add_systems(Startup, setup)
+        .add_systems(Update, spawn_op::<TextureOpComposite>);
     }
 }
 
-impl TextureOpRender for TextureOpCompositePlugin {
+impl TextureOpMeta for TextureOpComposite {
     const SHADER: &'static str = "shaders/texture/composite.wgsl";
-    type OpType = TextureOpType<TextureOpComposite>;
+    const INPUTS: usize = 2;
+    const OUTPUTS: usize = 0;
     type Uniform = CompositeSettings;
 }
 
@@ -66,62 +61,14 @@ fn side_panel_ui(
 
 fn setup(world: &mut World) {
     let cb = world.register_system(side_panel_ui);
-    world.spawn(TextureOpUi(cb));
-}
-
-#[derive(Component, Clone, Default)]
-pub struct TextureOpComposite;
-
-fn spawn_op(mut commands: Commands, mut images: ResMut<Assets<Image>>, added_q: Query<Entity, Added<TextureOpType<TextureOpComposite>>>) {
-    let size = Extent3d {
-        width: 512,
-        height: 512,
-        ..default()
-    };
-
-    // This is the texture that will be rendered to.
-    let mut image = Image {
-        texture_descriptor: TextureDescriptor {
-            label: None,
-            size,
-            dimension: TextureDimension::D2,
-            format: TextureFormat::Rgba8UnormSrgb,
-            mip_level_count: 1,
-            sample_count: 1,
-            usage: TextureUsages::TEXTURE_BINDING
-                | TextureUsages::COPY_DST
-                | TextureUsages::RENDER_ATTACHMENT,
-            view_formats: &[],
-        },
-        ..default()
-    };
-
-    image.resize(size);
-
-    let image = images.add(image);
-
-    commands.spawn((
-        TextureOpBundle {
-            camera: Camera3dBundle {
-                camera_render_graph: CameraRenderGraph::new(TextureOpSubGraph),
-                camera: Camera {
-                    order: 3,
-                    target: image.clone().into(),
-                    ..default()
-                },
-                ..default()
-            },
-            op: TextureOp,
-            image: TextureOpImage(image.clone()),
-            inputs: TextureOpInputs {
-                count: 2,
-                connections: HashMap::new(),
-            },
-            outputs: TextureOpOutputs { count: 0 },
-        },
-        CompositeSettings { mode: 0 },
+    world.spawn((
+        TextureOpType::<TextureOpComposite>::default(),
+        TextureOpUi(cb),
     ));
 }
+
+#[derive(Component, Clone, Default, Debug)]
+pub struct TextureOpComposite;
 
 #[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub enum CompositeMode {

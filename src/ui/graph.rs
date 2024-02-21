@@ -6,9 +6,7 @@ use bevy_mod_picking::prelude::*;
 use bevy_mod_picking::PickableBundle;
 use bevy_prototype_lyon::draw::Stroke;
 use bevy_prototype_lyon::path::PathBuilder;
-
 use bevy_prototype_lyon::prelude::ShapeBundle;
-
 use layout::core::base::Orientation;
 use layout::core::geometry::Point;
 use layout::core::style::StyleAttr;
@@ -41,6 +39,7 @@ impl Plugin for GraphPlugin {
                     update_graph.after(texture_ui),
                     update_connections,
                     click_node.run_if(on_event::<ClickNode>()),
+                    update_graph_refs
                 ),
             );
     }
@@ -54,7 +53,9 @@ impl Plugin for GraphPlugin {
 pub struct GraphId(NodeIndex<DefaultIx>);
 
 #[derive(Component, Deref, DerefMut, Copy, Clone, PartialEq, Eq, Hash, Debug, Ord, PartialOrd)]
-pub struct GraphRef(Entity);
+pub struct OpRef(pub Entity);
+#[derive(Component, Deref, DerefMut, Copy, Clone, PartialEq, Eq, Hash, Debug, Ord, PartialOrd)]
+pub struct GraphRef(pub Entity);
 
 #[derive(Component, Debug)]
 pub struct GraphNode;
@@ -120,7 +121,7 @@ fn click_node(
     mut click_events: EventReader<ClickNode>,
     mut prev_selected: Query<Entity, With<SelectedNode>>,
     mut all_mats: Query<&Handle<NodeMaterial>>,
-    clicked_q: Query<(&GraphRef, &Handle<NodeMaterial>)>,
+    clicked_q: Query<(&OpRef, &Handle<NodeMaterial>)>,
     mut materials: ResMut<Assets<NodeMaterial>>,
 ) {
     for event in click_events.read() {
@@ -148,7 +149,7 @@ pub fn update_graph(
     mut state: ResMut<GraphState>,
     mut connected_q: Query<&Parent, Added<ConnectedTo>>,
     mut added_q: Query<(Entity, &GraphId), Added<GraphId>>,
-    mut all_nodes_q: Query<(&GraphRef, &mut Transform)>,
+    mut all_nodes_q: Query<(&OpRef, &mut Transform)>,
     graph_id_q: Query<&GraphId>,
 ) {
     for (entity, graph_id) in added_q.iter_mut() {
@@ -199,14 +200,14 @@ pub fn ui(
         commands.entity(grid).with_children(|parent| {
             parent
                 .spawn((
-                    GraphRef(entity),
+                    OpRef(entity.clone()),
                     MaterialMesh2dBundle {
                         mesh: meshes
                             .add(Mesh::from(shape::Quad::new(Vec2::new(100.0, 100.0))))
                             .into(),
                         material: materials.add(NodeMaterial {
                             selected: 0,
-                            color_texture: if input_config.count == 0 {
+                            color_texture: if true /*input_config.count == 0 */{
                                 (**image).clone()
                             } else {
                                 default_image.0.clone()
@@ -222,7 +223,7 @@ pub fn ui(
                     On::<Pointer<Drag>>::run(
                         |drag: ListenerMut<Pointer<Drag>>,
                          projection: Query<&OrthographicProjection>,
-                         mut transform: Query<&mut Transform, With<GraphRef>>
+                         mut transform: Query<&mut Transform, With<OpRef>>
                         | {
                             if let Ok(mut transform) = transform.get_mut(drag.target) {
                                 let projection = projection.single();
@@ -244,6 +245,15 @@ pub fn ui(
                     }
                 });
         });
+    }
+}
+
+fn update_graph_refs(
+    mut commands: Commands,
+    mut op_ref_q: Query<(Entity, &OpRef), Added<OpRef>>,
+) {
+    for (entity, op_ref) in op_ref_q.iter_mut() {
+        commands.entity(op_ref.0).insert(GraphRef(entity));
     }
 }
 
@@ -341,7 +351,7 @@ fn connection_drag_end(
         With<Connecting>,
     >,
     port_q: Query<(Entity, &Parent, &GlobalTransform, Has<InPort>, Has<OutPort>), With<Port>>,
-    graph_ref_q: Query<&GraphRef>,
+    graph_ref_q: Query<&OpRef>,
     graph_id_q: Query<&GraphId>,
     mut graph_state: ResMut<GraphState>,
     mut ev_connect: EventWriter<Connect>,
@@ -465,8 +475,7 @@ fn texture_ui(
     mut textures: Query<(Entity, &TextureOp), Without<GraphId>>,
 ) {
     for (entity, _node) in textures.iter_mut() {
-        let node_id = graph.graph.add_node(GraphNode {
-        });
+        let node_id = graph.graph.add_node(GraphNode {});
         commands.entity(entity).insert(GraphId(node_id));
     }
 }

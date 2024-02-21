@@ -3918,6 +3918,7 @@ dependencies = [
  "boa_gc",
  "boa_runtime",
  "layout-rs",
+ "log",
  "petgraph",
 ]
 
