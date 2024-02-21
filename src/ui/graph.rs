@@ -39,7 +39,7 @@ impl Plugin for GraphPlugin {
                     update_graph.after(texture_ui),
                     update_connections,
                     click_node.run_if(on_event::<ClickNode>()),
-                    update_graph_refs
+                    update_graph_refs,
                 ),
             );
     }
@@ -101,11 +101,9 @@ pub struct NodeMaterial {
     pub selected: u32,
     #[texture(1)]
     #[sampler(2)]
-    pub color_texture: Handle<Image>,
+    pub texture: Handle<Image>,
 }
 
-// All functions on `Material2d` have default impls. You only need to implement the
-// functions that are relevant for your material.
 impl Material2d for NodeMaterial {
     fn fragment_shader() -> ShaderRef {
         "shaders/ui/node_material.wgsl".into()
@@ -207,7 +205,7 @@ pub fn ui(
                             .into(),
                         material: materials.add(NodeMaterial {
                             selected: 0,
-                            color_texture: if true /*input_config.count == 0 */{
+                            texture: if input_config.count == 0 {
                                 (**image).clone()
                             } else {
                                 default_image.0.clone()
@@ -248,10 +246,7 @@ pub fn ui(
     }
 }
 
-fn update_graph_refs(
-    mut commands: Commands,
-    mut op_ref_q: Query<(Entity, &OpRef), Added<OpRef>>,
-) {
+fn update_graph_refs(mut commands: Commands, mut op_ref_q: Query<(Entity, &OpRef), Added<OpRef>>) {
     for (entity, op_ref) in op_ref_q.iter_mut() {
         commands.entity(op_ref.0).insert(GraphRef(entity));
     }

@@ -25,15 +25,15 @@ use bevy::render::renderer::{RenderContext, RenderDevice};
 use bevy::render::texture::BevyDefault;
 use bevy::render::view::{ExtractedView, ViewTarget};
 use bevy::render::{render_graph, Render, RenderApp, RenderSet};
-use bevy::utils::HashMap;
+use bevy::utils::{HashMap, info};
 
 use crate::texture::{TextureOpInputs, TextureOpMeta, TextureOpType};
 use crate::texture::operator::composite::TextureOpComposite;
 use crate::texture::operator::ramp::TextureOpRamp;
 
 #[derive(Default)]
-pub struct TextureOpRenderPlugin<P> {
-    _marker: std::marker::PhantomData<P>,
+pub struct TextureOpRenderPlugin<T> {
+    _marker: std::marker::PhantomData<T>,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderSubGraph)]
@@ -42,14 +42,14 @@ pub struct TextureOpSubGraph;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
 pub struct TextureOpRenderLabel;
 
-impl<P> Plugin for TextureOpRenderPlugin<P>
+impl<T> Plugin for TextureOpRenderPlugin<T>
 where
-    P: TextureOpMeta + Sync + Send + 'static,
+    T: TextureOpMeta + Sync + Send + 'static,
 {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            ExtractComponentPlugin::<P::Uniform>::default(),
-            UniformComponentPlugin::<P::Uniform>::default(),
+            ExtractComponentPlugin::<T::Uniform>::default(),
+            UniformComponentPlugin::<T::Uniform>::default(),
         ));
 
         app.get_sub_app_mut(RenderApp)
@@ -63,8 +63,8 @@ where
             .add_systems(
                 Render,
                 (
-                    prepare_texture_op_pipelines::<P>.in_set(RenderSet::Prepare),
-                    prepare_texture_op_bind_group::<P>.in_set(RenderSet::PrepareBindGroups),
+                    prepare_texture_op_pipelines::<T>.in_set(RenderSet::Prepare),
+                    prepare_texture_op_bind_group::<T>.in_set(RenderSet::PrepareBindGroups),
                 ),
             );
     }
@@ -75,8 +75,8 @@ where
         };
 
         let asset_server = render_app.world.resource_mut::<AssetServer>();
-        let shader_handle = asset_server.load(P::SHADER);
-        let shader_handle = TextureOpShaderHandle::<P>(shader_handle, PhantomData);
+        let shader_handle = asset_server.load(T::SHADER);
+        let shader_handle = TextureOpShaderHandle::<T>(shader_handle, PhantomData);
         render_app
             .insert_resource(shader_handle)
             .init_resource::<TextureOpPipeline>();
@@ -84,25 +84,25 @@ where
 }
 
 #[derive(Resource, Debug)]
-pub struct TextureOpShaderHandle<P>(pub Handle<Shader>, PhantomData<P>);
+pub struct TextureOpShaderHandle<T>(pub Handle<Shader>, PhantomData<T>);
 
-pub fn prepare_texture_op_pipelines<P>(
+pub fn prepare_texture_op_pipelines<T>(
     mut commands: Commands,
     mut pipeline: ResMut<TextureOpPipeline>,
     pipeline_cache: Res<PipelineCache>,
     mut pipelines: ResMut<SpecializedRenderPipelines<TextureOpPipeline>>,
-    views: Query<(Entity, &ExtractedView, &TextureOpInputs), With<P::OpType>>,
-    shader_handle: Res<TextureOpShaderHandle<P>>,
+    views: Query<(Entity, &ExtractedView, &TextureOpInputs), With<T::OpType>>,
+    shader_handle: Res<TextureOpShaderHandle<T>>,
     render_device: Res<RenderDevice>,
 ) where
-    P: TextureOpMeta + Sync + Send + 'static,
+    T: TextureOpMeta + Sync + Send + 'static,
 {
     for (entity, view, inputs) in views.iter() {
         if !inputs.is_fully_connected() {
             continue;
         }
 
-        let mut entries = vec![uniform_buffer::<P::Uniform>(true).build(0, ShaderStages::FRAGMENT)];
+        let mut entries = vec![uniform_buffer::<T::Uniform>(true).build(0, ShaderStages::FRAGMENT)];
 
         for i in 0..inputs.count {
             let idx = i as u32 * 2 + 1;
@@ -130,23 +130,23 @@ pub fn prepare_texture_op_pipelines<P>(
     }
 }
 
-pub fn prepare_texture_op_bind_group<P>(
+pub fn prepare_texture_op_bind_group<T>(
     mut commands: Commands,
     pipeline: ResMut<TextureOpPipeline>,
-    uniforms: Res<ComponentUniforms<P::Uniform>>,
+    uniforms: Res<ComponentUniforms<T::Uniform>>,
     views: Query<
         (
             Entity,
             &ExtractedView,
             &TextureOpInputs,
-            &DynamicUniformIndex<P::Uniform>,
+            &DynamicUniformIndex<T::Uniform>,
         ),
-        With<P::OpType>,
+        With<T::OpType>,
     >,
     images: Res<RenderAssets<Image>>,
     render_device: Res<RenderDevice>,
 ) where
-    P: TextureOpMeta + Sync + Send + 'static,
+    T: TextureOpMeta + Sync + Send + 'static,
 {
     for (entity, view, inputs, uniform_index) in views.iter() {
         if !inputs.is_fully_connected() {
@@ -166,7 +166,7 @@ pub fn prepare_texture_op_bind_group<P>(
         }
 
         let Some(uniforms_binding) = uniforms.uniforms().binding() else {
-            warn!("TextureOp has no uniforms {}", P::SHADER);
+            warn!("TextureOp has no uniforms {}", T::SHADER);
             continue;
         };
 

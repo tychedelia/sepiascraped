@@ -36,10 +36,10 @@ impl TextureOpMeta for TextureOpRamp {
 fn side_panel_ui(
     mut ui_state: ResMut<UiState>,
     mut egui_contexts: EguiContexts,
-    mut selected_node: Query<(Entity, &mut TextureRampSettings, &SelectedNode)>,
+    mut selected_node_q: Query<(Entity, &mut TextureRampSettings, &SelectedNode)>,
 ) {
     let ctx = egui_contexts.ctx_mut();
-    if let Ok((entity, mut settings, _selected_node)) = selected_node.get_single_mut() {
+    if let Ok((entity, mut settings, _selected_node)) = selected_node_q.get_single_mut() {
         ui_state.side_panel = Some(
             egui::SidePanel::left("texture_ramp_side_panel")
                 .resizable(false)

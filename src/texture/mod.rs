@@ -13,7 +13,7 @@ use bevy::render::render_resource::{
 };
 use bevy::sprite::{Material2d, Mesh2dHandle};
 use bevy::ui::AlignSelf::Start;
-use bevy::utils::HashMap;
+use bevy::utils::{HashMap, info};
 use bevy_egui::EguiContexts;
 
 use operator::composite::TextureOpCompositePlugin;
@@ -21,7 +21,7 @@ use operator::ramp::TextureOpRampPlugin;
 
 use crate::texture::render::TextureOpSubGraph;
 use crate::ui::event::{Connect, Disconnect};
-use crate::ui::graph::{GraphRef, NodeMaterial, SelectedNode};
+use crate::ui::graph::{GraphRef, NodeMaterial, OpRef, SelectedNode};
 use crate::ui::UiState;
 
 pub mod operator;
@@ -65,8 +65,11 @@ fn startup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
         ..default()
     };
 
-    /// All black
     image.resize(size);
+    /// All black
+    image.data.chunks_mut(4).for_each(|mut chunk| {
+        chunk.copy_from_slice(&[255, 0, 0, 255]);
+    });
 
     let image = images.add(image);
     commands.insert_resource(TextureOpDefaultImage(image));
@@ -76,10 +79,13 @@ fn spawn_op<T>(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     added_q: Query<Entity, Added<TextureOpType<T>>>,
+    ui_q: Query<&TextureOpUi, With<TextureOpType<T>>>,
 ) where
     T: TextureOpMeta + Debug + Send + Sync + 'static,
 {
     for entity in added_q.iter() {
+        let ui = ui_q.single();
+
         let size = Extent3d {
             width: 512,
             height: 512,
@@ -125,6 +131,7 @@ fn spawn_op<T>(
                 outputs: TextureOpOutputs { count: T::OUTPUTS },
             },
             T::Uniform::default(),
+            ui.clone(),
         ));
     }
 }
@@ -158,7 +165,7 @@ pub struct TextureOpOutputs {
     pub(crate) count: usize,
 }
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct TextureOpUi(pub SystemId);
 
 #[derive(Bundle, Default)]
@@ -215,8 +222,8 @@ fn update_materials(
         if input.is_fully_connected() {
             let material = material_q.get(graph_ref.0).unwrap();
             let mut material = materials.get_mut(material).unwrap();
-            if material.color_texture != my_image.0 {
-                // material.color_texture = my_image.0.clone();
+            if material.texture != my_image.0 {
+                material.texture = my_image.0.clone();
             }
         }
     }
