@@ -25,11 +25,11 @@ use bevy::render::renderer::{RenderContext, RenderDevice};
 use bevy::render::texture::BevyDefault;
 use bevy::render::view::{ExtractedView, ViewTarget};
 use bevy::render::{render_graph, Render, RenderApp, RenderSet};
-use bevy::utils::{HashMap, info};
+use bevy::utils::{info, HashMap};
 
-use crate::texture::{TextureOpInputs, TextureOpMeta, TextureOpType};
 use crate::texture::operator::composite::TextureOpComposite;
 use crate::texture::operator::ramp::TextureOpRamp;
+use crate::texture::{TextureOpInputs, TextureOpMeta, TextureOpType};
 
 #[derive(Default)]
 pub struct TextureOpRenderPlugin<T> {

@@ -26,7 +26,7 @@ impl Plugin for TextureOpCompositePlugin {
 impl TextureOpMeta for TextureOpComposite {
     const SHADER: &'static str = "shaders/texture/composite.wgsl";
     const INPUTS: usize = 2;
-    const OUTPUTS: usize = 0;
+    const OUTPUTS: usize = 1;
     type Uniform = CompositeSettings;
 }
 

@@ -6,7 +6,8 @@ use bevy::prelude::{
     Added, Component, Deref, DerefMut, Entity, Query, RemovedComponents, ResMut, Resource,
 };
 
-struct IndexPlugin<T> {
+#[derive(Default)]
+pub struct IndexPlugin<T> {
     _marker: std::marker::PhantomData<T>,
 }
 
@@ -21,7 +22,7 @@ where
 }
 
 #[derive(Resource, Default, Deref, DerefMut)]
-struct Index<T>(BTreeMap<T, Entity>);
+pub struct Index<T>(BTreeMap<T, Entity>);
 
 fn insert_index<T>(mut index: ResMut<Index<T>>, insert_q: Query<(Entity, &T), Added<T>>)
 where

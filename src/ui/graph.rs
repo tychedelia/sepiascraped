@@ -30,7 +30,7 @@ impl Plugin for GraphPlugin {
             .add_event::<Connect>()
             .add_event::<Disconnect>()
             .add_plugins(Material2dPlugin::<NodeMaterial>::default())
-            .add_systems(Startup, startup)
+            .add_systems(Startup, setup)
             .add_systems(
                 Update,
                 (
@@ -141,7 +141,8 @@ fn click_node(
     }
 }
 
-fn startup(state: ResMut<GraphState>) {}
+fn setup(mut state: ResMut<GraphState>) {
+}
 
 pub fn update_graph(
     mut state: ResMut<GraphState>,
@@ -162,13 +163,13 @@ pub fn update_graph(
                 (a, b)
             }),
         );
-    }
 
-    for (graph_ref, mut transform) in all_nodes_q.iter_mut() {
-        let graph_id = graph_id_q.get(**graph_ref).unwrap();
-        if let Some(pos) = state.layout.get(&graph_id.0) {
-            transform.translation.x = pos.x;
-            transform.translation.y = pos.y;
+        for (graph_ref, mut transform) in all_nodes_q.iter_mut() {
+            let graph_id = graph_id_q.get(**graph_ref).unwrap();
+            if let Some(pos) = state.layout.get(&graph_id.0) {
+                transform.translation.x = pos.x;
+                transform.translation.y = pos.y;
+            }
         }
     }
 }
@@ -201,7 +202,7 @@ pub fn ui(
                     OpRef(entity.clone()),
                     MaterialMesh2dBundle {
                         mesh: meshes
-                            .add(Mesh::from(shape::Quad::new(Vec2::new(100.0, 100.0))))
+                            .add(Mesh::from(Rectangle::new(100.0, 100.0)))
                             .into(),
                         material: materials.add(NodeMaterial {
                             selected: 0,
@@ -233,13 +234,23 @@ pub fn ui(
                     ),
                 ))
                 .with_children(|parent| {
+                    parent.spawn(
+                        MaterialMesh2dBundle {
+                            mesh: meshes
+                                .add(Mesh::from(Rectangle::new(90.0, 90.0)))
+                                .into(),
+                            material: color_materials.add(default_image.0.clone()),
+                            transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
+                            ..Default::default()
+                        }
+                    );
                     for i in 0..input_config.count {
                         let offset = -50.0;
-                        spawn_port(&mut meshes, &mut color_materials, parent, InPort(i as u8), Vec3::new(offset, 0.0, -1.0));
+                        spawn_port(&mut meshes, &mut color_materials, parent, InPort(i as u8), Vec3::new(offset, 0.0, -2.0));
                     }
                     for i in 0..output_config.count {
                         let offset = 50.0;
-                        spawn_port(&mut meshes, &mut color_materials, parent, OutPort(i as u8), Vec3::new(offset, 0.0, -1.0));
+                        spawn_port(&mut meshes, &mut color_materials, parent, OutPort(i as u8), Vec3::new(offset, 0.0, -2.0));
                     }
                 });
         });

@@ -1,19 +1,18 @@
 #![feature(associated_type_defaults)]
 #![feature(lazy_cell)]
 
+use crate::index::IndexPlugin;
 use bevy::prelude::*;
-use bevy::render::camera::CameraRenderGraph;
-use bevy::render::render_resource::{Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages};
-use bevy::utils::hashbrown::HashMap;
 use bevy_egui::EguiPlugin;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_prototype_lyon::plugin::ShapePlugin;
 
 use crate::param::ParamPlugin;
 use crate::render::RenderPlugin;
+use crate::script::ScriptPlugin;
 use crate::texture::operator::composite::TextureOpComposite;
-use crate::texture::operator::ramp::{TextureOpRamp, TextureRampSettings};
-use crate::texture::{TextureOp, TextureOpBundle, TextureOpImage, TextureOpInputs, TextureOpOutputs, TextureOpType, TexturePlugin};
-use crate::texture::render::TextureOpSubGraph;
+use crate::texture::operator::ramp::TextureOpRamp;
+use crate::texture::{TextureOp, TextureOpType, TexturePlugin};
 use crate::ui::UiPlugin;
 
 mod index;
@@ -26,7 +25,7 @@ mod ui;
 fn main() {
     App::new()
         .add_plugins((
-            // ScriptPlugin,
+            ScriptPlugin,
             ParamPlugin,
             DefaultPlugins,
             EguiPlugin,
@@ -34,21 +33,20 @@ fn main() {
             TexturePlugin,
             UiPlugin,
             ShapePlugin,
+            WorldInspectorPlugin::new(),
+            IndexPlugin::<OpName>::default(),
         ))
         .add_systems(Startup, setup)
         .run();
 }
 
-// Marks the first pass cube (rendered to a texture.)
-#[derive(Component)]
-struct FirstPassCube;
-
-// Marks the main pass cube, to which the texture is applied.
-#[derive(Component)]
-struct MainPassCube;
+#[derive(Component, Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct OpName(pub String);
 
 fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     commands.spawn((TextureOp, TextureOpType::<TextureOpRamp>::default()));
     commands.spawn((TextureOp, TextureOpType::<TextureOpRamp>::default()));
+    commands.spawn((TextureOp, TextureOpType::<TextureOpRamp>::default()));
+    commands.spawn((TextureOp, TextureOpType::<TextureOpComposite>::default()));
     commands.spawn((TextureOp, TextureOpType::<TextureOpComposite>::default()));
 }

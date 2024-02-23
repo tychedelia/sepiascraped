@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_egui::egui;
+use bevy_egui::{egui, EguiContexts};
 use bevy_mod_picking::DefaultPickingPlugins;
 
 use camera::CameraControllerPlugin;
@@ -25,6 +25,7 @@ impl Plugin for UiPlugin {
         ))
         .add_event::<ClickNode>()
         .add_systems(Startup, ui_setup)
+        .add_systems(Update, ui)
         .init_resource::<UiState>()
         .insert_resource(AmbientLight {
             color: Color::WHITE,
@@ -39,6 +40,7 @@ impl Plugin for UiPlugin {
 
 #[derive(Resource, Default)]
 pub struct UiState {
+    pub top_panel: Option<egui::Response>,
     pub side_panel: Option<egui::Response>,
 }
 
@@ -54,4 +56,16 @@ pub fn ui_setup(mut commands: Commands) {
         },
         camera::CameraController::default(),
     ));
+}
+
+pub fn ui(mut ui_state: ResMut<UiState>, mut egui_contexts: EguiContexts) {
+    let ctx = egui_contexts.ctx_mut();
+    ui_state.top_panel = Some(
+        egui::TopBottomPanel::top("top_panel")
+            .resizable(false)
+            .show(ctx, |ui| {
+                ui.heading("Top Panel");
+            })
+            .response,
+    );
 }

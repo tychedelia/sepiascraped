@@ -6,43 +6,45 @@ use bevy::ecs::system::SystemId;
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
-use bevy::render::mesh::MeshVertexAttribute;
-use bevy::render::render_resource::encase::internal::WriteInto;
 use bevy::render::render_resource::{
     Extent3d, ShaderType, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
-use bevy::sprite::{Material2d, Mesh2dHandle};
-use bevy::ui::AlignSelf::Start;
-use bevy::utils::{HashMap, info};
-use bevy_egui::EguiContexts;
+use bevy::render::render_resource::encase::internal::WriteInto;
+use bevy::sprite::Material2d;
+use bevy::utils::HashMap;
 
 use operator::composite::TextureOpCompositePlugin;
 use operator::ramp::TextureOpRampPlugin;
 
+use crate::index::IndexPlugin;
+use crate::OpName;
+use crate::texture::event::SpawnOp;
 use crate::texture::render::TextureOpSubGraph;
 use crate::ui::event::{Connect, Disconnect};
-use crate::ui::graph::{GraphRef, NodeMaterial, OpRef, SelectedNode};
-use crate::ui::UiState;
+use crate::ui::graph::{GraphRef, NodeMaterial, SelectedNode};
 
 pub mod operator;
 pub mod render;
+mod event;
 
 pub struct TexturePlugin;
 
 impl Plugin for TexturePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((
+        app
+            .add_event::<SpawnOp>()
+            .add_plugins((
             ExtractComponentPlugin::<TextureOpImage>::default(),
             ExtractComponentPlugin::<TextureOpInputs>::default(),
             TextureOpPlugin,
             TextureOpRampPlugin,
             TextureOpCompositePlugin,
         ))
-        .add_systems(Startup, startup);
+        .add_systems(Startup, setup);
     }
 }
 
-fn startup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
+fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     let size = Extent3d {
         width: 512,
         height: 512,
@@ -67,8 +69,20 @@ fn startup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
 
     image.resize(size);
     /// All black
-    image.data.chunks_mut(4).for_each(|mut chunk| {
-        chunk.copy_from_slice(&[255, 0, 0, 255]);
+    image.data.chunks_mut(4).enumerate().for_each(|(i, mut chunk)| {
+        let width = (size.width / 4) as f32;
+        let x = i % 512;
+        let y = i / 512;
+        let x = (x as f32  %  width) / width;
+        let y = (y as f32 %  width) / width;
+        let x = x < 0.5;
+        let y = y < 0.5;
+
+        if x == y {
+            chunk.copy_from_slice(&[150, 150, 150, 255]);
+        } else {
+            chunk.copy_from_slice(&[50, 50, 50, 255]);
+        }
     });
 
     let image = images.add(image);
@@ -78,12 +92,16 @@ fn startup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
 fn spawn_op<T>(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
-    added_q: Query<Entity, Added<TextureOpType<T>>>,
+    added_q: Query<Entity, (With<TextureOp>, Added<TextureOpType<T>>)>,
+    existing_q: Query<Entity, (With<TextureOp>, With<TextureOpType<T>>)>,
     ui_q: Query<&TextureOpUi, With<TextureOpType<T>>>,
+    mut spawn_op_evt: EventWriter<SpawnOp>
 ) where
     T: TextureOpMeta + Debug + Send + Sync + 'static,
 {
+    let mut count = existing_q.iter().len();
     for entity in added_q.iter() {
+        count = count + 1;
         let ui = ui_q.single();
 
         let size = Extent3d {
@@ -113,6 +131,7 @@ fn spawn_op<T>(
         let image = images.add(image);
 
         commands.entity(entity).insert((
+            OpName(format!("{}{}", TextureOpType::<T>::name(), count)),
             TextureOpBundle {
                 camera: Camera3dBundle {
                     camera_render_graph: CameraRenderGraph::new(TextureOpSubGraph),
@@ -132,7 +151,10 @@ fn spawn_op<T>(
             },
             T::Uniform::default(),
             ui.clone(),
-        ));
+        ))
+            .with_children(|parent| {
+            });
+        spawn_op_evt.send(SpawnOp(entity));
     }
 }
 
@@ -144,6 +166,14 @@ pub struct TextureOp;
 
 #[derive(Component, Clone, ExtractComponent, Default, Debug)]
 pub struct TextureOpType<T: Debug + Sync + Send + 'static>(PhantomData<T>);
+
+impl <T> TextureOpType<T>
+    where T: Debug + Sync + Send + 'static
+{
+    pub fn name() -> &'static str {
+        std::any::type_name::<T>().split("::").nth(3).unwrap()
+    }
+}
 
 #[derive(Component, Clone, Debug, Deref, DerefMut, ExtractComponent, Default)]
 pub struct TextureOpImage(pub Handle<Image>);

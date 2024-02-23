@@ -1,35 +1,35 @@
 use bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell;
 use bevy::prelude::*;
-use boa_engine::{
-    class::{Class, ClassBuilder},
-    error::JsNativeError,
-    js_string,
-    native_function::NativeFunction,
-    property::Attribute,
-    Context, JsData, JsResult, JsValue, Source,
-};
-use boa_gc::{Finalize, Trace};
-use boa_runtime::Console;
+use steel::rvals::Custom;
+use steel::steel_vm::engine::Engine;
+use steel::steel_vm::register_fn::RegisterFn;
+use steel::SteelVal;
+use steel_derive::Steel;
+use crate::index::Index;
+use crate::OpName;
 
 pub struct ScriptPlugin;
 
 impl Plugin for ScriptPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, startup)
+        app.add_systems(Startup, setup)
             .add_systems(Update, (update, print_counts));
     }
 }
 
 #[derive(Default, Deref, DerefMut)]
-struct JsContext(Context);
+struct LispEngine(Engine);
 
 #[derive(Component)]
 pub struct Counter {
     count: u32,
 }
 
-#[derive(Debug, Trace, Finalize, JsData)]
-struct WorldHolder(#[unsafe_ignore_trace] *mut World);
+#[derive(Debug, Steel, PartialEq, Clone)]
+pub struct EntityRef(Entity);
+
+#[derive(Debug, Steel, Clone)]
+struct WorldHolder(*mut World);
 
 impl WorldHolder {
     fn world(&self) -> &World {
@@ -47,36 +47,40 @@ trait WorldScope {
         F: FnOnce(&mut Self) -> R;
 }
 
-impl WorldScope for Context {
+impl WorldScope for Engine {
     fn with_world_scope<F, R>(&mut self, world: UnsafeWorldCell<'_>, f: F) -> R
     where
         F: FnOnce(&mut Self) -> R,
     {
-        let holder = WorldHolder(unsafe { world.world_mut() });
-        self.realm().host_defined_mut().insert(holder);
-        let result = f(self);
-        self.realm().host_defined_mut().remove::<WorldHolder>();
-        result
+        let world = WorldHolder(unsafe { world.world_mut() });
+        self.register_external_value("world", world);
+        f(self)
+        // TODO: remove the world from the engine
     }
 }
 
-fn startup(world: &mut World) {
-    let mut ctx = Context::default();
-    add_runtime(&mut ctx);
-    world.insert_non_send_resource(JsContext(ctx));
+fn setup(world: &mut World) {
+    let engine = Engine::new();
+    world.insert_non_send_resource(LispEngine(engine));
     let world_cell = world.as_unsafe_world_cell();
     unsafe {
         world_cell
             .world_mut()
-            .get_non_send_resource_mut::<JsContext>()
+            .get_non_send_resource_mut::<LispEngine>()
             .unwrap()
-            .with_world_scope(world_cell, |ctx| {
-                ctx.eval(Source::from_bytes(
-                    r"
-                let counter = new Counter();
-    ",
-                ))
-                .unwrap();
+            .with_world_scope(world_cell, |engine| {
+                engine
+                    .register_fn("op", op)
+                    .register_fn("param", param)
+                    .register_fn("get-count", get_count)
+                    .register_fn("set-count", set_count)
+                    .register_fn("new-counter", new_counter);
+                let prog = engine.emit_raw_program_no_path(
+                    r#"
+                            (define counter (new-counter world))
+                    "#)
+                    .unwrap();
+                engine.run_raw_program(prog).unwrap();
             });
     }
 }
@@ -86,89 +90,60 @@ fn update(world: &mut World) {
     unsafe {
         world_cell
             .world_mut()
-            .get_non_send_resource_mut::<JsContext>()
+            .get_non_send_resource_mut::<LispEngine>()
             .unwrap()
-            .with_world_scope(world_cell, |ctx| {
-                ctx.eval(Source::from_bytes(
-                    r"
-                console.log('Setting count from JS');
-		        counter.set_count(Math.floor(Math.random() * 100));
-    ",
-                ))
-                .unwrap();
+            .with_world_scope(world_cell, |engine| {
+                engine.compile_and_run_raw_program(
+                    r#"
+                            (op world "ramp4")
+                            (set-count world counter (+ (get-count world counter) 1))
+                    "#)
+                    .unwrap();
             });
     }
+}
+
+fn op(world: &WorldHolder, name: String) -> Option<EntityRef> {
+    let world = world.world();
+    let index = world.get_resource::<Index<OpName>>().unwrap();
+    let entity = index.get(&OpName(name));
+    if let Some(entity) = entity {
+        Some(EntityRef(entity.clone()))
+    } else {
+        None
+    }
+}
+
+fn param(world: &WorldHolder, entity: EntityRef, name: String) -> SteelVal {
+    let world = world.world();
+    let entity = world.get_entity(entity.0).unwrap();
+    let children = entity.get::<Children>().unwrap();
+
+}
+
+fn new_counter(mut world: &mut WorldHolder) -> EntityRef {
+    let world = world.world_mut();
+    let entity = world.spawn(Counter { count: 0 }).id();
+    EntityRef(entity)
+}
+
+fn get_count(world: &WorldHolder, entity: EntityRef) -> u32 {
+    println!("Getting count");
+    let world = world.world();
+    let entity = world.get_entity(entity.0).unwrap();
+    let counter = entity.get::<Counter>().unwrap();
+    counter.count
+}
+
+fn set_count(world: &mut WorldHolder, entity: EntityRef, count: u32) {
+    let world = world.world_mut();
+    let mut entity = world.get_entity_mut(entity.0).unwrap();
+    let mut counter = entity.get_mut::<Counter>().unwrap();
+    counter.count = count;
 }
 
 fn print_counts(count_q: Query<&Counter>) {
     for count in count_q.iter() {
         println!("Count: {}", count.count);
     }
-}
-
-#[derive(Debug, Trace, Finalize, JsData)]
-struct CounterClass {
-    #[unsafe_ignore_trace]
-    pub entity: Entity,
-    pub count: u32,
-}
-
-impl CounterClass {
-    fn set_count(this: &JsValue, args: &[JsValue], ctx: &mut Context) -> JsResult<JsValue> {
-        if let Some(object) = this.as_object() {
-            if let Some(Counter) = object.downcast_ref::<CounterClass>() {
-                unsafe {
-                    let realm = ctx.realm().clone();
-                    let mut host_defined = realm.host_defined_mut();
-                    let world_holder = host_defined.get_mut::<WorldHolder>().unwrap();
-                    let world = world_holder.world_mut();
-                    let mut entity = world.get_entity_mut(Counter.entity).unwrap();
-                    let mut counter = entity.get_mut::<Counter>().unwrap();
-                    counter.count = args.first().unwrap().to_u32(ctx).unwrap();
-                }
-            }
-
-            return Ok(JsValue::undefined());
-        }
-        Err(JsNativeError::typ()
-            .with_message("'this' is not a Counter object")
-            .into())
-    }
-}
-
-impl Class for CounterClass {
-    const NAME: &'static str = "Counter";
-    const LENGTH: usize = 0;
-
-    fn data_constructor(_this: &JsValue, args: &[JsValue], ctx: &mut Context) -> JsResult<Self> {
-        let realm = ctx.realm().clone();
-        let mut host_defined = realm.host_defined_mut();
-        let world_holder = host_defined.get_mut::<WorldHolder>().unwrap();
-        let world = world_holder.world_mut();
-        let entity = world.spawn(Counter { count: 0 });
-        let entity = entity.id();
-        let counter = CounterClass { entity, count: 0 };
-        Ok(counter)
-    }
-
-    fn init(class: &mut ClassBuilder<'_>) -> JsResult<()> {
-        class.method(
-            js_string!("set_count"),
-            0,
-            NativeFunction::from_fn_ptr(Self::set_count),
-        );
-
-        Ok(())
-    }
-}
-
-fn add_runtime(context: &mut Context) {
-    let console = Console::init(context);
-    context
-        .register_global_property(js_string!(Console::NAME), console, Attribute::all())
-        .expect("the console builtin shouldn't exist");
-
-    context
-        .register_global_class::<CounterClass>()
-        .expect("the Counter builtin shouldn't exist");
 }
