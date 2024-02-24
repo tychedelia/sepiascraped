@@ -1,66 +1,40 @@
+use crate::index::Index;
+use crate::param::{ParamName, ParamValue};
+use crate::OpName;
 use bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell;
 use bevy::prelude::*;
-use steel::rvals::Custom;
+use steel::gc::unsafe_erased_pointers::CustomReference;
+use steel::rvals::{Custom, SteelVector};
 use steel::steel_vm::engine::Engine;
 use steel::steel_vm::register_fn::RegisterFn;
 use steel::SteelVal;
 use steel_derive::Steel;
-use crate::index::Index;
-use crate::OpName;
 
 pub struct ScriptPlugin;
 
 impl Plugin for ScriptPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup)
-            .add_systems(Update, (update, print_counts));
+            .add_systems(Update, (update));
     }
 }
 
 #[derive(Default, Deref, DerefMut)]
 struct LispEngine(Engine);
 
-#[derive(Component)]
-pub struct Counter {
-    count: u32,
-}
-
 #[derive(Debug, Steel, PartialEq, Clone)]
 pub struct EntityRef(Entity);
 
-#[derive(Debug, Steel, Clone)]
-struct WorldHolder(*mut World);
+#[derive(Debug, Deref, DerefMut, Clone)]
+struct WorldHolder<'w>(UnsafeWorldCell<'w>);
 
-impl WorldHolder {
-    fn world(&self) -> &World {
-        unsafe { &*self.0 }
-    }
+impl<'w> CustomReference for WorldHolder<'w> {}
 
-    fn world_mut(&mut self) -> &mut World {
-        unsafe { &mut *self.0 }
-    }
-}
-
-trait WorldScope {
-    fn with_world_scope<F, R>(&mut self, world: UnsafeWorldCell<'_>, f: F) -> R
-    where
-        F: FnOnce(&mut Self) -> R;
-}
-
-impl WorldScope for Engine {
-    fn with_world_scope<F, R>(&mut self, world: UnsafeWorldCell<'_>, f: F) -> R
-    where
-        F: FnOnce(&mut Self) -> R,
-    {
-        let world = WorldHolder(unsafe { world.world_mut() });
-        self.register_external_value("world", world);
-        f(self)
-        // TODO: remove the world from the engine
-    }
-}
+steel::custom_reference!(WorldHolder<'a>);
 
 fn setup(world: &mut World) {
-    let engine = Engine::new();
+    let mut engine = Engine::new();
+    engine.register_value("*world*", SteelVal::Void);
     world.insert_non_send_resource(LispEngine(engine));
     let world_cell = world.as_unsafe_world_cell();
     unsafe {
@@ -68,17 +42,23 @@ fn setup(world: &mut World) {
             .world_mut()
             .get_non_send_resource_mut::<LispEngine>()
             .unwrap()
-            .with_world_scope(world_cell, |engine| {
+            .with_mut_reference::<WorldHolder, WorldHolder>(&mut WorldHolder(world_cell))
+            .consume(|engine, args| {
+                let world = args[0].clone();
                 engine
-                    .register_fn("op", op)
-                    .register_fn("param", param)
-                    .register_fn("get-count", get_count)
-                    .register_fn("set-count", set_count)
-                    .register_fn("new-counter", new_counter);
-                let prog = engine.emit_raw_program_no_path(
-                    r#"
-                            (define counter (new-counter world))
-                    "#)
+                    .update_value("*world*", world)
+                    .expect("TODO: panic message");
+                engine.register_fn("-op", op).register_fn("-param", param);
+                let prog = engine
+                    .emit_raw_program_no_path(
+                        r#"
+                        (define (op name)
+                            (-op *world* name))
+                        (define (param entity name)
+                            (when entity
+                                (-param *world* entity name)))
+                    "#,
+                    )
                     .unwrap();
                 engine.run_raw_program(prog).unwrap();
             });
@@ -88,23 +68,32 @@ fn setup(world: &mut World) {
 fn update(world: &mut World) {
     let world_cell = world.as_unsafe_world_cell();
     unsafe {
-        world_cell
+        let res = world_cell
             .world_mut()
             .get_non_send_resource_mut::<LispEngine>()
             .unwrap()
-            .with_world_scope(world_cell, |engine| {
+            .with_mut_reference::<WorldHolder, WorldHolder>(&mut WorldHolder(world_cell))
+            .consume(|engine, args| {
+                let world = args[0].clone();
+                engine
+                    .update_value("*world*", world)
+                    .expect("TODO: panic message");
+
                 engine.compile_and_run_raw_program(
                     r#"
-                            (op world "ramp4")
-                            (set-count world counter (+ (get-count world counter) 1))
-                    "#)
-                    .unwrap();
+                            (+ (param (op "ramp4") "foo") 11)
+                    "#,
+                ).unwrap_or_else(|e| {
+                    println!("Error: {:?}", e);
+                    vec![SteelVal::Void]
+                })
             });
+        println!("res: {:?}", res);
     }
 }
 
-fn op(world: &WorldHolder, name: String) -> Option<EntityRef> {
-    let world = world.world();
+fn op(world: &mut WorldHolder, name: String) -> Option<EntityRef> {
+    let world = unsafe { world.world() };
     let index = world.get_resource::<Index<OpName>>().unwrap();
     let entity = index.get(&OpName(name));
     if let Some(entity) = entity {
@@ -114,36 +103,33 @@ fn op(world: &WorldHolder, name: String) -> Option<EntityRef> {
     }
 }
 
-fn param(world: &WorldHolder, entity: EntityRef, name: String) -> SteelVal {
-    let world = world.world();
+fn param(world: &mut WorldHolder, entity: EntityRef, name: String) -> SteelVal {
+    let world = unsafe { world.world() };
     let entity = world.get_entity(entity.0).unwrap();
     let children = entity.get::<Children>().unwrap();
+    for child in children {
+        let param_name = world.get::<ParamName>(*child);
+        if let Some(param_name) = param_name {
+            if param_name.0 == name {
+                let value = world
+                    .get::<ParamValue>(*child)
+                    .expect("Param should have a value");
+                let value = value.clone();
+                return SteelVal::from(value);
+            }
+        }
+    }
 
+    SteelVal::Void
 }
 
-fn new_counter(mut world: &mut WorldHolder) -> EntityRef {
-    let world = world.world_mut();
-    let entity = world.spawn(Counter { count: 0 }).id();
-    EntityRef(entity)
-}
-
-fn get_count(world: &WorldHolder, entity: EntityRef) -> u32 {
-    println!("Getting count");
-    let world = world.world();
-    let entity = world.get_entity(entity.0).unwrap();
-    let counter = entity.get::<Counter>().unwrap();
-    counter.count
-}
-
-fn set_count(world: &mut WorldHolder, entity: EntityRef, count: u32) {
-    let world = world.world_mut();
-    let mut entity = world.get_entity_mut(entity.0).unwrap();
-    let mut counter = entity.get_mut::<Counter>().unwrap();
-    counter.count = count;
-}
-
-fn print_counts(count_q: Query<&Counter>) {
-    for count in count_q.iter() {
-        println!("Count: {}", count.count);
+impl From<ParamValue> for SteelVal {
+    fn from(value: ParamValue) -> Self {
+        match value {
+            ParamValue::None => SteelVal::Void,
+            ParamValue::F32(x) => SteelVal::from(x),
+            ParamValue::U32(x) => SteelVal::from(x),
+            _ => unimplemented!(),
+        }
     }
 }

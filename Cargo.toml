@@ -18,9 +18,6 @@ bevy_mod_picking = { git = "https://github.com/StrikeForceZero/bevy_mod_picking"
     "backend_egui" ] }
 bevy_prototype_lyon = "0.11"
 layout-rs = "0.1"
-boa_engine = { git = "https://github.com/boa-dev/boa" }
-boa_gc = { git = "https://github.com/boa-dev/boa" }
-boa_runtime = { git = "https://github.com/boa-dev/boa" }
 log = "0.4.20"
 steel-core = { git="https://github.com/mattwparas/steel.git", branch = "master" }
 steel-derive= { git="https://github.com/mattwparas/steel.git", branch = "master" }

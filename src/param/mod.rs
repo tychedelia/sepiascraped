@@ -34,10 +34,10 @@ pub struct ParamOrder(pub u32);
 #[derive(Component, Default, Debug)]
 pub struct Param;
 #[derive(Component, Default, Debug)]
-pub struct ParamName(String);
+pub struct ParamName(pub(crate) String);
 #[derive(Component, Default, Debug)]
 pub struct ParamType(String);
-#[derive(Component, Debug, Default)]
+#[derive(Component, Clone, Debug, Default)]
 pub enum ParamValue {
     #[default]
     None,

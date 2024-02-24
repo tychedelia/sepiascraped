@@ -22,7 +22,7 @@ where
 }
 
 #[derive(Resource, Default, Deref, DerefMut)]
-pub struct Index<T>(BTreeMap<T, Entity>);
+pub(crate) struct Index<T>(BTreeMap<T, Entity>);
 
 fn insert_index<T>(mut index: ResMut<Index<T>>, insert_q: Query<(Entity, &T), Added<T>>)
 where
