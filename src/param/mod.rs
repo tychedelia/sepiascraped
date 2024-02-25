@@ -41,12 +41,12 @@ pub enum ParamValue {
     None,
     F32(f32),
     U32(u32),
-    Vec2(Vec2),
-    Vec3(Vec3),
-    Vec4(Vec4),
     Color(Vec4),
 }
 #[derive(Component, Default, Debug)]
 pub struct ScriptedParam;
 #[derive(Component, Default, Debug)]
 pub struct ScriptedParamValue(pub String);
+
+#[derive(Component, Default, Debug)]
+pub struct ScriptedParamError(pub String);

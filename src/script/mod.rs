@@ -1,15 +1,22 @@
+use bevy::asset::AssetContainer;
+use crate::index::{CompositeIndex2, UniqueIndex};
+use crate::param::{ParamName, ParamValue, ScriptedParamError, ScriptedParamValue};
+use crate::ui::graph::OpRef;
+use crate::OpName;
 use bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell;
 use bevy::prelude::*;
-use steel::gc::unsafe_erased_pointers::CustomReference;
-use steel::steel_vm::engine::Engine;
-use steel::steel_vm::register_fn::RegisterFn;
-use steel::SteelVal;
-use steel_derive::Steel;
-
-use crate::index::{CompositeIndex2, UniqueIndex};
-use crate::OpName;
-use crate::param::{ParamName, ParamValue, ScriptedParamValue};
-use crate::ui::graph::OpRef;
+use boa_engine::object::builtins::JsArray;
+use boa_engine::object::Object;
+use boa_engine::{
+    class::{Class, ClassBuilder},
+    error::JsNativeError,
+    js_string,
+    native_function::NativeFunction,
+    property::Attribute,
+    Context, JsData, JsObject, JsResult, JsValue, Source,
+};
+use boa_gc::{Finalize, Trace};
+use boa_runtime::Console;
 
 pub struct ScriptPlugin;
 
@@ -21,48 +28,53 @@ impl Plugin for ScriptPlugin {
 }
 
 #[derive(Default, Deref, DerefMut)]
-struct LispEngine(Engine);
-
-#[derive(Debug, Steel, PartialEq, Clone)]
+struct JsContext(Context);
+#[derive(Debug, JsData, PartialEq, Clone)]
 pub struct EntityRef(Entity);
 
-#[derive(Debug, Deref, DerefMut, Clone)]
-struct WorldHolder<'w>(UnsafeWorldCell<'w>);
+trait WorldScope {
+    fn with_world_scope<F, R>(&mut self, world: UnsafeWorldCell<'_>, f: F) -> R
+    where
+        F: FnOnce(&mut Self) -> R;
+}
 
-impl<'w> CustomReference for WorldHolder<'w> {}
+impl WorldScope for JsContext {
+    fn with_world_scope<F, R>(&mut self, world: UnsafeWorldCell<'_>, f: F) -> R
+    where
+        F: FnOnce(&mut Self) -> R,
+    {
+        let holder = WorldHolder(unsafe { world.world_mut() });
+        self.realm().host_defined_mut().insert(holder);
+        let result = f(self);
+        self.realm().host_defined_mut().remove::<WorldHolder>();
+        result
+    }
+}
 
-steel::custom_reference!(WorldHolder<'a>);
+#[derive(Debug, Trace, Finalize, JsData)]
+struct WorldHolder(#[unsafe_ignore_trace] *mut World);
+
+impl WorldHolder {
+    fn world(&self) -> &World {
+        unsafe { &*self.0 }
+    }
+
+    fn world_mut(&mut self) -> &mut World {
+        unsafe { &mut *self.0 }
+    }
+}
 
 fn setup(world: &mut World) {
-    let mut engine = Engine::new();
-    engine.register_value("*world*", SteelVal::Void);
-    world.insert_non_send_resource(LispEngine(engine));
+    let mut ctx = Context::default();
+    add_runtime(&mut ctx);
+    world.insert_non_send_resource(JsContext(ctx));
     let world_cell = world.as_unsafe_world_cell();
     unsafe {
         world_cell
             .world_mut()
-            .get_non_send_resource_mut::<LispEngine>()
+            .get_non_send_resource_mut::<JsContext>()
             .unwrap()
-            .with_mut_reference::<WorldHolder, WorldHolder>(&mut WorldHolder(world_cell))
-            .consume(|engine, args| {
-                let world = args[0].clone();
-                engine
-                    .update_value("*world*", world)
-                    .expect("TODO: panic message");
-                engine.register_fn("-op", op).register_fn("-param", param);
-                let prog = engine
-                    .emit_raw_program_no_path(
-                        r#"
-                        (define (op name)
-                            (-op *world* name))
-                        (define (param entity name)
-                            (when entity
-                                (-param *world* entity name)))
-                    "#,
-                    )
-                    .unwrap();
-                engine.run_raw_program(prog).unwrap();
-            });
+            .with_world_scope(world_cell, |ctx| {});
     }
 }
 
@@ -71,66 +83,87 @@ fn update(world: &mut World) {
         let mut world_cell = world.as_unsafe_world_cell();
         let mut query = world_cell
             .world_mut()
-            .query::<(&mut ParamValue, &ScriptedParamValue)>();
+            .query::<(Entity, &mut ParamValue, &ScriptedParamValue, Option<&ScriptedParamError>)>();
         let params = query.iter_mut(world_cell.world_mut()).collect::<Vec<_>>();
-        for (param_value, script) in params {
+        for (param, mut param_value, script, script_error) in params {
             info!("script: {:?}", script);
             let script = script.0.clone();
-            let res = world_cell
+            world_cell
                 .world_mut()
-                .get_non_send_resource_mut::<LispEngine>()
+                .get_non_send_resource_mut::<JsContext>()
                 .unwrap()
-                .with_mut_reference::<WorldHolder, WorldHolder>(&mut WorldHolder(world_cell))
-                .consume(move |engine, args| {
-                    let world = args[0].clone();
-                    engine
-                        .update_value("*world*", world)
-                        .expect("TODO: panic message");
-                    engine
-                        .compile_and_run_raw_program(script.clone())
-                        .unwrap_or_else(|e| {
-                            println!("Error: {:?}", e);
-                            vec![SteelVal::Void]
-                        })
+                .with_world_scope(world_cell, |ctx| {
+                    let res = ctx.eval(Source::from_bytes(&script)).unwrap_or_else(|e| {
+                        warn!("Error in script eval: {:?}", e);
+                        world_cell.world_mut().entity_mut(param).insert(ScriptedParamError(e.to_string()));
+                        JsValue::Null
+                    });
+
+                    if JsValue::Null != res {
+                        // clear the error if there is one
+                        if let Some(err) = script_error {
+                            world_cell.world_mut().entity_mut(param).remove::<ScriptedParamError>();
+                        }
+                        update_param(&mut param_value, res, ctx);
+                    }
                 });
-            info!("res: {:?}", res);
         }
     }
 }
 
-fn op(world: &mut WorldHolder, name: String) -> Option<EntityRef> {
-    let world = unsafe { world.world() };
-    let index = world.get_resource::<UniqueIndex<OpName>>().unwrap();
-    let entity = index.get(&OpName(name));
-    if let Some(entity) = entity {
-        Some(EntityRef(entity.clone()))
-    } else {
-        None
-    }
+trait IntoJsValue {
+    fn into_js_value(self, context: &mut Context) -> JsValue;
 }
 
-fn param(world: &mut WorldHolder, entity: EntityRef, name: String) -> SteelVal {
-    let world = unsafe { world.world() };
-    let index = world
-        .get_resource::<CompositeIndex2<OpRef, ParamName>>()
-        .unwrap();
-    let name = index
-        .get(&(OpRef(entity.0), ParamName(name)))
-        .map_or(SteelVal::Void, |entity| {
-            let value = world.get::<ParamValue>(*entity).unwrap();
-            SteelVal::from(value.clone())
-        });
-    name
-}
-
-impl From<ParamValue> for SteelVal {
-    fn from(value: ParamValue) -> Self {
-        match value {
-            ParamValue::None => SteelVal::Void,
-            ParamValue::F32(x) => SteelVal::from(x),
-            ParamValue::U32(x) => SteelVal::from(x),
-            ParamValue::Color(x) => {}
+impl IntoJsValue for ParamValue {
+    fn into_js_value(self, context: &mut Context) -> JsValue {
+        match self {
+            ParamValue::None => JsValue::Null,
+            ParamValue::F32(x) => JsValue::from(x),
+            ParamValue::U32(x) => JsValue::from(x),
+            ParamValue::Color(x) => {
+                let array = JsArray::from_iter(
+                    [
+                        JsValue::from(x.x),
+                        JsValue::from(x.y),
+                        JsValue::from(x.z),
+                        JsValue::from(x.w),
+                    ],
+                    context,
+                );
+                JsValue::Object(array.into())
+            }
             _ => unimplemented!(),
         }
     }
+}
+
+fn update_param(param: &mut ParamValue, js_value: JsValue, context: &mut Context) {
+    match param {
+        ParamValue::None => {}
+        ParamValue::F32(x) => {
+            *x = js_value.to_number(context).unwrap() as f32;
+        }
+        ParamValue::U32(x) => {
+            *x = js_value.to_number(context).unwrap() as u32;
+        }
+        ParamValue::Color(x) => {
+            if let Some(array) = js_value.as_object() {
+                let r = array.get(0, context).unwrap().to_number(context).unwrap() as f32;
+                let g = array.get(1, context).unwrap().to_number(context).unwrap() as f32;
+                let b = array.get(2, context).unwrap().to_number(context).unwrap() as f32;
+                let a = array.get(3, context).unwrap().to_number(context).unwrap() as f32;
+                x.as_mut().copy_from_slice(&[r, g, b, a])
+            } else {
+                warn!("Expected an array for color");
+            }
+        }
+    }
+}
+
+fn add_runtime(context: &mut Context) {
+    let console = Console::init(context);
+    context
+        .register_global_property(js_string!(Console::NAME), console, Attribute::all())
+        .expect("the console builtin shouldn't exist");
 }

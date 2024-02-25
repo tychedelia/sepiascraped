@@ -4,7 +4,6 @@
 use crate::index::UniqueIndexPlugin;
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_prototype_lyon::plugin::ShapePlugin;
 
 use crate::param::ParamPlugin;
@@ -33,7 +32,6 @@ fn main() {
             TexturePlugin,
             UiPlugin,
             ShapePlugin,
-            WorldInspectorPlugin::new(),
             UniqueIndexPlugin::<OpName>::default(),
         ))
         .add_systems(Startup, setup)

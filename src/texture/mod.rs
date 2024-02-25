@@ -20,9 +20,7 @@ use operator::composite::TextureOpCompositePlugin;
 use operator::ramp::TextureOpRampPlugin;
 
 use crate::index::UniqueIndexPlugin;
-use crate::param::{
-    ParamBundle, ParamName, ParamOrder, ParamValue, ScriptedParam, ScriptedParamValue,
-};
+use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue, ScriptedParam, ScriptedParamError, ScriptedParamValue};
 use crate::texture::event::SpawnOp;
 use crate::texture::operator::composite::CompositeMode;
 use crate::texture::operator::ramp::{TextureRampMode, TextureRampSettings};
@@ -260,6 +258,7 @@ fn side_panel_ui(
         &ParamName,
         &mut ParamValue,
         Option<&mut ScriptedParamValue>,
+        Option<&ScriptedParamError>,
     )>,
 ) {
     if let Ok(children) = selected_q.get_single() {
@@ -273,7 +272,7 @@ fn side_panel_ui(
                         ui.separator();
                         ui.end_row();
                         for entity in children {
-                            let (param, name, mut value, mut scripted_value) =
+                            let (param, name, mut value, mut script_value, script_error) =
                                 params_q.get_mut(*entity).expect("Failed to get param");
                             match value.as_mut() {
                                 ParamValue::Color(color) => {
@@ -294,7 +293,7 @@ fn side_panel_ui(
                                         .inner;
                                     if collapse.fully_open() {
                                         ui.end_row();
-                                        if let Some(mut scripted_value) = scripted_value {
+                                        if let Some(mut scripted_value) = script_value {
                                             ui.add(egui::TextEdit::singleline(
                                                 &mut scripted_value.0,
                                             ));
@@ -310,6 +309,13 @@ fn side_panel_ui(
                                         };
                                     }
                                     ui.end_row();
+                                    if let Some(error) = script_error {
+                                        let prev_color = ui.visuals_mut().override_text_color;
+                                        ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
+                                        ui.label(error.0.clone());
+                                        ui.visuals_mut().override_text_color = prev_color;
+                                        ui.end_row();
+                                    }
                                 }
                                 _ => {}
                             }
