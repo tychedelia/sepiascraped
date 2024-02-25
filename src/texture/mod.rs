@@ -12,7 +12,7 @@ use bevy::render::render_resource::{
     Extent3d, ShaderType, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
 use bevy::sprite::Material2d;
-use bevy::utils::HashMap;
+use bevy::utils::{HashMap, info};
 use bevy_egui::egui::{Align, CollapsingHeader};
 use bevy_egui::{egui, EguiContexts};
 
@@ -302,6 +302,7 @@ fn side_panel_ui(
                                             let mut s = String::new();
                                             ui.add(egui::TextEdit::singleline(&mut s));
                                             if !s.is_empty() {
+                                                info!("Adding scripted param");
                                                 commands
                                                     .entity(param)
                                                     .insert((ScriptedParam, ScriptedParamValue(s)));

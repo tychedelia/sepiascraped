@@ -11,10 +11,7 @@ pub struct ParamPlugin;
 impl Plugin for ParamPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_plugins(CompositeIndex2Plugin::<OpRef, ParamName>::new())
-            .add_systems(Update, |mut commands: Commands| {
-
-        });
+            .add_plugins(CompositeIndex2Plugin::<OpRef, ParamName>::new());
     }
 }
 

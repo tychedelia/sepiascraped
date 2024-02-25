@@ -1,14 +1,14 @@
-use crate::index::{CompositeIndex2, UniqueIndex};
-use crate::param::{ParamName, ParamValue};
-use crate::OpName;
 use bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell;
 use bevy::prelude::*;
 use steel::gc::unsafe_erased_pointers::CustomReference;
-use steel::rvals::{Custom, SteelVector};
 use steel::steel_vm::engine::Engine;
 use steel::steel_vm::register_fn::RegisterFn;
 use steel::SteelVal;
 use steel_derive::Steel;
+
+use crate::index::{CompositeIndex2, UniqueIndex};
+use crate::OpName;
+use crate::param::{ParamName, ParamValue, ScriptedParamValue};
 use crate::ui::graph::OpRef;
 
 pub struct ScriptPlugin;
@@ -67,29 +67,34 @@ fn setup(world: &mut World) {
 }
 
 fn update(world: &mut World) {
-    let world_cell = world.as_unsafe_world_cell();
     unsafe {
-        let res = world_cell
+        let mut world_cell = world.as_unsafe_world_cell();
+        let mut query = world_cell
             .world_mut()
-            .get_non_send_resource_mut::<LispEngine>()
-            .unwrap()
-            .with_mut_reference::<WorldHolder, WorldHolder>(&mut WorldHolder(world_cell))
-            .consume(|engine, args| {
-                let world = args[0].clone();
-                engine
-                    .update_value("*world*", world)
-                    .expect("TODO: panic message");
-
-                engine.compile_and_run_raw_program(
-                    r#"
-                            (+ (param (op "ramp4") "Mode") 11)
-                    "#,
-                ).unwrap_or_else(|e| {
-                    println!("Error: {:?}", e);
-                    vec![SteelVal::Void]
-                })
-            });
-        println!("res: {:?}", res);
+            .query::<(&mut ParamValue, &ScriptedParamValue)>();
+        let params = query.iter_mut(world_cell.world_mut()).collect::<Vec<_>>();
+        for (param_value, script) in params {
+            info!("script: {:?}", script);
+            let script = script.0.clone();
+            let res = world_cell
+                .world_mut()
+                .get_non_send_resource_mut::<LispEngine>()
+                .unwrap()
+                .with_mut_reference::<WorldHolder, WorldHolder>(&mut WorldHolder(world_cell))
+                .consume(move |engine, args| {
+                    let world = args[0].clone();
+                    engine
+                        .update_value("*world*", world)
+                        .expect("TODO: panic message");
+                    engine
+                        .compile_and_run_raw_program(script.clone())
+                        .unwrap_or_else(|e| {
+                            println!("Error: {:?}", e);
+                            vec![SteelVal::Void]
+                        })
+                });
+            info!("res: {:?}", res);
+        }
     }
 }
 
@@ -106,11 +111,15 @@ fn op(world: &mut WorldHolder, name: String) -> Option<EntityRef> {
 
 fn param(world: &mut WorldHolder, entity: EntityRef, name: String) -> SteelVal {
     let world = unsafe { world.world() };
-    let index = world.get_resource::<CompositeIndex2<OpRef, ParamName>>().unwrap();
-    let name = index.get(&(OpRef(entity.0), ParamName(name))).map_or(SteelVal::Void, |entity| {
-        let value = world.get::<ParamValue>(*entity).unwrap();
-        SteelVal::from(value.clone())
-    });
+    let index = world
+        .get_resource::<CompositeIndex2<OpRef, ParamName>>()
+        .unwrap();
+    let name = index
+        .get(&(OpRef(entity.0), ParamName(name)))
+        .map_or(SteelVal::Void, |entity| {
+            let value = world.get::<ParamValue>(*entity).unwrap();
+            SteelVal::from(value.clone())
+        });
     name
 }
 
@@ -120,6 +129,7 @@ impl From<ParamValue> for SteelVal {
             ParamValue::None => SteelVal::Void,
             ParamValue::F32(x) => SteelVal::from(x),
             ParamValue::U32(x) => SteelVal::from(x),
+            ParamValue::Color(x) => {}
             _ => unimplemented!(),
         }
     }

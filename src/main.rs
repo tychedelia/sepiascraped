@@ -25,7 +25,7 @@ mod ui;
 fn main() {
     App::new()
         .add_plugins((
-            // ScriptPlugin,
+            ScriptPlugin,
             ParamPlugin,
             DefaultPlugins,
             EguiPlugin,
