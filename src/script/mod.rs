@@ -1,4 +1,4 @@
-use crate::index::Index;
+use crate::index::{CompositeIndex2, UniqueIndex};
 use crate::param::{ParamName, ParamValue};
 use crate::OpName;
 use bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell;
@@ -9,6 +9,7 @@ use steel::steel_vm::engine::Engine;
 use steel::steel_vm::register_fn::RegisterFn;
 use steel::SteelVal;
 use steel_derive::Steel;
+use crate::ui::graph::OpRef;
 
 pub struct ScriptPlugin;
 
@@ -81,7 +82,7 @@ fn update(world: &mut World) {
 
                 engine.compile_and_run_raw_program(
                     r#"
-                            (+ (param (op "ramp4") "foo") 11)
+                            (+ (param (op "ramp4") "Mode") 11)
                     "#,
                 ).unwrap_or_else(|e| {
                     println!("Error: {:?}", e);
@@ -94,7 +95,7 @@ fn update(world: &mut World) {
 
 fn op(world: &mut WorldHolder, name: String) -> Option<EntityRef> {
     let world = unsafe { world.world() };
-    let index = world.get_resource::<Index<OpName>>().unwrap();
+    let index = world.get_resource::<UniqueIndex<OpName>>().unwrap();
     let entity = index.get(&OpName(name));
     if let Some(entity) = entity {
         Some(EntityRef(entity.clone()))
@@ -105,22 +106,12 @@ fn op(world: &mut WorldHolder, name: String) -> Option<EntityRef> {
 
 fn param(world: &mut WorldHolder, entity: EntityRef, name: String) -> SteelVal {
     let world = unsafe { world.world() };
-    let entity = world.get_entity(entity.0).unwrap();
-    let children = entity.get::<Children>().unwrap();
-    for child in children {
-        let param_name = world.get::<ParamName>(*child);
-        if let Some(param_name) = param_name {
-            if param_name.0 == name {
-                let value = world
-                    .get::<ParamValue>(*child)
-                    .expect("Param should have a value");
-                let value = value.clone();
-                return SteelVal::from(value);
-            }
-        }
-    }
-
-    SteelVal::Void
+    let index = world.get_resource::<CompositeIndex2<OpRef, ParamName>>().unwrap();
+    let name = index.get(&(OpRef(entity.0), ParamName(name))).map_or(SteelVal::Void, |entity| {
+        let value = world.get::<ParamValue>(*entity).unwrap();
+        SteelVal::from(value.clone())
+    });
+    name
 }
 
 impl From<ParamValue> for SteelVal {

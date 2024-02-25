@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use std::marker::PhantomData;
+use std::ops::Deref;
 
 use bevy::ecs::query::QueryData;
 use bevy::ecs::system::SystemId;
@@ -12,16 +13,23 @@ use bevy::render::render_resource::{
 };
 use bevy::sprite::Material2d;
 use bevy::utils::HashMap;
+use bevy_egui::egui::{Align, CollapsingHeader};
+use bevy_egui::{egui, EguiContexts};
 
 use operator::composite::TextureOpCompositePlugin;
 use operator::ramp::TextureOpRampPlugin;
 
-use crate::index::IndexPlugin;
-use crate::param::{ParamName, ParamValue};
+use crate::index::UniqueIndexPlugin;
+use crate::param::{
+    ParamBundle, ParamName, ParamOrder, ParamValue, ScriptedParam, ScriptedParamValue,
+};
 use crate::texture::event::SpawnOp;
+use crate::texture::operator::composite::CompositeMode;
+use crate::texture::operator::ramp::{TextureRampMode, TextureRampSettings};
 use crate::texture::render::TextureOpSubGraph;
 use crate::ui::event::{Connect, Disconnect};
-use crate::ui::graph::{GraphRef, NodeMaterial, SelectedNode};
+use crate::ui::graph::{GraphRef, NodeMaterial, OpRef, SelectedNode};
+use crate::ui::UiState;
 use crate::OpName;
 
 mod event;
@@ -98,7 +106,6 @@ fn spawn_op<T>(
     mut images: ResMut<Assets<Image>>,
     added_q: Query<Entity, (With<TextureOp>, Added<TextureOpType<T>>)>,
     existing_q: Query<Entity, (With<TextureOp>, With<TextureOpType<T>>)>,
-    ui_q: Query<&TextureOpUi, With<TextureOpType<T>>>,
     mut spawn_op_evt: EventWriter<SpawnOp>,
 ) where
     T: TextureOpMeta + Debug + Send + Sync + 'static,
@@ -106,7 +113,6 @@ fn spawn_op<T>(
     let mut count = existing_q.iter().len();
     for entity in added_q.iter() {
         count = count + 1;
-        let ui = ui_q.single();
 
         let size = Extent3d {
             width: 512,
@@ -156,10 +162,11 @@ fn spawn_op<T>(
                     outputs: TextureOpOutputs { count: T::OUTPUTS },
                 },
                 T::Uniform::default(),
-                ui.clone(),
             ))
             .with_children(|parent| {
-                parent.spawn((ParamName("foo".to_string()), ParamValue::F32(11.0)));
+                T::params().into_iter().for_each(|param| {
+                    parent.spawn((OpRef(parent.parent_entity()), param));
+                });
             });
         spawn_op_evt.send(SpawnOp(entity));
     }
@@ -203,9 +210,6 @@ pub struct TextureOpOutputs {
     pub(crate) count: usize,
 }
 
-#[derive(Component, Clone)]
-pub struct TextureOpUi(pub SystemId);
-
 #[derive(Bundle, Default)]
 pub struct TextureOpBundle {
     pub camera: Camera3dBundle,
@@ -231,9 +235,88 @@ impl Plugin for TextureOpPlugin {
     }
 }
 
-fn side_panel_ui(mut commands: Commands, selected_q: Query<&TextureOpUi, With<SelectedNode>>) {
-    if let Ok(ui) = selected_q.get_single() {
-        commands.run_system(ui.0);
+fn update_uniform<T>(
+    mut selected_node_q: Query<(&Children, &mut T::Uniform), With<SelectedNode>>,
+    mut params_q: Query<(&ParamName, &ParamValue)>,
+) where
+    T: TextureOpMeta,
+{
+    if let Ok((children, mut uniform)) = selected_node_q.get_single_mut() {
+        let params = children
+            .iter()
+            .filter_map(|entity| params_q.get(*entity).ok())
+            .collect();
+        T::update_uniform(&mut uniform, &params);
+    }
+}
+
+fn side_panel_ui(
+    mut commands: Commands,
+    mut ui_state: ResMut<UiState>,
+    mut egui_contexts: EguiContexts,
+    selected_q: Query<&Children, With<SelectedNode>>,
+    mut params_q: Query<(
+        Entity,
+        &ParamName,
+        &mut ParamValue,
+        Option<&mut ScriptedParamValue>,
+    )>,
+) {
+    if let Ok(children) = selected_q.get_single() {
+        ui_state.side_panel = Some(
+            egui::SidePanel::left("side_panel")
+                .resizable(false)
+                .show(egui_contexts.ctx_mut(), |ui| {
+                    egui::Grid::new("texture_ramp_params").show(ui, |ui| {
+                        ui.heading("Params");
+                        ui.end_row();
+                        ui.separator();
+                        ui.end_row();
+                        for entity in children {
+                            let (param, name, mut value, mut scripted_value) =
+                                params_q.get_mut(*entity).expect("Failed to get param");
+                            match value.as_mut() {
+                                ParamValue::Color(color) => {
+                                    let collapse = ui
+                                        .with_layout(
+                                            egui::Layout::left_to_right(Align::Min),
+                                            |ui| {
+                                                ui.set_max_width(100.0);
+                                                let collapse =
+                                                    CollapsingHeader::new(name.0.clone())
+                                                        .show(ui, |ui| {});
+                                                ui.color_edit_button_rgba_premultiplied(
+                                                    color.as_mut(),
+                                                );
+                                                collapse
+                                            },
+                                        )
+                                        .inner;
+                                    if collapse.fully_open() {
+                                        ui.end_row();
+                                        if let Some(mut scripted_value) = scripted_value {
+                                            ui.add(egui::TextEdit::singleline(
+                                                &mut scripted_value.0,
+                                            ));
+                                        } else {
+                                            let mut s = String::new();
+                                            ui.add(egui::TextEdit::singleline(&mut s));
+                                            if !s.is_empty() {
+                                                commands
+                                                    .entity(param)
+                                                    .insert((ScriptedParam, ScriptedParamValue(s)));
+                                            }
+                                        };
+                                    }
+                                    ui.end_row();
+                                }
+                                _ => {}
+                            }
+                        }
+                    });
+                })
+                .response,
+        );
     }
 }
 
@@ -256,12 +339,16 @@ fn update_materials(
     mut op_q: Query<(&TextureOpInputs, &TextureOpImage, &GraphRef)>,
     mut material_q: Query<&Handle<NodeMaterial>>,
 ) {
+    // TODO: add component to test for connected rather than constantly doing this
     for (input, my_image, graph_ref) in op_q.iter_mut() {
         if input.is_fully_connected() {
-            let material = material_q.get(graph_ref.0).unwrap();
-            let mut material = materials.get_mut(material).unwrap();
-            if material.texture != my_image.0 {
-                material.texture = my_image.0.clone();
+            if let Ok(material) = material_q.get(graph_ref.0) {
+                let mut material = materials.get_mut(material).unwrap();
+                if material.texture != my_image.0 {
+                    material.texture = my_image.0.clone();
+                }
+            } else {
+                warn!("No material found for {:?}", graph_ref);
             }
         }
     }
@@ -287,4 +374,8 @@ pub trait TextureOpMeta: Debug + Clone + Send + Sync + 'static {
     const OUTPUTS: usize;
     type OpType: Debug + Component + ExtractComponent + Send + Sync + 'static = TextureOpType<Self>;
     type Uniform: Component + ExtractComponent + ShaderType + WriteInto + Clone + Default;
+
+    fn params() -> Vec<ParamBundle>;
+
+    fn update_uniform(uniform: &mut Self::Uniform, params: &Vec<(&ParamName, &ParamValue)>);
 }

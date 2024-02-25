@@ -3,9 +3,10 @@ use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::render_resource::ShaderType;
 use bevy_egui::egui::{Align, CollapsingHeader};
 use bevy_egui::{egui, EguiContexts};
+use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 
 use crate::texture::render::TextureOpRenderPlugin;
-use crate::texture::{spawn_op, TextureOpMeta, TextureOpType, TextureOpUi};
+use crate::texture::{spawn_op, TextureOpMeta, TextureOpType, update_uniform};
 use crate::ui::graph::SelectedNode;
 use crate::ui::UiState;
 
@@ -18,8 +19,7 @@ impl Plugin for TextureOpRampPlugin {
             ExtractComponentPlugin::<TextureOpType<TextureOpRamp>>::default(),
             TextureOpRenderPlugin::<TextureOpRamp>::default(),
         ))
-        .add_systems(Startup, setup)
-        .add_systems(Update, spawn_op::<TextureOpRamp>);
+        .add_systems(Update, (spawn_op::<TextureOpRamp>, update_uniform::<TextureOpRamp>));
     }
 }
 
@@ -31,6 +31,52 @@ impl TextureOpMeta for TextureOpRamp {
     const INPUTS: usize = 0;
     const OUTPUTS: usize = 1;
     type Uniform = TextureRampSettings;
+
+    fn params() -> Vec<ParamBundle> {
+        vec![
+            ParamBundle {
+                name: ParamName("Color A".to_string()),
+                value: ParamValue::Color(Vec4::new(1.0, 0.0, 0.0, 1.0)),
+                order: ParamOrder(0),
+                ..default()
+            },
+            ParamBundle {
+                name: ParamName("Color B".to_string()),
+                value: ParamValue::Color(Vec4::new(0.0, 0.0, 1.0, 1.0)),
+                order: ParamOrder(1),
+                ..default()
+            },
+            ParamBundle {
+                name: ParamName("Mode".to_string()),
+                value: ParamValue::U32(0),
+                order: ParamOrder(1),
+                ..default()
+            }
+        ]
+    }
+
+    fn update_uniform(uniform: &mut Self::Uniform, params: &Vec<(&ParamName, &ParamValue)>) {
+        for (name, value) in params {
+            match name.0.as_str() {
+                "Color A" => {
+                    if let ParamValue::Color(color) = value {
+                        uniform.color_a = *color;
+                    }
+                }
+                "Color B" => {
+                    if let ParamValue::Color(color) = value {
+                        uniform.color_b = *color;
+                    }
+                }
+                "Mode" => {
+                    if let ParamValue::U32(mode) = value {
+                        uniform.mode = *mode;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
 }
 
 fn side_panel_ui(
@@ -101,11 +147,6 @@ fn side_panel_ui(
                 .response,
         );
     }
-}
-
-fn setup(world: &mut World) {
-    let cb = world.register_system(side_panel_ui);
-    world.spawn((TextureOpType::<TextureOpRamp>::default(), TextureOpUi(cb)));
 }
 
 #[derive(Default, Clone, Copy, Debug, PartialEq)]

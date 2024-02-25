@@ -1,7 +1,7 @@
 #![feature(associated_type_defaults)]
 #![feature(lazy_cell)]
 
-use crate::index::IndexPlugin;
+use crate::index::UniqueIndexPlugin;
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
@@ -25,7 +25,7 @@ mod ui;
 fn main() {
     App::new()
         .add_plugins((
-            ScriptPlugin,
+            // ScriptPlugin,
             ParamPlugin,
             DefaultPlugins,
             EguiPlugin,
@@ -34,7 +34,7 @@ fn main() {
             UiPlugin,
             ShapePlugin,
             WorldInspectorPlugin::new(),
-            IndexPlugin::<OpName>::default(),
+            UniqueIndexPlugin::<OpName>::default(),
         ))
         .add_systems(Startup, setup)
         .run();
