@@ -1,21 +1,17 @@
-mod ui;
-
-use std::any::Any;
-use bevy::prelude::*;
-use bevy::render::render_resource::ShaderType;
 use crate::index::CompositeIndex2Plugin;
 use crate::ui::graph::OpRef;
+use bevy::prelude::*;
+use std::collections::BTreeMap;
 
 pub struct ParamPlugin;
 
 impl Plugin for ParamPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_plugins(CompositeIndex2Plugin::<OpRef, ParamName>::new());
+        app.add_plugins(CompositeIndex2Plugin::<OpRef, ParamName>::new());
     }
 }
 
-trait FromParams  {
+trait FromParams {
     fn from_params(params: &Vec<Param>) -> Self;
 }
 
@@ -33,7 +29,9 @@ pub struct ParamPage(pub String);
 pub struct ParamOrder(pub u32);
 #[derive(Component, Default, Debug)]
 pub struct Param;
-#[derive(Component, Deref, DerefMut, Default, Clone, PartialEq, Eq, Hash, Debug, Ord, PartialOrd)]
+#[derive(
+    Component, Deref, DerefMut, Default, Clone, PartialEq, Eq, Hash, Debug, Ord, PartialOrd,
+)]
 pub struct ParamName(pub String);
 #[derive(Component, Clone, Debug, Default)]
 pub enum ParamValue {
@@ -43,6 +41,10 @@ pub enum ParamValue {
     U32(u32),
     Color(Vec4),
 }
+
+#[derive(Resource, Default, Debug)]
+pub struct ParamHash(BTreeMap<Entity, u64>);
+
 #[derive(Component, Default, Debug)]
 pub struct ScriptedParam;
 #[derive(Component, Default, Debug)]

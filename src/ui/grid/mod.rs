@@ -1,3 +1,4 @@
+use crate::Sets::Ui;
 use bevy::prelude::*;
 use bevy::render::primitives::Aabb;
 use bevy::render::view::NoFrustumCulling;
@@ -16,7 +17,7 @@ impl Plugin for InfiniteGridPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(PreviousScale { scale: 1.0 })
             .add_systems(Startup, grid_setup)
-            .add_systems(Update, resize_grid_drag_mesh);
+            .add_systems(Update, resize_grid_drag_mesh.in_set(Ui));
     }
 
     fn finish(&self, app: &mut App) {

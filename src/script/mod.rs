@@ -1,8 +1,9 @@
-use bevy::asset::AssetContainer;
 use crate::index::{CompositeIndex2, UniqueIndex};
 use crate::param::{ParamName, ParamValue, ScriptedParamError, ScriptedParamValue};
 use crate::ui::graph::OpRef;
 use crate::OpName;
+use crate::Sets::Params;
+use bevy::asset::AssetContainer;
 use bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell;
 use bevy::prelude::*;
 use boa_engine::object::builtins::JsArray;
@@ -23,7 +24,7 @@ pub struct ScriptPlugin;
 impl Plugin for ScriptPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup)
-            .add_systems(Update, (update));
+            .add_systems(Update, (update.in_set(Params)));
     }
 }
 
@@ -81,12 +82,14 @@ fn setup(world: &mut World) {
 fn update(world: &mut World) {
     unsafe {
         let mut world_cell = world.as_unsafe_world_cell();
-        let mut query = world_cell
-            .world_mut()
-            .query::<(Entity, &mut ParamValue, &ScriptedParamValue, Option<&ScriptedParamError>)>();
+        let mut query = world_cell.world_mut().query::<(
+            Entity,
+            &mut ParamValue,
+            &ScriptedParamValue,
+            Option<&ScriptedParamError>,
+        )>();
         let params = query.iter_mut(world_cell.world_mut()).collect::<Vec<_>>();
         for (param, mut param_value, script, script_error) in params {
-            info!("script: {:?}", script);
             let script = script.0.clone();
             world_cell
                 .world_mut()
@@ -95,14 +98,20 @@ fn update(world: &mut World) {
                 .with_world_scope(world_cell, |ctx| {
                     let res = ctx.eval(Source::from_bytes(&script)).unwrap_or_else(|e| {
                         warn!("Error in script eval: {:?}", e);
-                        world_cell.world_mut().entity_mut(param).insert(ScriptedParamError(e.to_string()));
+                        world_cell
+                            .world_mut()
+                            .entity_mut(param)
+                            .insert(ScriptedParamError(e.to_string()));
                         JsValue::Null
                     });
 
                     if JsValue::Null != res {
                         // clear the error if there is one
                         if let Some(err) = script_error {
-                            world_cell.world_mut().entity_mut(param).remove::<ScriptedParamError>();
+                            world_cell
+                                .world_mut()
+                                .entity_mut(param)
+                                .remove::<ScriptedParamError>();
                         }
                         update_param(&mut param_value, res, ctx);
                     }

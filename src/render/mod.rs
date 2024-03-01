@@ -1,13 +1,14 @@
+use crate::Sets::{Graph, Params};
 use bevy::prelude::*;
 
 use crate::texture::TextureOp;
-use crate::ui::graph::GraphState;
+use crate::ui::graph::{update_graph, GraphState};
 
 pub struct RenderPlugin;
 
 impl Plugin for RenderPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, order_cameras.after(crate::ui::graph::update_graph));
+        app.add_systems(Update, order_cameras.in_set(Params));
     }
 }
 
@@ -16,7 +17,10 @@ fn order_cameras(graph: Res<GraphState>, mut cameras: Query<&mut Camera, With<Te
     match sorted {
         Ok(sorted) => {
             for (i, index) in sorted.iter().enumerate() {
-                let entity = graph.entity_map.get(index).expect("entity not found");
+                let entity = graph
+                    .entity_map
+                    .get(index)
+                    .expect(format!("Failed to get entity for index {:?}", index).as_str());
                 if let Ok(mut camera) = cameras.get_mut(*entity) {
                     camera.order = i as isize;
                 }

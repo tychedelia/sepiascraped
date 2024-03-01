@@ -12,7 +12,7 @@ use bevy::render::render_resource::{
     Extent3d, ShaderType, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
 use bevy::sprite::Material2d;
-use bevy::utils::{HashMap, info};
+use bevy::utils::{info, HashMap};
 use bevy_egui::egui::{Align, CollapsingHeader};
 use bevy_egui::{egui, EguiContexts};
 
@@ -20,9 +20,13 @@ use operator::composite::TextureOpCompositePlugin;
 use operator::ramp::TextureOpRampPlugin;
 
 use crate::index::UniqueIndexPlugin;
-use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue, ScriptedParam, ScriptedParamError, ScriptedParamValue};
+use crate::param::{
+    ParamBundle, ParamName, ParamOrder, ParamValue, ScriptedParam, ScriptedParamError,
+    ScriptedParamValue,
+};
 use crate::texture::event::SpawnOp;
 use crate::texture::operator::composite::CompositeMode;
+use crate::texture::operator::noise::TextureOpNoisePlugin;
 use crate::texture::operator::ramp::{TextureRampMode, TextureRampSettings};
 use crate::texture::render::TextureOpSubGraph;
 use crate::ui::event::{Connect, Disconnect};
@@ -45,6 +49,7 @@ impl Plugin for TexturePlugin {
                 TextureOpPlugin,
                 TextureOpRampPlugin,
                 TextureOpCompositePlugin,
+                TextureOpNoisePlugin,
             ))
             .add_systems(Startup, setup);
     }
@@ -224,7 +229,7 @@ impl Plugin for TextureOpPlugin {
         app.add_systems(
             Update,
             (
-                side_panel_ui,
+                selected_node_ui,
                 update_materials,
                 connect_handler,
                 disconnect_handler,
@@ -248,7 +253,7 @@ fn update_uniform<T>(
     }
 }
 
-fn side_panel_ui(
+fn selected_node_ui(
     mut commands: Commands,
     mut ui_state: ResMut<UiState>,
     mut egui_contexts: EguiContexts,
@@ -262,9 +267,11 @@ fn side_panel_ui(
     )>,
 ) {
     if let Ok(children) = selected_q.get_single() {
-        ui_state.side_panel = Some(
-            egui::SidePanel::left("side_panel")
+        ui_state.node_info = Some(
+            egui::Window::new("node_info")
                 .resizable(false)
+                .collapsible(false)
+                .movable(false)
                 .show(egui_contexts.ctx_mut(), |ui| {
                     egui::Grid::new("texture_ramp_params").show(ui, |ui| {
                         ui.heading("Params");
@@ -274,54 +281,57 @@ fn side_panel_ui(
                         for entity in children {
                             let (param, name, mut value, mut script_value, script_error) =
                                 params_q.get_mut(*entity).expect("Failed to get param");
-                            match value.as_mut() {
-                                ParamValue::Color(color) => {
-                                    let collapse = ui
-                                        .with_layout(
-                                            egui::Layout::left_to_right(Align::Min),
-                                            |ui| {
-                                                ui.set_max_width(100.0);
-                                                let collapse =
-                                                    CollapsingHeader::new(name.0.clone())
-                                                        .show(ui, |ui| {});
-                                                ui.color_edit_button_rgba_premultiplied(
-                                                    color.as_mut(),
-                                                );
-                                                collapse
-                                            },
-                                        )
-                                        .inner;
-                                    if collapse.fully_open() {
-                                        ui.end_row();
-                                        if let Some(mut scripted_value) = script_value {
-                                            ui.add(egui::TextEdit::singleline(
-                                                &mut scripted_value.0,
-                                            ));
-                                        } else {
-                                            let mut s = String::new();
-                                            ui.add(egui::TextEdit::singleline(&mut s));
-                                            if !s.is_empty() {
-                                                info!("Adding scripted param");
-                                                commands
-                                                    .entity(param)
-                                                    .insert((ScriptedParam, ScriptedParamValue(s)));
-                                            }
-                                        };
+                            let collapse = ui
+                                .with_layout(egui::Layout::left_to_right(Align::Min), |ui| {
+                                    ui.set_max_width(100.0);
+                                    let collapse =
+                                        CollapsingHeader::new(name.0.clone()).show(ui, |ui| {});
+
+                                    match value.as_mut() {
+                                        ParamValue::Color(color) => {
+                                            ui.color_edit_button_rgba_premultiplied(color.as_mut());
+                                        }
+                                        ParamValue::F32(f) => {
+                                            ui.add(egui::Slider::new(f, 0.0..=100.0));
+                                        }
+                                        _ => {}
+                                    };
+
+                                    collapse
+                                })
+                                .inner;
+                            if collapse.fully_open() {
+                                ui.end_row();
+                                if let Some(mut scripted_value) = script_value {
+                                    ui.add(
+                                        egui::TextEdit::singleline(&mut scripted_value.0)
+                                            .code_editor(),
+                                    );
+                                } else {
+                                    let mut s = String::new();
+                                    ui.add(egui::TextEdit::singleline(&mut s));
+                                    if !s.is_empty() {
+                                        info!("Adding scripted param");
+                                        commands
+                                            .entity(param)
+                                            .insert((ScriptedParam, ScriptedParamValue(s)));
                                     }
-                                    ui.end_row();
-                                    if let Some(error) = script_error {
-                                        let prev_color = ui.visuals_mut().override_text_color;
-                                        ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
-                                        ui.label(error.0.clone());
-                                        ui.visuals_mut().override_text_color = prev_color;
-                                        ui.end_row();
-                                    }
-                                }
-                                _ => {}
+                                };
+                            }
+                            ui.end_row();
+                            if let Some(error) = script_error {
+                                let prev_color = ui.visuals_mut().override_text_color;
+                                ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
+                                ui.label(error.0.clone());
+                                ui.visuals_mut().override_text_color = prev_color;
+                                ui.end_row();
                             }
                         }
-                    });
+                    })
                 })
+                .unwrap()
+                .inner
+                .unwrap()
                 .response,
         );
     }

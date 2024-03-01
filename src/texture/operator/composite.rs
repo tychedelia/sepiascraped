@@ -1,12 +1,13 @@
+use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
+use crate::Sets::{Graph, Uniforms};
 use bevy::prelude::*;
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::render_graph::{RenderLabel, RenderSubGraph};
 use bevy::render::render_resource::ShaderType;
 use bevy_egui::{egui, EguiContexts};
-use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 
 use crate::texture::render::TextureOpRenderPlugin;
-use crate::texture::{spawn_op, TextureOpMeta, TextureOpType, update_uniform};
+use crate::texture::{spawn_op, update_uniform, TextureOpMeta, TextureOpType};
 use crate::ui::graph::SelectedNode;
 use crate::ui::UiState;
 
@@ -19,7 +20,13 @@ impl Plugin for TextureOpCompositePlugin {
             ExtractComponentPlugin::<TextureOpType<TextureOpComposite>>::default(),
             TextureOpRenderPlugin::<TextureOpComposite>::default(),
         ))
-        .add_systems(Update, (spawn_op::<TextureOpComposite>, update_uniform::<TextureOpComposite>));
+        .add_systems(
+            Update,
+            (
+                spawn_op::<TextureOpComposite>.in_set(Graph),
+                update_uniform::<TextureOpComposite>.in_set(Uniforms),
+            ),
+        );
     }
 }
 
@@ -30,14 +37,12 @@ impl TextureOpMeta for TextureOpComposite {
     type Uniform = CompositeSettings;
 
     fn params() -> Vec<ParamBundle> {
-        vec![
-            ParamBundle {
-                name: ParamName("Mode".to_string()),
-                value: ParamValue::U32(0),
-                order: ParamOrder(0),
-                ..default()
-            }
-        ]
+        vec![ParamBundle {
+            name: ParamName("Mode".to_string()),
+            value: ParamValue::U32(0),
+            order: ParamOrder(0),
+            ..default()
+        }]
     }
 
     fn update_uniform(uniform: &mut Self::Uniform, params: &Vec<(&ParamName, &ParamValue)>) {
@@ -51,35 +56,6 @@ impl TextureOpMeta for TextureOpComposite {
                 _ => {}
             }
         }
-    }
-}
-
-fn side_panel_ui(
-    mut ui_state: ResMut<UiState>,
-    mut egui_contexts: EguiContexts,
-    mut selected_node: Query<(Entity, &mut CompositeSettings, &SelectedNode)>,
-) {
-    let ctx = egui_contexts.ctx_mut();
-    if let Ok((entity, mut settings, _selected_node)) = selected_node.get_single_mut() {
-        ui_state.side_panel = Some(
-            egui::SidePanel::left("composite_side_panel")
-                .resizable(false)
-                .show(ctx, |ui| {
-                    ui.heading("Composite");
-                    let mut mode = CompositeMode::from_u32(settings.mode).expect("Invalid mode");
-                    egui::ComboBox::from_label("Mode")
-                        .selected_text(format!("{mode:?}"))
-                        .show_ui(ui, |ui| {
-                            ui.set_min_width(60.0);
-                            ui.selectable_value(&mut mode, CompositeMode::Add, "Add");
-                            ui.selectable_value(&mut mode, CompositeMode::Multiply, "Multiply");
-                            ui.selectable_value(&mut mode, CompositeMode::Subtract, "Subtract");
-                            ui.selectable_value(&mut mode, CompositeMode::Divide, "Divide");
-                        });
-                    settings.mode = mode.as_u32();
-                })
-                .response,
-        );
     }
 }
 

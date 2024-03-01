@@ -22,7 +22,7 @@ where
     }
 }
 
-impl <T> UniqueIndexPlugin<T> {
+impl<T> UniqueIndexPlugin<T> {
     pub fn new() -> Self {
         Self {
             _marker: std::marker::PhantomData,
@@ -71,11 +71,11 @@ where
 {
     fn build(&self, app: &mut App) {
         app.insert_resource(Index::<T>(BTreeMap::new()))
-            .add_systems(Update, (insert_unique_index::<T>, remove_unique_index::<T>));
+            .add_systems(Update, (insert_index::<T>, remove_index::<T>));
     }
 }
 
-impl <T> IndexPlugin<T> {
+impl<T> IndexPlugin<T> {
     pub fn new() -> Self {
         Self {
             _marker: std::marker::PhantomData,
@@ -85,7 +85,6 @@ impl <T> IndexPlugin<T> {
 
 #[derive(Resource, Default, Deref, DerefMut)]
 pub(crate) struct Index<T>(BTreeMap<T, Vec<Entity>>);
-
 
 fn insert_index<T>(mut index: ResMut<Index<T>>, insert_q: Query<(Entity, &T), Added<T>>)
 where
@@ -120,7 +119,7 @@ pub struct CompositeIndex2Plugin<T, U> {
     _marker: std::marker::PhantomData<(T, U)>,
 }
 
-impl <T, U> CompositeIndex2Plugin<T, U> {
+impl<T, U> CompositeIndex2Plugin<T, U> {
     pub fn new() -> Self {
         Self {
             _marker: std::marker::PhantomData,
@@ -135,7 +134,13 @@ where
 {
     fn build(&self, app: &mut App) {
         app.insert_resource(CompositeIndex2::<T, U>(BTreeMap::new()))
-            .add_systems(Update, (insert_composite_index::<T, U>, remove_composite_index::<T, U>));
+            .add_systems(
+                Update,
+                (
+                    insert_composite_index::<T, U>,
+                    remove_composite_index::<T, U>,
+                ),
+            );
     }
 }
 

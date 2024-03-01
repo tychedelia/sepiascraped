@@ -1,7 +1,8 @@
+use crate::Sets;
 use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle};
-use bevy::utils::HashMap;
+use bevy::utils::{info, HashMap};
 use bevy_mod_picking::prelude::*;
 use bevy_mod_picking::PickableBundle;
 use bevy_prototype_lyon::draw::Stroke;
@@ -34,12 +35,12 @@ impl Plugin for GraphPlugin {
             .add_systems(
                 Update,
                 (
-                    ui,
-                    texture_ui,
-                    update_graph.after(texture_ui),
-                    update_connections,
+                    ui.in_set(Sets::Ui),
+                    texture_ui.in_set(Sets::Ui),
+                    update_graph.in_set(Sets::Graph),
+                    update_connections.in_set(Sets::Graph),
                     click_node.run_if(on_event::<ClickNode>()),
-                    update_graph_refs,
+                    update_graph_refs.in_set(Sets::Graph),
                 ),
             );
     }
@@ -141,8 +142,7 @@ fn click_node(
     }
 }
 
-fn setup(mut state: ResMut<GraphState>) {
-}
+fn setup(mut state: ResMut<GraphState>) {}
 
 pub fn update_graph(
     mut state: ResMut<GraphState>,
