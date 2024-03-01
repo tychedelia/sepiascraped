@@ -1,7 +1,12 @@
 use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
 use bevy_egui::{egui, EguiContexts};
 use bevy_mod_picking::DefaultPickingPlugins;
 
+use crate::texture::operator::composite::TextureOpComposite;
+use crate::texture::operator::noise::TextureOpNoise;
+use crate::texture::operator::ramp::TextureOpRamp;
+use crate::texture::{TextureOp, TextureOpType};
 use crate::Sets::Ui;
 use camera::CameraControllerPlugin;
 
@@ -43,6 +48,11 @@ impl Plugin for UiPlugin {
 pub struct UiState {
     pub top_panel: Option<egui::Response>,
     pub node_info: Option<egui::Response>,
+    pub node_menu: Option<NodeMenuState>,
+}
+
+pub struct NodeMenuState {
+    pub pos: (f32, f32),
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -59,8 +69,43 @@ pub fn ui_setup(mut commands: Commands) {
     ));
 }
 
-pub fn ui(mut ui_state: ResMut<UiState>, mut egui_contexts: EguiContexts) {
+pub fn ui(
+    mut commands: Commands,
+    mut ui_state: ResMut<UiState>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    keys: Res<ButtonInput<KeyCode>>,
+    mut egui_contexts: EguiContexts,
+) {
     let ctx = egui_contexts.ctx_mut();
+
+    if keys.just_pressed(KeyCode::Tab) {
+        let window = windows.single();
+        let pos = window.cursor_position().unwrap();
+        ui_state.node_menu = Some(NodeMenuState { pos: (pos.x, pos.y)});
+    }
+    if keys.just_released(KeyCode::Escape) {
+        ui_state.node_menu = None;
+    }
+
+    if let Some(node_menu) = &ui_state.node_menu {
+        egui::Window::new("Node Info")
+            .title_bar(false)
+            .resizable(false)
+            .collapsible(false)
+            .fixed_pos(node_menu.pos)
+            .show(ctx, |ui| {
+                if ui.button("Ramp").clicked() {
+                    commands.spawn((TextureOp, TextureOpType::<TextureOpRamp>::default()));
+                }
+                if ui.button("Noise").clicked() {
+                    commands.spawn((TextureOp, TextureOpType::<TextureOpNoise>::default()));
+                }
+                if ui.button("Composite").clicked() {
+                    commands.spawn((TextureOp, TextureOpType::<TextureOpComposite>::default()));
+                }
+            });
+    }
+
     ui_state.top_panel = Some(
         egui::TopBottomPanel::top("top_panel")
             .resizable(false)

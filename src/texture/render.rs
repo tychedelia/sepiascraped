@@ -115,14 +115,15 @@ pub fn prepare_texture_op_pipelines<T>(
             );
         }
 
-        let layout =
-            render_device.create_bind_group_layout("texture_op_bind_group_layout", &entries);
-        pipeline.layouts.insert(inputs.count, layout);
-
         let key = TextureOpPipelineKey {
             input_count: inputs.count,
             shader: shader_handle.0.clone(),
         };
+
+        let layout =
+            render_device.create_bind_group_layout("texture_op_bind_group_layout", &entries);
+        pipeline.layouts.insert(key.clone(), layout);
+
         let pipeline_id = pipelines.specialize(&pipeline_cache, &pipeline, key.clone());
         commands
             .entity(entity)
@@ -143,6 +144,7 @@ pub fn prepare_texture_op_bind_group<T>(
         ),
         With<T::OpType>,
     >,
+    shader_handle: Res<TextureOpShaderHandle<T>>,
     images: Res<RenderAssets<Image>>,
     render_device: Res<RenderDevice>,
 ) where
@@ -189,7 +191,10 @@ pub fn prepare_texture_op_bind_group<T>(
 
         let bind_group = render_device.create_bind_group(
             "texture_op_bind_group",
-            &pipeline.layouts[&inputs.count],
+            &pipeline.layouts[&TextureOpPipelineKey {
+                input_count: inputs.count,
+                shader: shader_handle.0.clone(),
+            }],
             &entries[..],
         );
 
@@ -201,20 +206,20 @@ pub fn prepare_texture_op_bind_group<T>(
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct TextureOpPipelineKey {
-    input_count: usize,
-    shader: Handle<Shader>,
+    pub input_count: usize,
+    pub shader: Handle<Shader>,
 }
 
 #[derive(Resource, Default)]
 struct TextureOpPipeline {
-    layouts: HashMap<usize, BindGroupLayout>,
+    layouts: HashMap<TextureOpPipelineKey, BindGroupLayout>,
 }
 
 impl SpecializedRenderPipeline for TextureOpPipeline {
     type Key = TextureOpPipelineKey;
 
     fn specialize(&self, key: Self::Key) -> RenderPipelineDescriptor {
-        let layout = self.layouts[&key.input_count].clone();
+        let layout = self.layouts[&key].clone();
         RenderPipelineDescriptor {
             label: Some("texture_op_pipeline".into()),
             layout: vec![layout],

@@ -32,7 +32,7 @@ use crate::texture::render::TextureOpSubGraph;
 use crate::ui::event::{Connect, Disconnect};
 use crate::ui::graph::{GraphRef, NodeMaterial, OpRef, SelectedNode};
 use crate::ui::UiState;
-use crate::OpName;
+use crate::{OpName, Sets};
 
 mod event;
 pub mod operator;
@@ -233,18 +233,19 @@ impl Plugin for TextureOpPlugin {
                 update_materials,
                 connect_handler,
                 disconnect_handler,
-            ),
+            )
+                .in_set(Sets::Ui),
         );
     }
 }
 
 fn update_uniform<T>(
-    mut selected_node_q: Query<(&Children, &mut T::Uniform), With<SelectedNode>>,
+    mut node_q: Query<(&Children, &mut T::Uniform)>,
     mut params_q: Query<(&ParamName, &ParamValue)>,
 ) where
     T: TextureOpMeta,
 {
-    if let Ok((children, mut uniform)) = selected_node_q.get_single_mut() {
+    if let Ok((children, mut uniform)) = node_q.get_single_mut() {
         let params = children
             .iter()
             .filter_map(|entity| params_q.get(*entity).ok())

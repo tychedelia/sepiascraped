@@ -21,3 +21,4 @@ log = "0.4.20"
 boa_engine = { git = "https://github.com/boa-dev/boa" }
 boa_gc = { git = "https://github.com/boa-dev/boa" }
 boa_runtime = { git = "https://github.com/boa-dev/boa" }
+bevy_mod_debugdump = "0.10"

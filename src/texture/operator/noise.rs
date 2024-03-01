@@ -47,6 +47,24 @@ impl TextureOpMeta for TextureOpNoise {
                 order: ParamOrder(0),
                 ..default()
             },
+            ParamBundle {
+                name: ParamName("B".to_string()),
+                value: ParamValue::F32(10.0),
+                order: ParamOrder(0),
+                ..default()
+            },
+            ParamBundle {
+                name: ParamName("C".to_string()),
+                value: ParamValue::F32(10.0),
+                order: ParamOrder(0),
+                ..default()
+            },
+            ParamBundle {
+                name: ParamName("Seed".to_string()),
+                value: ParamValue::F32(10.0),
+                order: ParamOrder(0),
+                ..default()
+            },
         ]
     }
 
@@ -56,6 +74,21 @@ impl TextureOpMeta for TextureOpNoise {
                 "Strength" => {
                     if let ParamValue::F32(value) = value {
                         uniform.strength = *value;
+                    }
+                }
+                "B" => {
+                    if let ParamValue::F32(value) = value {
+                        uniform.b = *value;
+                    }
+                }
+                "C" => {
+                    if let ParamValue::F32(value) = value {
+                        uniform.c = *value;
+                    }
+                }
+                "Seed" => {
+                    if let ParamValue::F32(value) = value {
+                        uniform.seed = *value;
                     }
                 }
                 _ => {}
@@ -68,6 +101,9 @@ impl TextureOpMeta for TextureOpNoise {
 #[derive(Component, Default, Debug, Clone, Copy, ExtractComponent, ShaderType)]
 pub struct TextureNoiseSettings {
     pub strength: f32,
+    pub b: f32,
+    pub c: f32,
+    pub seed: f32,
     #[cfg(feature = "webgl2")]
     _webgl2_padding: Vec3,
 }

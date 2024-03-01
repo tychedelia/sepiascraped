@@ -81,6 +81,9 @@ pub struct Connecting;
 #[derive(Component)]
 pub struct ConnectedTo(Entity);
 
+#[derive(Component, Debug)]
+pub struct NodeRoot;
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Resources
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -181,7 +184,7 @@ pub fn ui(
     mut color_materials: ResMut<Assets<ColorMaterial>>,
     default_image: Res<TextureOpDefaultImage>,
     mut parent: Query<(Entity, &InheritedVisibility), With<InfiniteGridSettings>>,
-    entities: Query<
+    op_q: Query<
         (
             Entity,
             &TextureOpImage,
@@ -192,7 +195,7 @@ pub fn ui(
         Added<GraphId>,
     >,
 ) {
-    for (entity, image, input_config, output_config, graph_id) in entities.iter() {
+    for (entity, image, input_config, output_config, graph_id) in op_q.iter() {
         let (grid, _) = parent.single_mut();
         let index = (*graph_id).index() as f32 + 10.0;
 
@@ -200,17 +203,14 @@ pub fn ui(
             parent
                 .spawn((
                     OpRef(entity.clone()),
+                    NodeRoot,
                     MaterialMesh2dBundle {
                         mesh: meshes
                             .add(Mesh::from(Rectangle::new(100.0, 100.0)))
                             .into(),
                         material: materials.add(NodeMaterial {
                             selected: 0,
-                            texture: if input_config.count == 0 {
-                                (**image).clone()
-                            } else {
-                                default_image.0.clone()
-                            },
+                            texture: (**image).clone()
                         }),
                         transform: Transform::from_translation(Vec3::new(0.0, 0.0, index)),
                         ..Default::default()
@@ -257,7 +257,7 @@ pub fn ui(
     }
 }
 
-fn update_graph_refs(mut commands: Commands, mut op_ref_q: Query<(Entity, &OpRef), Added<OpRef>>) {
+fn update_graph_refs(mut commands: Commands, mut op_ref_q: Query<(Entity, &OpRef), (With<NodeRoot>, Added<OpRef>)>) {
     for (entity, op_ref) in op_ref_q.iter_mut() {
         commands.entity(op_ref.0).insert(GraphRef(entity));
     }

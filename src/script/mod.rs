@@ -44,6 +44,7 @@ impl WorldScope for JsContext {
     where
         F: FnOnce(&mut Self) -> R,
     {
+        let curr_time = unsafe { world.world() }.resource::<Time>().elapsed_seconds();
         let holder = WorldHolder(unsafe { world.world_mut() });
         self.realm().host_defined_mut().insert(holder);
         let result = f(self);
@@ -75,7 +76,15 @@ fn setup(world: &mut World) {
             .world_mut()
             .get_non_send_resource_mut::<JsContext>()
             .unwrap()
-            .with_world_scope(world_cell, |ctx| {});
+            .with_world_scope(world_cell, |ctx| {
+                ctx
+                    .register_global_property(
+                        js_string!("time"),
+                        0.0,
+                        Attribute::all(),
+                    )
+                    .expect("property shouldn't exist");
+            });
     }
 }
 
@@ -96,6 +105,9 @@ fn update(world: &mut World) {
                 .get_non_send_resource_mut::<JsContext>()
                 .unwrap()
                 .with_world_scope(world_cell, |ctx| {
+                    let elapsed_seconds = world_cell.world().resource::<Time>().elapsed_seconds();
+                    let time = ctx.global_object().set(js_string!("time"), elapsed_seconds, true, ctx).unwrap();
+
                     let res = ctx.eval(Source::from_bytes(&script)).unwrap_or_else(|e| {
                         warn!("Error in script eval: {:?}", e);
                         world_cell
