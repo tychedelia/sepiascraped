@@ -7,7 +7,7 @@ use bevy_egui::egui::{Align, CollapsingHeader};
 use bevy_egui::{egui, EguiContexts};
 
 use crate::texture::render::TextureOpRenderPlugin;
-use crate::texture::{spawn_op, update_uniform, TextureOpMeta, TextureOpType};
+use crate::texture::{spawn_op, update, TextureOpMeta, TextureOpType};
 use crate::ui::graph::SelectedNode;
 use crate::ui::UiState;
 
@@ -24,7 +24,7 @@ impl Plugin for TextureOpRampPlugin {
             Update,
             (
                 spawn_op::<TextureOpRamp>.in_set(Graph),
-                update_uniform::<TextureOpRamp>.in_set(Uniforms),
+                update::<TextureOpRamp>.in_set(Uniforms),
             ),
         );
     }

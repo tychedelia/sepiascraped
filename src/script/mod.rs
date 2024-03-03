@@ -1,3 +1,5 @@
+pub mod repl;
+
 use crate::index::{CompositeIndex2, UniqueIndex};
 use crate::param::{ParamName, ParamValue, ScriptedParamError, ScriptedParamValue};
 use crate::ui::graph::OpRef;
@@ -18,12 +20,15 @@ use boa_engine::{
 };
 use boa_gc::{Finalize, Trace};
 use boa_runtime::Console;
+use crate::script::repl::ScriptReplPlugin;
 
 pub struct ScriptPlugin;
 
 impl Plugin for ScriptPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup)
+        app
+            .add_plugins(ScriptReplPlugin)
+            .add_systems(Startup, setup)
             .add_systems(Update, (update.in_set(Params)));
     }
 }
@@ -154,6 +159,10 @@ impl IntoJsValue for ParamValue {
                 );
                 JsValue::Object(array.into())
             }
+            ParamValue::Vec2(x) => {
+                let array = JsArray::from_iter([JsValue::from(x.x), JsValue::from(x.y)], context);
+                JsValue::Object(array.into())
+            }
             _ => unimplemented!(),
         }
     }
@@ -177,6 +186,15 @@ fn update_param(param: &mut ParamValue, js_value: JsValue, context: &mut Context
                 x.as_mut().copy_from_slice(&[r, g, b, a])
             } else {
                 warn!("Expected an array for color");
+            }
+        }
+        ParamValue::Vec2(v) => {
+            if let Some(array) = js_value.as_object() {
+                let x = array.get(0, context).unwrap().to_number(context).unwrap() as f32;
+                let y = array.get(1, context).unwrap().to_number(context).unwrap() as f32;
+                v.as_mut().copy_from_slice(&[x, y])
+            } else {
+                warn!("Expected an array for vec2");
             }
         }
     }

@@ -15,7 +15,7 @@ trait FromParams {
     fn from_params(params: &Vec<Param>) -> Self;
 }
 
-#[derive(Bundle, Default)]
+#[derive(Bundle, Default, Clone)]
 pub struct ParamBundle {
     pub name: ParamName,
     pub value: ParamValue,
@@ -23,11 +23,11 @@ pub struct ParamBundle {
     pub page: ParamPage,
 }
 
-#[derive(Component, Default, Debug)]
+#[derive(Component, Clone, Default, Debug)]
 pub struct ParamPage(pub String);
-#[derive(Component, Default, Debug, Eq, Ord, PartialOrd, PartialEq)]
+#[derive(Component, Clone, Default, Debug, Eq, Ord, PartialOrd, PartialEq)]
 pub struct ParamOrder(pub u32);
-#[derive(Component, Default, Debug)]
+#[derive(Component, Clone, Default, Debug)]
 pub struct Param;
 #[derive(
     Component, Deref, DerefMut, Default, Clone, PartialEq, Eq, Hash, Debug, Ord, PartialOrd,
@@ -39,6 +39,7 @@ pub enum ParamValue {
     None,
     F32(f32),
     U32(u32),
+    Vec2(Vec2),
     Color(Vec4),
 }
 

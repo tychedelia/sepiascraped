@@ -257,7 +257,10 @@ pub fn ui(
     }
 }
 
-fn update_graph_refs(mut commands: Commands, mut op_ref_q: Query<(Entity, &OpRef), (With<NodeRoot>, Added<OpRef>)>) {
+fn update_graph_refs(
+    mut commands: Commands,
+    mut op_ref_q: Query<(Entity, &OpRef), (With<NodeRoot>, Added<OpRef>)>,
+) {
     for (entity, op_ref) in op_ref_q.iter_mut() {
         commands.entity(op_ref.0).insert(GraphRef(entity));
     }

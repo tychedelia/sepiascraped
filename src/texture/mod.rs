@@ -21,7 +21,7 @@ use operator::ramp::TextureOpRampPlugin;
 
 use crate::index::UniqueIndexPlugin;
 use crate::param::{
-    ParamBundle, ParamName, ParamOrder, ParamValue, ScriptedParam, ScriptedParamError,
+    ParamBundle, ParamName, ParamOrder, ParamPage, ParamValue, ScriptedParam, ScriptedParamError,
     ScriptedParamValue,
 };
 use crate::texture::event::SpawnOp;
@@ -167,9 +167,20 @@ fn spawn_op<T>(
                 T::Uniform::default(),
             ))
             .with_children(|parent| {
-                T::params().into_iter().for_each(|param| {
-                    parent.spawn((OpRef(parent.parent_entity()), param));
-                });
+                let common_params = vec![ParamBundle {
+                    name: ParamName("Resolution".to_string()),
+                    value: ParamValue::Vec2(Vec2::new(512.0, 512.0)),
+                    order: ParamOrder(0),
+                    page: ParamPage("Common".to_string()),
+                    ..default()
+                }];
+
+                [common_params, T::params()]
+                    .concat()
+                    .into_iter()
+                    .for_each(|param| {
+                        parent.spawn((OpRef(parent.parent_entity()), param));
+                    });
             });
         spawn_op_evt.send(SpawnOp(entity));
     }
@@ -239,17 +250,21 @@ impl Plugin for TextureOpPlugin {
     }
 }
 
-fn update_uniform<T>(
-    mut node_q: Query<(&Children, &mut T::Uniform)>,
+fn update<T>(
+    mut node_q: Query<(&Children, &mut T::Uniform, &TextureOpImage)>,
     mut params_q: Query<(&ParamName, &ParamValue)>,
+    mut images: ResMut<Assets<Image>>,
 ) where
     T: TextureOpMeta,
 {
-    if let Ok((children, mut uniform)) = node_q.get_single_mut() {
+    for (children, mut uniform, op_image) in node_q.iter_mut() {
         let params = children
             .iter()
             .filter_map(|entity| params_q.get(*entity).ok())
             .collect();
+
+        let image = images.get(&op_image.0).expect("Failed to get image");
+
         T::update_uniform(&mut uniform, &params);
     }
 }
@@ -284,7 +299,6 @@ fn selected_node_ui(
                                 params_q.get_mut(*entity).expect("Failed to get param");
                             let collapse = ui
                                 .with_layout(egui::Layout::left_to_right(Align::Min), |ui| {
-                                    ui.set_max_width(100.0);
                                     let collapse =
                                         CollapsingHeader::new(name.0.clone()).show(ui, |ui| {});
 
@@ -294,6 +308,10 @@ fn selected_node_ui(
                                         }
                                         ParamValue::F32(f) => {
                                             ui.add(egui::Slider::new(f, 0.0..=100.0));
+                                        }
+                                        ParamValue::Vec2(v) => {
+                                            ui.add(egui::DragValue::new(&mut v.x));
+                                            ui.add(egui::DragValue::new(&mut v.y));
                                         }
                                         _ => {}
                                     };
