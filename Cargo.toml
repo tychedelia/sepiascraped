@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 bevy = "0.13"
 bevy_egui = "0.25"
-egui_extras = "0.26"
+egui_extras = {  version = "0.26", features = ["syntect"] }
 petgraph = "0.6.4"
 bevy_mod_picking = { git = "https://github.com/StrikeForceZero/bevy_mod_picking", branch = "bevy-0.13", default-features = false, features = [
     "backend_raycast",

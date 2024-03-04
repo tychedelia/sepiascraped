@@ -82,8 +82,8 @@ pub fn ui(
 
     if keys.just_pressed(KeyCode::Tab) {
         let window = windows.single();
-        let pos = window.cursor_position().unwrap();
-        ui_state.node_menu = Some(NodeMenuState { pos: (pos.x, pos.y)});
+        // let pos = window.cursor_position().unwrap();
+        // ui_state.node_menu = Some(NodeMenuState { pos: (pos.x, pos.y)});
     }
     if keys.just_released(KeyCode::Escape) {
         ui_state.node_menu = None;
