@@ -1,8 +1,5 @@
-#![feature(associated_type_defaults)]
-#![feature(lazy_cell)]
-
-use bevy::log::LogPlugin;
 use crate::index::UniqueIndexPlugin;
+use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::plugin::ShapePlugin;
@@ -10,10 +7,10 @@ use bevy_prototype_lyon::plugin::ShapePlugin;
 use crate::param::ParamPlugin;
 use crate::render::RenderPlugin;
 use crate::script::ScriptPlugin;
-use crate::texture::{TextureOp, TextureOpType, TexturePlugin};
 use crate::texture::operator::composite::TextureOpComposite;
 use crate::texture::operator::noise::TextureOpNoise;
 use crate::texture::operator::ramp::TextureOpRamp;
+use crate::texture::{TextureOp, TextureOpType, TexturePlugin};
 use crate::ui::UiPlugin;
 
 mod index;
@@ -27,22 +24,22 @@ fn main() {
     let mut app = App::new();
 
     app.add_plugins((
-            ScriptPlugin,
-            ParamPlugin,
-            DefaultPlugins,
-            // DefaultPlugins.build().disable::<LogPlugin>(),
-            EguiPlugin,
-            RenderPlugin,
-            TexturePlugin,
-            UiPlugin,
-            ShapePlugin,
-            UniqueIndexPlugin::<OpName>::default(),
-        ))
-        .configure_sets(
-            Update,
-            (Sets::Ui, Sets::Graph, Sets::Params, Sets::Uniforms).chain(),
-        )
-        .add_systems(Startup, setup);
+        DefaultPlugins,
+        // DefaultPlugins.build().disable::<LogPlugin>(),
+        ScriptPlugin,
+        ParamPlugin,
+        EguiPlugin,
+        RenderPlugin,
+        TexturePlugin,
+        UiPlugin,
+        ShapePlugin,
+        UniqueIndexPlugin::<OpName>::default(),
+    ))
+    .configure_sets(
+        Update,
+        (Sets::Ui, Sets::Graph, Sets::Params, Sets::Uniforms).chain(),
+    )
+    .add_systems(Startup, setup);
     // bevy_mod_debugdump::print_schedule_graph(&mut app, Update);
     app.run();
 }

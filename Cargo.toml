@@ -4,11 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = "0.13"
+bevy = {  version = "0.13", features = ["default", "file_watcher"] }
 bevy_egui = "0.25"
 egui_extras = {  version = "0.26", features = ["syntect"] }
 petgraph = "0.6.4"
-bevy_mod_picking = { git = "https://github.com/StrikeForceZero/bevy_mod_picking", branch = "bevy-0.13", default-features = false, features = [
+bevy_mod_picking = { git = "https://github.com/aevyrie/bevy_mod_picking", default-features = false, features = [
     "backend_raycast",
     "backend_bevy_ui",
     "backend_sprite",
@@ -19,7 +19,10 @@ bevy_mod_picking = { git = "https://github.com/StrikeForceZero/bevy_mod_picking"
 bevy_prototype_lyon = "0.11"
 layout-rs = "0.1"
 log = "0.4.20"
-boa_engine = { git = "https://github.com/boa-dev/boa" }
-boa_gc = { git = "https://github.com/boa-dev/boa" }
-boa_runtime = { git = "https://github.com/boa-dev/boa" }
+steel-core = { path = "../../mattwparas/steel/crates/steel-core" }
+steel-derive= { path = "../../mattwparas/steel/crates/steel-derive" }
+steel-parser = { path = "../../mattwparas/steel/crates/steel-parser" }
 bevy_mod_debugdump = "0.10"
+thiserror = "1"
+rustyline = { version = "14", features = ["derive"] }
+colored = "2.1.0"

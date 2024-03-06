@@ -9,7 +9,6 @@ use crate::texture::operator::ramp::TextureOpRamp;
 use crate::texture::{TextureOp, TextureOpType};
 use crate::Sets::Ui;
 use camera::CameraControllerPlugin;
-use crate::script::repl::ScriptRepl;
 
 use crate::ui::event::ClickNode;
 use crate::ui::graph::GraphPlugin;
@@ -76,7 +75,6 @@ pub fn ui(
     windows: Query<&Window, With<PrimaryWindow>>,
     keys: Res<ButtonInput<KeyCode>>,
     mut egui_contexts: EguiContexts,
-    repl_q: Query<Entity, With<ScriptRepl>>
 ) {
     let ctx = egui_contexts.ctx_mut();
 
@@ -111,13 +109,7 @@ pub fn ui(
     ui_state.top_panel = Some(
         egui::TopBottomPanel::top("top_panel")
             .resizable(false)
-            .show(ctx, |ui| {
-                if ui.button("repl").clicked() {
-                    if repl_q.is_empty() {
-                        commands.spawn((ScriptRepl, ));
-                    }
-                }
-            })
+            .show(ctx, |ui| {})
             .response,
     );
 }

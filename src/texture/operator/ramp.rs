@@ -37,6 +37,7 @@ impl TextureOpMeta for TextureOpRamp {
     const SHADER: &'static str = "shaders/texture/ramp.wgsl";
     const INPUTS: usize = 0;
     const OUTPUTS: usize = 1;
+    type OpType = TextureOpType<Self>;
     type Uniform = TextureRampSettings;
 
     fn params() -> Vec<ParamBundle> {

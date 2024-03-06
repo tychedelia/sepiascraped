@@ -20,13 +20,13 @@ impl Plugin for TextureOpNoisePlugin {
             ExtractComponentPlugin::<TextureOpType<TextureOpNoise>>::default(),
             TextureOpRenderPlugin::<TextureOpNoise>::default(),
         ))
-            .add_systems(
-                Update,
-                (
-                    spawn_op::<TextureOpNoise>.in_set(Graph),
-                    update::<TextureOpNoise>.in_set(Uniforms),
-                ),
-            );
+        .add_systems(
+            Update,
+            (
+                spawn_op::<TextureOpNoise>.in_set(Graph),
+                update::<TextureOpNoise>.in_set(Uniforms),
+            ),
+        );
     }
 }
 
@@ -37,6 +37,7 @@ impl TextureOpMeta for TextureOpNoise {
     const SHADER: &'static str = "shaders/texture/noise.wgsl";
     const INPUTS: usize = 0;
     const OUTPUTS: usize = 1;
+    type OpType = TextureOpType<Self>;
     type Uniform = TextureNoiseSettings;
 
     fn params() -> Vec<ParamBundle> {

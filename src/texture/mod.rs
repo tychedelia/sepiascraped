@@ -408,7 +408,7 @@ pub trait TextureOpMeta: Debug + Clone + Send + Sync + 'static {
     const SHADER: &'static str;
     const INPUTS: usize;
     const OUTPUTS: usize;
-    type OpType: Debug + Component + ExtractComponent + Send + Sync + 'static = TextureOpType<Self>;
+    type OpType: Debug + Component + ExtractComponent + Send + Sync + 'static;
     type Uniform: Component + ExtractComponent + ShaderType + WriteInto + Clone + Default;
 
     fn params() -> Vec<ParamBundle>;

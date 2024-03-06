@@ -34,6 +34,7 @@ impl TextureOpMeta for TextureOpComposite {
     const SHADER: &'static str = "shaders/texture/composite.wgsl";
     const INPUTS: usize = 2;
     const OUTPUTS: usize = 1;
+    type OpType = TextureOpType<Self>;
     type Uniform = CompositeSettings;
 
     fn params() -> Vec<ParamBundle> {
