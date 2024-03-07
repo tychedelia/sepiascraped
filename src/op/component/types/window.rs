@@ -1,9 +1,14 @@
+use crate::index::CompositeIndex2;
 use crate::op::component::{spawn_component_op, ComponentOpMeta, ComponentOpType};
+use crate::op::texture::TextureOpImage;
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
+use crate::ui::graph::OpRef;
 use crate::OpName;
+use bevy::asset::AssetContainer;
 use bevy::math::Vec4;
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
+use bevy::render::view::RenderLayers;
 use bevy::window::WindowRef;
 
 #[derive(Default)]
@@ -15,8 +20,45 @@ impl Plugin for ComponentOpWindowPlugin {
     }
 }
 
-fn update() {
+#[derive(Component, Clone, Debug)]
+pub struct WindowTexture(Entity);
 
+fn update(
+    mut commands: Commands,
+    self_q: Query<
+        Entity,
+        (
+            With<ComponentOpType<ComponentOpWindow>>,
+            Without<WindowTexture>,
+        ),
+    >,
+    texture_q: Query<&TextureOpImage>,
+    param_q: Query<&ParamValue>,
+    param_index: Res<CompositeIndex2<OpRef, ParamName>>,
+) {
+    for entity in self_q.iter() {
+        let param_entity = param_index.get(&(OpRef(entity), ParamName("Texture".to_string())));
+        if let Some(param_entity) = param_entity {
+            if let Ok(param_value) = param_q.get(*param_entity) {
+                if let ParamValue::TextureOp(texture_entity) = param_value {
+                    if let Some(texture_entity) = texture_entity {
+                        if let Ok(texture) = texture_q.get(*texture_entity) {
+                            info!("Texture: {:?}", texture.0);
+                            info!("Texture Entity: {:?}", texture_entity);
+                            info!("Entity: {:?}", entity);
+                            commands
+                                .entity(entity)
+                                .insert(SpriteBundle {
+                                    texture: texture.0.clone(),
+                                    ..default()
+                                })
+                                .insert(WindowTexture(*texture_entity));
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[derive(Component, Clone, Default, Debug)]
@@ -38,13 +80,14 @@ impl ComponentOpMeta for ComponentOpWindow {
                 },
                 ..default()
             },
+            RenderLayers::layer(1),
         )
     }
 
     fn params() -> Vec<ParamBundle> {
         vec![ParamBundle {
             name: ParamName("Texture".to_string()),
-            value: ParamValue::Color(Vec4::new(1.0, 0.0, 0.0, 1.0)),
+            value: ParamValue::TextureOp(None),
             order: ParamOrder(0),
             ..default()
         }]

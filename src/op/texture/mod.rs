@@ -312,12 +312,17 @@ fn selected_node_ui(
                                     ui.checkbox(x, "");
                                 }
                                 ParamValue::TextureOp(x) => {
-                                    let name = op_name_q.get(*x).unwrap();
-                                    let mut name = name.0.clone();
+
+                                    let mut name = if let Some(entity) = x {
+                                        let name = op_name_q.get(*entity).unwrap();
+                                        name.0.clone()
+                                    } else {
+                                        String::new()
+                                    };
                                     ui.text_edit_singleline(&mut name);
                                     if !name.is_empty() {
                                         if let Some(entity) = op_name_idx.get(&OpName(name)) {
-                                            *x = entity.clone();
+                                            *x = Some(entity.clone());
                                         }
                                     }
                                 }

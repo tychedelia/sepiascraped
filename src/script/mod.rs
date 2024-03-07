@@ -418,9 +418,9 @@ fn update_param(param_value: &mut ParamValue, steel_val: SteelVal) {
         ParamValue::TextureOp(p) => {
             match steel_val {
                 SteelVal::Custom(mut c) => {
-                    let custom = c.get_mut().unwrap().borrow_mut();
+                    let custom = c.borrow_mut();
                     let entity = custom.as_any_ref().downcast_ref::<EntityRef>().unwrap();
-                    *p = entity.0.clone();
+                    *p = Some(entity.0.clone());
                 }
                 _ => {}
             }
@@ -444,7 +444,10 @@ impl From<ParamValue> for SteelVal {
             }
             ParamValue::Bool(x) => SteelVal::from(x),
             ParamValue::TextureOp(x) => {
-                EntityRef(x).into_steelval().unwrap()
+                match x {
+                    None => SteelVal::Void,
+                    Some(x) => EntityRef(x).into_steelval().unwrap()
+                }
             }
         }
     }

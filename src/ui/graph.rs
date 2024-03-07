@@ -295,7 +295,7 @@ fn spawn_port<T: Component>(
 fn connection_drag(
     event: Listener<Pointer<Drag>>,
     mut commands: Commands,
-    camera_q: Query<(&Camera, &GlobalTransform), With<OrthographicProjection>>,
+    camera_q: Query<(&Camera, &GlobalTransform), With<UiCamera>>,
     mut me_q: Query<
         (
             &GlobalTransform,
@@ -351,7 +351,7 @@ fn connection_drag(
 fn connection_drag_end(
     mut commands: Commands,
     event: Listener<Pointer<DragEnd>>,
-    camera_q: Query<(&Camera, &GlobalTransform), With<OrthographicProjection>>,
+    camera_q: Query<(&Camera, &GlobalTransform), With<UiCamera>>,
     mut me_q: Query<
         (
             Entity,
