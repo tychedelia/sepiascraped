@@ -18,7 +18,7 @@ where
 {
     fn build(&self, app: &mut App) {
         app.insert_resource(UniqueIndex::<T>(BTreeMap::new()))
-            .add_systems(Update, (insert_unique_index::<T>, remove_unique_index::<T>));
+            .add_systems(First, (insert_unique_index::<T>, remove_unique_index::<T>));
     }
 }
 
@@ -55,8 +55,9 @@ fn remove_unique_index<T>(
     T: Component + Debug + Clone + Ord + Hash + Send + Sync + 'static,
 {
     for entity in removed_evt.read() {
-        let component = reverse_lookup_q.get(entity).unwrap();
-        index.remove(component);
+        if let Ok(component) = reverse_lookup_q.get(entity) {
+            index.remove(component);
+        }
     }
 }
 
@@ -71,7 +72,7 @@ where
 {
     fn build(&self, app: &mut App) {
         app.insert_resource(Index::<T>(BTreeMap::new()))
-            .add_systems(Update, (insert_index::<T>, remove_index::<T>));
+            .add_systems(First, (insert_index::<T>, remove_index::<T>));
     }
 }
 
@@ -135,7 +136,7 @@ where
     fn build(&self, app: &mut App) {
         app.insert_resource(CompositeIndex2::<T, U>(BTreeMap::new()))
             .add_systems(
-                Update,
+                First,
                 (
                     insert_composite_index::<T, U>,
                     remove_composite_index::<T, U>,

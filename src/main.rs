@@ -48,7 +48,6 @@ fn main() {
 pub struct OpName(pub String);
 
 fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
-    // commands.spawn((TextureOp, TextureOpType::<TextureOpRamp>::default()));
     // commands.spawn((TextureOp, TextureOpType::<TextureOpNoise>::default()));
     // commands.spawn((TextureOp, TextureOpType::<TextureOpComposite>::default()));
     // commands.spawn((TextureOp, TextureOpType::<TextureOpComposite>::default()));

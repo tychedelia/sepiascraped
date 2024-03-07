@@ -15,6 +15,7 @@ use layout::std_shapes::shapes::{Arrow, Element, ShapeKind};
 use layout::topo::layout::VisualGraph;
 use layout::topo::placer::Placer;
 use petgraph::stable_graph::{DefaultIx, IndexType, NodeIndex};
+use rand::{random, Rng};
 
 use crate::texture::{
     TextureOp, TextureOpDefaultImage, TextureOpImage, TextureOpInputs, TextureOpOutputs,
@@ -170,8 +171,8 @@ pub fn update_graph(
         for (graph_ref, mut transform) in all_nodes_q.iter_mut() {
             let graph_id = graph_id_q.get(**graph_ref).unwrap();
             if let Some(pos) = state.layout.get(&graph_id.0) {
-                transform.translation.x = pos.x;
-                transform.translation.y = pos.y;
+                // transform.translation.x = pos.x;
+                // transform.translation.y = pos.y;
             }
         }
     }
@@ -198,6 +199,7 @@ pub fn ui(
     for (entity, image, input_config, output_config, graph_id) in op_q.iter() {
         let (grid, _) = parent.single_mut();
         let index = (*graph_id).index() as f32 + 10.0;
+        let mut rng = rand::thread_rng();
 
         commands.entity(grid).with_children(|parent| {
             parent
@@ -212,7 +214,7 @@ pub fn ui(
                             selected: 0,
                             texture: (**image).clone()
                         }),
-                        transform: Transform::from_translation(Vec3::new(0.0, 0.0, index)),
+                        transform: Transform::from_translation(Vec3::new(rng.gen::<f32>() * 80., rng.gen::<f32>() * 80., index)),
                         ..Default::default()
                     },
                     PickableBundle::default(), // <- Makes the mesh pickable.

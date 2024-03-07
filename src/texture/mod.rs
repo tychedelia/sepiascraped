@@ -22,7 +22,6 @@ use operator::ramp::TextureOpRampPlugin;
 use crate::index::UniqueIndexPlugin;
 use crate::param::{
     ParamBundle, ParamName, ParamOrder, ParamPage, ParamValue, ScriptedParam, ScriptedParamError,
-    ScriptedParamValue,
 };
 use crate::texture::event::SpawnOp;
 use crate::texture::operator::composite::CompositeMode;
@@ -146,7 +145,7 @@ fn spawn_op<T>(
         commands
             .entity(entity)
             .insert((
-                OpName(format!("{}{}", TextureOpType::<T>::name(), count)),
+                // OpName(format!("{}{}", TextureOpType::<T>::name(), count)),
                 TextureOpBundle {
                     camera: Camera3dBundle {
                         camera_render_graph: CameraRenderGraph::new(TextureOpSubGraph),
@@ -167,13 +166,22 @@ fn spawn_op<T>(
                 T::Uniform::default(),
             ))
             .with_children(|parent| {
-                let common_params = vec![ParamBundle {
-                    name: ParamName("Resolution".to_string()),
-                    value: ParamValue::Vec2(Vec2::new(512.0, 512.0)),
-                    order: ParamOrder(0),
-                    page: ParamPage("Common".to_string()),
-                    ..default()
-                }];
+                let common_params = vec![
+                    ParamBundle {
+                        name: ParamName("Resolution".to_string()),
+                        value: ParamValue::Vec2(Vec2::new(512.0, 512.0)),
+                        order: ParamOrder(0),
+                        page: ParamPage("Common".to_string()),
+                        ..default()
+                    },
+                    ParamBundle {
+                        name: ParamName("View".to_string()),
+                        value: ParamValue::Bool(false),
+                        order: ParamOrder(1),
+                        page: ParamPage("Common".to_string()),
+                        ..default()
+                    },
+                ];
 
                 [common_params, T::params()]
                     .concat()
@@ -278,7 +286,6 @@ fn selected_node_ui(
         Entity,
         &ParamName,
         &mut ParamValue,
-        Option<&mut ScriptedParamValue>,
         Option<&ScriptedParamError>,
     )>,
 ) {
@@ -295,47 +302,27 @@ fn selected_node_ui(
                         ui.separator();
                         ui.end_row();
                         for entity in children {
-                            let (param, name, mut value, mut script_value, script_error) =
+                            let (param, name, mut value, script_error) =
                                 params_q.get_mut(*entity).expect("Failed to get param");
-                            let collapse = ui
-                                .with_layout(egui::Layout::left_to_right(Align::Min), |ui| {
-                                    let collapse =
-                                        CollapsingHeader::new(name.0.clone()).show(ui, |ui| {});
-
-                                    match value.as_mut() {
-                                        ParamValue::Color(color) => {
-                                            ui.color_edit_button_rgba_premultiplied(color.as_mut());
-                                        }
-                                        ParamValue::F32(f) => {
-                                            ui.add(egui::Slider::new(f, 0.0..=100.0));
-                                        }
-                                        ParamValue::Vec2(v) => {
-                                            ui.add(egui::DragValue::new(&mut v.x));
-                                            ui.add(egui::DragValue::new(&mut v.y));
-                                        }
-                                        _ => {}
-                                    };
-
-                                    collapse
-                                })
-                                .inner;
-                            if collapse.fully_open() {
-                                ui.end_row();
-                                if let Some(mut scripted_value) = script_value {
-                                    ui.add(
-                                        egui::TextEdit::singleline(&mut scripted_value.0)
-                                            .code_editor(),
-                                    );
-                                } else {
-                                    let mut s = String::new();
-                                    ui.add(egui::TextEdit::singleline(&mut s));
-                                    if !s.is_empty() {
-                                        info!("Adding scripted param");
-                                        commands
-                                            .entity(param)
-                                            .insert((ScriptedParam, ScriptedParamValue(s)));
-                                    }
-                                };
+                            ui.label(name.0.clone());
+                            match value.as_mut() {
+                                ParamValue::Color(color) => {
+                                    ui.color_edit_button_rgba_premultiplied(color.as_mut());
+                                }
+                                ParamValue::F32(f) => {
+                                    ui.add(egui::Slider::new(f, 0.0..=100.0));
+                                }
+                                ParamValue::Vec2(v) => {
+                                    ui.add(egui::DragValue::new(&mut v.x));
+                                    ui.add(egui::DragValue::new(&mut v.y));
+                                }
+                                ParamValue::None => {}
+                                ParamValue::U32(x) => {
+                                    ui.add(egui::Slider::new(x, 0..=100));
+                                }
+                                ParamValue::Bool(x) => {
+                                    ui.checkbox(x, "");
+                                }
                             }
                             ui.end_row();
                             if let Some(error) = script_error {

@@ -4111,6 +4111,7 @@ dependencies = [
  "layout-rs",
  "log",
  "petgraph",
+ "rand",
  "rustyline",
  "steel-core",
  "steel-derive",

@@ -41,6 +41,7 @@ pub enum ParamValue {
     U32(u32),
     Vec2(Vec2),
     Color(Vec4),
+    Bool(bool),
 }
 
 #[derive(Resource, Default, Debug)]
@@ -48,8 +49,5 @@ pub struct ParamHash(BTreeMap<Entity, u64>);
 
 #[derive(Component, Default, Debug)]
 pub struct ScriptedParam;
-#[derive(Component, Default, Debug)]
-pub struct ScriptedParamValue(pub String);
-
 #[derive(Component, Default, Debug)]
 pub struct ScriptedParamError(pub String);
