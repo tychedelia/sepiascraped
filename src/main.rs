@@ -1,23 +1,22 @@
+use crate::event::SpawnOp;
 use crate::index::UniqueIndexPlugin;
-use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::plugin::ShapePlugin;
+use crate::op::component::ComponentPlugin;
 
+use crate::op::texture::TexturePlugin;
 use crate::param::ParamPlugin;
 use crate::render::RenderPlugin;
 use crate::script::ScriptPlugin;
-use crate::texture::operator::composite::TextureOpComposite;
-use crate::texture::operator::noise::TextureOpNoise;
-use crate::texture::operator::ramp::TextureOpRamp;
-use crate::texture::{TextureOp, TextureOpType, TexturePlugin};
 use crate::ui::UiPlugin;
 
+mod event;
 mod index;
+mod op;
 mod param;
 mod render;
 mod script;
-mod texture;
 mod ui;
 
 fn main() {
@@ -25,16 +24,17 @@ fn main() {
 
     app.add_plugins((
         DefaultPlugins,
-        // DefaultPlugins.build().disable::<LogPlugin>(),
         ScriptPlugin,
         ParamPlugin,
         EguiPlugin,
         RenderPlugin,
         TexturePlugin,
+        ComponentPlugin,
         UiPlugin,
         ShapePlugin,
         UniqueIndexPlugin::<OpName>::default(),
     ))
+    .add_event::<SpawnOp>()
     .configure_sets(
         Update,
         (Sets::Ui, Sets::Graph, Sets::Params, Sets::Uniforms).chain(),

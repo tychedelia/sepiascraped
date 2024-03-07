@@ -27,9 +27,9 @@ use bevy::render::view::{ExtractedView, ViewTarget};
 use bevy::render::{render_graph, Render, RenderApp, RenderSet};
 use bevy::utils::{info, HashMap};
 
-use crate::texture::operator::composite::TextureOpComposite;
-use crate::texture::operator::ramp::TextureOpRamp;
-use crate::texture::{TextureOpInputs, TextureOpMeta, TextureOpType};
+use crate::op::texture::types::composite::TextureOpComposite;
+use crate::op::texture::types::ramp::TextureOpRamp;
+use crate::op::texture::{TextureOpInputs, TextureOpMeta, TextureOpType};
 
 #[derive(Default)]
 pub struct TextureOpRenderPlugin<T> {

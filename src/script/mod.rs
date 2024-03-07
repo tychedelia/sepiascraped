@@ -5,10 +5,10 @@ use crate::index::{CompositeIndex2, UniqueIndex};
 use crate::param::{ParamName, ParamValue, ScriptedParamError};
 use crate::script::asset::{ProgramCache, Script, ScriptAssetPlugin};
 use crate::script::helper::RustylineHelper;
-use crate::texture::operator::composite::TextureOpComposite;
-use crate::texture::operator::noise::TextureOpNoise;
-use crate::texture::operator::ramp::TextureOpRamp;
-use crate::texture::{TextureOp, TextureOpType};
+use crate::op::texture::types::composite::TextureOpComposite;
+use crate::op::texture::types::noise::TextureOpNoise;
+use crate::op::texture::types::ramp::TextureOpRamp;
+use crate::op::texture::{TextureOp, TextureOpType};
 use crate::ui::graph::{GraphRef, OpRef};
 use crate::OpName;
 use crate::Sets::Params;
@@ -26,12 +26,15 @@ use std::cell::RefCell;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::mpsc::{Receiver, TryRecvError};
+use rand::Rng;
 use steel::gc::unsafe_erased_pointers::CustomReference;
-use steel::rvals::IntoSteelVal;
+use steel::rvals::{CustomType, IntoSteelVal};
 use steel::steel_vm::engine::Engine;
 use steel::steel_vm::register_fn::RegisterFn;
 use steel::SteelVal;
 use steel_derive::Steel;
+use crate::op::component::{ComponentOp, ComponentOpType};
+use crate::op::component::types::window::ComponentOpWindow;
 
 pub struct ScriptPlugin;
 
@@ -145,7 +148,8 @@ fn setup(world: &mut World) {
                     .register_fn("-op", op)
                     .register_fn("-op!", op_bang)
                     .register_fn("-param", param)
-                    .register_fn("-param!", set_bang);
+                    .register_fn("-param!", set_bang)
+                    .register_fn("rand", rand);
                 let prog = engine
                     .emit_raw_program_no_path(
                         r#"
@@ -270,6 +274,7 @@ fn op_bang(world: &mut WorldHolder, ty: String, name: String) -> Option<EntityRe
             TextureOpType::<TextureOpComposite>::default(),
         )),
         "noise" => world.spawn((name, TextureOp, TextureOpType::<TextureOpNoise>::default())),
+        "window" => world.spawn((name, ComponentOp, ComponentOpType::<ComponentOpWindow>::default())),
         _ => return None,
     };
 
@@ -310,6 +315,11 @@ fn param(world: &mut WorldHolder, entity: EntityRef, name: String) -> SteelVal {
             SteelVal::from(value.clone())
         });
     name
+}
+
+fn rand(min: f32, max: f32) -> f32 {
+    let mut rng = rand::thread_rng();
+    rng.gen_range(min..max)
 }
 
 fn update_param(param_value: &mut ParamValue, steel_val: SteelVal) {
@@ -374,13 +384,45 @@ fn update_param(param_value: &mut ParamValue, steel_val: SteelVal) {
                         _ => warn!("Mismatched type"),
                     }
                 }
+                SteelVal::VectorV(v) => {
+                    let mut iter = v.iter();
+                    let r = iter.next().unwrap();
+                    let g = iter.next().unwrap();
+                    let b = iter.next().unwrap();
+                    let a = iter.next().unwrap();
+                    match (r, g, b, a) {
+                        (SteelVal::NumV(r), SteelVal::NumV(g), SteelVal::NumV(b), SteelVal::NumV(a)) => {
+                            p.x = *r as f32;
+                            p.y = *g as f32;
+                            p.z = *b as f32;
+                            p.w = *a as f32;
+                        }
+                        (SteelVal::IntV(r), SteelVal::IntV(g), SteelVal::IntV(b), SteelVal::IntV(a)) => {
+                            p.x = *r as f32;
+                            p.y = *g as f32;
+                            p.z = *b as f32;
+                            p.w = *a as f32;
+                        }
+                        _ => warn!("Mismatched type"),
+                    }
+                }
                 _ => warn!("Mismatched type"),
             }
         }
-        ParamValue::Bool(x) => {
+        ParamValue::Bool(p) => {
             match steel_val {
-                SteelVal::BoolV(b) => *x = b,
+                SteelVal::BoolV(b) => *p = b,
                 _ => warn!("Mismatched type"),
+            }
+        }
+        ParamValue::TextureOp(p) => {
+            match steel_val {
+                SteelVal::Custom(mut c) => {
+                    let custom = c.get_mut().unwrap().borrow_mut();
+                    let entity = custom.as_any_ref().downcast_ref::<EntityRef>().unwrap();
+                    *p = entity.0.clone();
+                }
+                _ => {}
             }
         }
     }
@@ -401,6 +443,9 @@ impl From<ParamValue> for SteelVal {
                 vec![x, y].into_steelval().unwrap()
             }
             ParamValue::Bool(x) => SteelVal::from(x),
+            ParamValue::TextureOp(x) => {
+                EntityRef(x).into_steelval().unwrap()
+            }
         }
     }
 }

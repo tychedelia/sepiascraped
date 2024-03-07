@@ -17,12 +17,13 @@ use layout::topo::placer::Placer;
 use petgraph::stable_graph::{DefaultIx, IndexType, NodeIndex};
 use rand::{random, Rng};
 
-use crate::texture::{
+use crate::op::texture::{
     TextureOp, TextureOpDefaultImage, TextureOpImage, TextureOpInputs, TextureOpOutputs,
     TextureOpType,
 };
 use crate::ui::event::{ClickNode, Connect, Disconnect};
 use crate::ui::grid::InfiniteGridSettings;
+use crate::ui::UiCamera;
 
 pub struct GraphPlugin;
 
@@ -223,7 +224,7 @@ pub fn ui(
                     On::<Pointer<DragEnd>>::target_insert(Pickable::default()), // Re-enable picking
                     On::<Pointer<Drag>>::run(
                         |drag: ListenerMut<Pointer<Drag>>,
-                         projection: Query<&OrthographicProjection>,
+                         projection: Query<&OrthographicProjection, With<UiCamera>>,
                          mut transform: Query<&mut Transform, With<OpRef>>
                         | {
                             if let Ok(mut transform) = transform.get_mut(drag.target) {

@@ -4,10 +4,12 @@ use bevy::render::primitives::Aabb;
 use bevy::render::view::NoFrustumCulling;
 use bevy::render::view::VisibleEntities;
 use bevy::sprite::{MaterialMesh2dBundle, Mesh2dHandle};
+use bevy::window::PrimaryWindow;
 use bevy_mod_picking::events::{Drag, DragEnd, DragStart, Pointer};
 use bevy_mod_picking::picking_core::Pickable;
 use bevy_mod_picking::prelude::{Listener, On};
 use bevy_mod_picking::PickableBundle;
+use crate::ui::UiCamera;
 
 mod render;
 
@@ -92,8 +94,8 @@ struct PreviousScale {
 fn drag_grid(
     grid_entity: Query<Entity, With<InfiniteGrid>>,
     drag: Listener<Pointer<Drag>>,
-    window: Query<&Window>,
-    projection: Query<(&Camera, &OrthographicProjection, &GlobalTransform)>,
+    window: Query<&Window, With<PrimaryWindow>>,
+    projection: Query<(&Camera, &OrthographicProjection, &GlobalTransform), With<UiCamera>>,
     mut transform: Query<&mut Transform>,
 ) {
     let grid_entity = grid_entity.single();
@@ -156,7 +158,7 @@ pub fn resize_grid_drag_mesh(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     grid_drag: Query<(Entity, &Mesh2dHandle), With<GridDrag>>,
-    projection: Query<&OrthographicProjection>,
+    projection: Query<&OrthographicProjection, With<UiCamera>>,
     mut previous_scale: ResMut<PreviousScale>,
 ) {
     let current_scale = projection.single().scale;

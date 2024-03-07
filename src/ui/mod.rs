@@ -3,10 +3,10 @@ use bevy::window::PrimaryWindow;
 use bevy_egui::{egui, EguiContexts};
 use bevy_mod_picking::DefaultPickingPlugins;
 
-use crate::texture::operator::composite::TextureOpComposite;
-use crate::texture::operator::noise::TextureOpNoise;
-use crate::texture::operator::ramp::TextureOpRamp;
-use crate::texture::{TextureOp, TextureOpType};
+use crate::op::texture::types::composite::TextureOpComposite;
+use crate::op::texture::types::noise::TextureOpNoise;
+use crate::op::texture::types::ramp::TextureOpRamp;
+use crate::op::texture::{TextureOp, TextureOpType};
 use crate::Sets::Ui;
 use camera::CameraControllerPlugin;
 
@@ -40,6 +40,9 @@ impl Plugin for UiPlugin {
     }
 }
 
+#[derive(Component, Default)]
+pub struct UiCamera;
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Resources
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -61,6 +64,7 @@ pub struct NodeMenuState {
 
 pub fn ui_setup(mut commands: Commands) {
     commands.spawn((
+        UiCamera,
         Camera2dBundle {
             transform: Transform::from_translation(Vec3::new(0.1, 0.1, 0.0)),
             ..default()

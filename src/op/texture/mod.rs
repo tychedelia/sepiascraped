@@ -12,45 +12,53 @@ use bevy::render::render_resource::{
     Extent3d, ShaderType, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
 use bevy::sprite::Material2d;
-use bevy::utils::{info, HashMap};
+use bevy::utils::{HashMap, info};
 use bevy_egui::egui::{Align, CollapsingHeader};
 use bevy_egui::{egui, EguiContexts};
 
-use operator::composite::TextureOpCompositePlugin;
-use operator::ramp::TextureOpRampPlugin;
+use types::composite::TextureOpCompositePlugin;
+use types::ramp::TextureOpRampPlugin;
 
-use crate::index::UniqueIndexPlugin;
+use crate::index::{UniqueIndex, UniqueIndexPlugin};
+use crate::event::SpawnOp;
+use crate::op::texture::render::TextureOpSubGraph;
+use crate::op::texture::types::composite::CompositeMode;
+use crate::op::texture::types::noise::TextureOpNoisePlugin;
+use crate::op::texture::types::ramp::{TextureRampMode, TextureRampSettings};
 use crate::param::{
     ParamBundle, ParamName, ParamOrder, ParamPage, ParamValue, ScriptedParam, ScriptedParamError,
 };
-use crate::texture::event::SpawnOp;
-use crate::texture::operator::composite::CompositeMode;
-use crate::texture::operator::noise::TextureOpNoisePlugin;
-use crate::texture::operator::ramp::{TextureRampMode, TextureRampSettings};
-use crate::texture::render::TextureOpSubGraph;
 use crate::ui::event::{Connect, Disconnect};
 use crate::ui::graph::{GraphRef, NodeMaterial, OpRef, SelectedNode};
 use crate::ui::UiState;
 use crate::{OpName, Sets};
 
-mod event;
-pub mod operator;
 pub mod render;
+pub mod types;
 
 pub struct TexturePlugin;
 
 impl Plugin for TexturePlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<SpawnOp>()
+        app
             .add_plugins((
                 ExtractComponentPlugin::<TextureOpImage>::default(),
                 ExtractComponentPlugin::<TextureOpInputs>::default(),
-                TextureOpPlugin,
                 TextureOpRampPlugin,
                 TextureOpCompositePlugin,
                 TextureOpNoisePlugin,
             ))
-            .add_systems(Startup, setup);
+            .add_systems(Startup, setup)
+            .add_systems(
+                Update,
+                (
+                    selected_node_ui,
+                    update_materials,
+                    connect_handler,
+                    disconnect_handler,
+                )
+                    .in_set(Sets::Ui),
+            );
     }
 }
 
@@ -103,19 +111,15 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     commands.insert_resource(TextureOpDefaultImage(image));
 }
 
-fn spawn_op<T>(
+fn spawn_top<T>(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     added_q: Query<Entity, (With<TextureOp>, Added<TextureOpType<T>>)>,
-    existing_q: Query<Entity, (With<TextureOp>, With<TextureOpType<T>>)>,
     mut spawn_op_evt: EventWriter<SpawnOp>,
 ) where
     T: TextureOpMeta + Debug + Send + Sync + 'static,
 {
-    let mut count = existing_q.iter().len();
     for entity in added_q.iter() {
-        count = count + 1;
-
         let size = Extent3d {
             width: 512,
             height: 512,
@@ -240,24 +244,6 @@ pub struct TextureOpBundle {
     pub outputs: TextureOpOutputs,
 }
 
-#[derive(Default)]
-pub struct TextureOpPlugin;
-
-impl Plugin for TextureOpPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
-                selected_node_ui,
-                update_materials,
-                connect_handler,
-                disconnect_handler,
-            )
-                .in_set(Sets::Ui),
-        );
-    }
-}
-
 fn update<T>(
     mut node_q: Query<(&Children, &mut T::Uniform, &TextureOpImage)>,
     mut params_q: Query<(&ParamName, &ParamValue)>,
@@ -288,6 +274,8 @@ fn selected_node_ui(
         &mut ParamValue,
         Option<&ScriptedParamError>,
     )>,
+    mut op_name_q: Query<&OpName>,
+    op_name_idx: Res<UniqueIndex<OpName>>,
 ) {
     if let Ok(children) = selected_q.get_single() {
         ui_state.node_info = Some(
@@ -322,6 +310,16 @@ fn selected_node_ui(
                                 }
                                 ParamValue::Bool(x) => {
                                     ui.checkbox(x, "");
+                                }
+                                ParamValue::TextureOp(x) => {
+                                    let name = op_name_q.get(*x).unwrap();
+                                    let mut name = name.0.clone();
+                                    ui.text_edit_singleline(&mut name);
+                                    if !name.is_empty() {
+                                        if let Some(entity) = op_name_idx.get(&OpName(name)) {
+                                            *x = entity.clone();
+                                        }
+                                    }
                                 }
                             }
                             ui.end_row();

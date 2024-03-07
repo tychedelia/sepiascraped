@@ -6,8 +6,8 @@ use bevy::render::render_graph::{RenderLabel, RenderSubGraph};
 use bevy::render::render_resource::ShaderType;
 use bevy_egui::{egui, EguiContexts};
 
-use crate::texture::render::TextureOpRenderPlugin;
-use crate::texture::{spawn_op, update, TextureOpMeta, TextureOpType};
+use crate::op::texture::render::TextureOpRenderPlugin;
+use crate::op::texture::{spawn_top, update, TextureOpMeta, TextureOpType};
 use crate::ui::graph::SelectedNode;
 use crate::ui::UiState;
 
@@ -23,7 +23,7 @@ impl Plugin for TextureOpCompositePlugin {
         .add_systems(
             Update,
             (
-                spawn_op::<TextureOpComposite>.in_set(Graph),
+                spawn_top::<TextureOpComposite>.in_set(Graph),
                 update::<TextureOpComposite>.in_set(Uniforms),
             ),
         );

@@ -42,6 +42,7 @@ pub enum ParamValue {
     Vec2(Vec2),
     Color(Vec4),
     Bool(bool),
+    TextureOp(Entity),
 }
 
 #[derive(Resource, Default, Debug)]
