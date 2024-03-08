@@ -43,18 +43,15 @@ pub struct ComponentOpBundle {
 
 pub fn spawn_component_op<T>(
     mut commands: Commands,
-    added_q: Query<(Entity, &OpName), (With<ComponentOp>, Added<ComponentOpType<T>>)>,
+    added_q: Query<Entity, (With<ComponentOp>, Added<ComponentOpType<T>>)>,
     mut spawn_op_evt: EventWriter<SpawnOp>,
 ) where
     T: ComponentOpMeta + Debug + Send + Sync + 'static,
 {
-    for (entity, op_name) in added_q.iter() {
-        info!("Spawning component op: {:?}", op_name);
-
-        let bundle = T::bundle(entity, op_name, &mut commands);
+    for entity in added_q.iter() {
         commands
             .entity(entity.clone())
-            .insert((bundle, ComponentOpBundle { op: ComponentOp }))
+            .insert((ComponentOpBundle { op: ComponentOp }))
             .with_children(|parent| {
                 let common_params = vec![];
 
@@ -72,8 +69,6 @@ pub fn spawn_component_op<T>(
 
 pub trait ComponentOpMeta: Debug + Clone + Send + Sync + 'static {
     type OpType: Debug + Component + ExtractComponent + Send + Sync + 'static;
-
-    fn bundle(entity: Entity, op_name: &OpName, commands: &mut Commands) -> impl Bundle;
 
     fn params() -> Vec<ParamBundle>;
 }
