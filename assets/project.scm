@@ -1,12 +1,14 @@
 (op! 'ramp "myRamp")
-(op! 'ramp "myRamp2")
+(op! 'noise "noise1")
 (op! 'composite "composite")
+
+(connect! (op "myRamp") (op "composite"))
+(connect! (op "noise1") (op "composite"))
+
+(param! (op "noise1") "Strength" (/ *time* 10))
+(param! (op "display") "Texture" (op "myRamp"))
+(param! (op "display2") "Texture" (op "noise1"))
+(param! (op "myRamp") "Mode" 1)
+
 (op! 'window "display")
 (op! 'window "display2")
-
-(param! (op "display") "Texture" (op "myRamp"))
-(param! (op "display2") "Texture" (op "composite"))
-
-(param! (op "myRamp") "Color A" (vector (rand 0.0 1.0) (rand 0.0 1.0) (rand 0.0 1.0) 1.0))
-(param! (op "myRamp") "Color B" (vector (rand 0.0 1.0) (rand 0.0 1.0) (rand 0.0 1.0) 1.0))
-(param! (op "myRamp") "Mode" 2)

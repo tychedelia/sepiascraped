@@ -3,13 +3,10 @@ use crate::Sets::{Graph, Uniforms};
 use bevy::prelude::*;
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::render_resource::ShaderType;
-use bevy_egui::egui::{Align, CollapsingHeader};
-use bevy_egui::{egui, EguiContexts};
+use crate::op::{OpPlugin, OpType};
 
 use crate::op::texture::render::TextureOpRenderPlugin;
-use crate::op::texture::{spawn_top, update, TextureOpMeta, TextureOpType};
-use crate::ui::graph::SelectedNode;
-use crate::ui::UiState;
+use crate::op::texture::{TextureOp};
 
 #[derive(Default)]
 pub struct TextureOpNoisePlugin;
@@ -17,27 +14,20 @@ pub struct TextureOpNoisePlugin;
 impl Plugin for TextureOpNoisePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            ExtractComponentPlugin::<TextureOpType<TextureOpNoise>>::default(),
+            ExtractComponentPlugin::<OpType<TextureOpNoise>>::default(),
+            OpPlugin::<OpType<TextureOpNoise>>::default(),
             TextureOpRenderPlugin::<TextureOpNoise>::default(),
-        ))
-        .add_systems(
-            Update,
-            (
-                spawn_top::<TextureOpNoise>.in_set(Graph),
-                update::<TextureOpNoise>.in_set(Uniforms),
-            ),
-        );
+        ));
     }
 }
 
 #[derive(Component, Clone, Default, Debug)]
 pub struct TextureOpNoise;
 
-impl TextureOpMeta for TextureOpNoise {
-    const SHADER: &'static str = "shaders/texture/noise.wgsl";
+impl TextureOp for TextureOpNoise {
     const INPUTS: usize = 0;
     const OUTPUTS: usize = 1;
-    type OpType = TextureOpType<Self>;
+    const SHADER: &'static str = "shaders/texture/noise.wgsl";
     type Uniform = TextureNoiseSettings;
 
     fn params() -> Vec<ParamBundle> {

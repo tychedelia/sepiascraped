@@ -3,7 +3,8 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 
 use bevy::ecs::query::QueryData;
-use bevy::ecs::system::SystemId;
+use bevy::ecs::system::{SystemId, SystemParamItem};
+use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes, SResMut, Write};
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
@@ -22,7 +23,7 @@ use types::ramp::TextureOpRampPlugin;
 use crate::index::{UniqueIndex, UniqueIndexPlugin};
 use crate::event::SpawnOp;
 use crate::op::texture::render::TextureOpSubGraph;
-use crate::op::texture::types::composite::CompositeMode;
+use crate::op::texture::types::composite::{CompositeMode, CompositeSettings};
 use crate::op::texture::types::noise::TextureOpNoisePlugin;
 use crate::op::texture::types::ramp::{TextureRampMode, TextureRampSettings};
 use crate::param::{
@@ -32,6 +33,7 @@ use crate::ui::event::{Connect, Disconnect};
 use crate::ui::graph::{GraphRef, NodeMaterial, OpRef, SelectedNode};
 use crate::ui::UiState;
 use crate::{OpName, Sets};
+use crate::op::{Op, OpType};
 
 pub mod render;
 pub mod types;
@@ -111,110 +113,8 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     commands.insert_resource(TextureOpDefaultImage(image));
 }
 
-fn spawn_top<T>(
-    mut commands: Commands,
-    mut images: ResMut<Assets<Image>>,
-    added_q: Query<Entity, (With<TextureOp>, Added<TextureOpType<T>>)>,
-    mut spawn_op_evt: EventWriter<SpawnOp>,
-) where
-    T: TextureOpMeta + Debug + Send + Sync + 'static,
-{
-    for entity in added_q.iter() {
-        let size = Extent3d {
-            width: 512,
-            height: 512,
-            ..default()
-        };
-
-        let mut image = Image {
-            texture_descriptor: TextureDescriptor {
-                label: None,
-                size,
-                dimension: TextureDimension::D2,
-                format: TextureFormat::Rgba8UnormSrgb,
-                mip_level_count: 1,
-                sample_count: 1,
-                usage: TextureUsages::TEXTURE_BINDING
-                    | TextureUsages::COPY_DST
-                    | TextureUsages::RENDER_ATTACHMENT,
-                view_formats: &[],
-            },
-            ..default()
-        };
-
-        image.resize(size);
-
-        let image = images.add(image);
-
-        commands
-            .entity(entity)
-            .insert((
-                // OpName(format!("{}{}", TextureOpType::<T>::name(), count)),
-                TextureOpBundle {
-                    camera: Camera3dBundle {
-                        camera_render_graph: CameraRenderGraph::new(TextureOpSubGraph),
-                        camera: Camera {
-                            order: 3,
-                            target: image.clone().into(),
-                            ..default()
-                        },
-                        ..default()
-                    },
-                    image: TextureOpImage(image.clone()),
-                    inputs: TextureOpInputs {
-                        count: T::INPUTS,
-                        connections: HashMap::new(),
-                    },
-                    outputs: TextureOpOutputs { count: T::OUTPUTS },
-                },
-                T::Uniform::default(),
-            ))
-            .with_children(|parent| {
-                let common_params = vec![
-                    ParamBundle {
-                        name: ParamName("Resolution".to_string()),
-                        value: ParamValue::Vec2(Vec2::new(512.0, 512.0)),
-                        order: ParamOrder(0),
-                        page: ParamPage("Common".to_string()),
-                        ..default()
-                    },
-                    ParamBundle {
-                        name: ParamName("View".to_string()),
-                        value: ParamValue::Bool(false),
-                        order: ParamOrder(1),
-                        page: ParamPage("Common".to_string()),
-                        ..default()
-                    },
-                ];
-
-                [common_params, T::params()]
-                    .concat()
-                    .into_iter()
-                    .for_each(|param| {
-                        parent.spawn((OpRef(parent.parent_entity()), param));
-                    });
-            });
-        spawn_op_evt.send(SpawnOp(entity));
-    }
-}
-
 #[derive(Resource, Clone, Default)]
 pub struct TextureOpDefaultImage(pub Handle<Image>);
-
-#[derive(Component, Clone, Copy, Default)]
-pub struct TextureOp;
-
-#[derive(Component, Clone, ExtractComponent, Default, Debug)]
-pub struct TextureOpType<T: Debug + Sync + Send + 'static>(PhantomData<T>);
-
-impl<T> TextureOpType<T>
-where
-    T: Debug + Sync + Send + 'static,
-{
-    pub fn name() -> &'static str {
-        std::any::type_name::<T>().split("::").nth(3).unwrap()
-    }
-}
 
 #[derive(Component, Clone, Debug, Deref, DerefMut, ExtractComponent, Default)]
 pub struct TextureOpImage(pub Handle<Image>);
@@ -244,22 +144,106 @@ pub struct TextureOpBundle {
     pub outputs: TextureOpOutputs,
 }
 
-fn update<T>(
-    mut node_q: Query<(&Children, &mut T::Uniform, &TextureOpImage)>,
-    mut params_q: Query<(&ParamName, &ParamValue)>,
-    mut images: ResMut<Assets<Image>>,
-) where
-    T: TextureOpMeta,
+impl <T> Op for OpType<T>
+    where T: TextureOp + Component + Clone + Debug + Send + Sync + 'static
 {
-    for (children, mut uniform, op_image) in node_q.iter_mut() {
+    const INPUTS: usize = <T as TextureOp>::INPUTS;
+    const OUTPUTS: usize = <T as TextureOp>::OUTPUTS;
+
+    type OpType = OpType<Self>;
+    type UpdateParam = (
+        SQuery<(Read<Children>, Write<T::Uniform>)>,
+        SQuery<(
+            Read<ParamName>, Read<ParamValue>
+        )>,
+    );
+    type BundleParam = (SResMut<Assets<Image>>);
+    type Bundle = (TextureOpBundle, T::Uniform);
+
+
+    fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>) {
+        let (self_q, params_q) = param;
+
+        let (children, mut uniform) = self_q.get_mut(entity).unwrap();
+
         let params = children
             .iter()
             .filter_map(|entity| params_q.get(*entity).ok())
             .collect();
 
-        let image = images.get(&op_image.0).expect("Failed to get image");
+        T::update_uniform(&mut uniform, &params)
+    }
 
-        T::update_uniform(&mut uniform, &params);
+    fn create_bundle<'w>(entity: Entity, (mut images): &mut SystemParamItem<'w, '_, Self::BundleParam>) -> Self::Bundle
+    {
+        let size = Extent3d {
+            width: 512,
+            height: 512,
+            ..default()
+        };
+
+        let mut image = Image {
+            texture_descriptor: TextureDescriptor {
+                label: None,
+                size,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::Rgba8UnormSrgb,
+                mip_level_count: 1,
+                sample_count: 1,
+                usage: TextureUsages::TEXTURE_BINDING
+                    | TextureUsages::COPY_DST
+                    | TextureUsages::RENDER_ATTACHMENT,
+                view_formats: &[],
+            },
+            ..default()
+        };
+
+        image.resize(size);
+
+        let image = images.add(image);
+
+        (
+            TextureOpBundle {
+                camera: Camera3dBundle {
+                    camera_render_graph: CameraRenderGraph::new(TextureOpSubGraph),
+                    camera: Camera {
+                        order: 3,
+                        target: image.clone().into(),
+                        ..default()
+                    },
+                    ..default()
+                },
+                image: TextureOpImage(image.clone()),
+                inputs: TextureOpInputs {
+                    count: T::INPUTS,
+                    connections: HashMap::new(),
+                },
+                outputs: TextureOpOutputs { count: T::OUTPUTS },
+            },
+            T::Uniform::default(),
+        )
+    }
+
+    fn params() -> Vec<ParamBundle> {
+        let common_params = vec![
+            ParamBundle {
+                name: ParamName("Resolution".to_string()),
+                value: ParamValue::Vec2(Vec2::new(512.0, 512.0)),
+                order: ParamOrder(0),
+                page: ParamPage("Common".to_string()),
+                ..default()
+            },
+            ParamBundle {
+                name: ParamName("View".to_string()),
+                value: ParamValue::Bool(false),
+                order: ParamOrder(1),
+                page: ParamPage("Common".to_string()),
+                ..default()
+            },
+        ];
+
+        [common_params, <T as TextureOp>::params()]
+            .concat()
     }
 }
 
@@ -394,11 +378,11 @@ fn disconnect_handler(
     }
 }
 
-pub trait TextureOpMeta: Debug + Clone + Send + Sync + 'static {
+pub trait TextureOp {
+    const INPUTS: usize = 0;
+    const OUTPUTS: usize = 0;
+
     const SHADER: &'static str;
-    const INPUTS: usize;
-    const OUTPUTS: usize;
-    type OpType: Debug + Component + ExtractComponent + Send + Sync + 'static;
     type Uniform: Component + ExtractComponent + ShaderType + WriteInto + Clone + Default;
 
     fn params() -> Vec<ParamBundle>;

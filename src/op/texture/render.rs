@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use bevy::asset::LoadState;
@@ -26,10 +27,11 @@ use bevy::render::texture::BevyDefault;
 use bevy::render::view::{ExtractedView, ViewTarget};
 use bevy::render::{render_graph, Render, RenderApp, RenderSet};
 use bevy::utils::{info, HashMap};
+use crate::op::{Op, OpType};
 
 use crate::op::texture::types::composite::TextureOpComposite;
 use crate::op::texture::types::ramp::TextureOpRamp;
-use crate::op::texture::{TextureOpInputs, TextureOpMeta, TextureOpType};
+use crate::op::texture::{TextureOpInputs, TextureOp};
 
 #[derive(Default)]
 pub struct TextureOpRenderPlugin<T> {
@@ -44,7 +46,7 @@ pub struct TextureOpRenderLabel;
 
 impl<T> Plugin for TextureOpRenderPlugin<T>
 where
-    T: TextureOpMeta + Sync + Send + 'static,
+    T: TextureOp + Component + Clone + Debug + Send + Sync + 'static
 {
     fn build(&self, app: &mut App) {
         app.add_plugins((
@@ -91,11 +93,11 @@ pub fn prepare_texture_op_pipelines<T>(
     mut pipeline: ResMut<TextureOpPipeline>,
     pipeline_cache: Res<PipelineCache>,
     mut pipelines: ResMut<SpecializedRenderPipelines<TextureOpPipeline>>,
-    views: Query<(Entity, &ExtractedView, &TextureOpInputs), With<T::OpType>>,
+    views: Query<(Entity, &ExtractedView, &TextureOpInputs), With<<OpType<T> as Op>::OpType>>,
     shader_handle: Res<TextureOpShaderHandle<T>>,
     render_device: Res<RenderDevice>,
 ) where
-    T: TextureOpMeta + Sync + Send + 'static,
+    T:  TextureOp + Component + Clone + Debug + Send + Sync + 'static
 {
     for (entity, view, inputs) in views.iter() {
         if !inputs.is_fully_connected() {
@@ -142,13 +144,13 @@ pub fn prepare_texture_op_bind_group<T>(
             &TextureOpInputs,
             &DynamicUniformIndex<T::Uniform>,
         ),
-        With<T::OpType>,
+        With<<OpType<T> as Op>::OpType>
     >,
     shader_handle: Res<TextureOpShaderHandle<T>>,
     images: Res<RenderAssets<Image>>,
     render_device: Res<RenderDevice>,
 ) where
-    T: TextureOpMeta + Sync + Send + 'static,
+    T: TextureOp + Component + Clone + Debug + Send + Sync + 'static
 {
     for (entity, view, inputs, uniform_index) in views.iter() {
         if !inputs.is_fully_connected() {

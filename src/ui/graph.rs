@@ -1,4 +1,4 @@
-use crate::Sets;
+use crate::{OpName, Sets};
 use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle};
@@ -19,7 +19,6 @@ use rand::{random, Rng};
 
 use crate::op::texture::{
     TextureOp, TextureOpDefaultImage, TextureOpImage, TextureOpInputs, TextureOpOutputs,
-    TextureOpType,
 };
 use crate::ui::event::{ClickNode, Connect, Disconnect};
 use crate::ui::grid::InfiniteGridSettings;
@@ -484,9 +483,9 @@ fn update_connections(
 fn texture_ui(
     mut commands: Commands,
     mut graph: ResMut<GraphState>,
-    mut textures: Query<(Entity, &TextureOp), Without<GraphId>>,
+    mut textures: Query<(Entity), (With<OpName>, Without<GraphId>)>,
 ) {
-    for (entity, _node) in textures.iter_mut() {
+    for entity in textures.iter_mut() {
         let node_id = graph.graph.add_node(GraphNode {});
         commands.entity(entity).insert(GraphId(node_id));
     }

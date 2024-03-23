@@ -146,7 +146,7 @@ where
 }
 
 #[derive(Resource, Default, Deref, DerefMut)]
-pub(crate) struct CompositeIndex2<T, U>(BTreeMap<(T, U), Entity>);
+pub struct CompositeIndex2<T, U>(BTreeMap<(T, U), Entity>);
 
 fn insert_composite_index<T, U>(
     mut index: ResMut<CompositeIndex2<T, U>>,

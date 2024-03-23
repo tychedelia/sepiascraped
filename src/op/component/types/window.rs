@@ -1,11 +1,13 @@
 use crate::index::CompositeIndex2;
-use crate::op::component::{spawn_component_op, ComponentOp, ComponentOpMeta, ComponentOpType};
+use crate::op::component::{ComponentOpType};
 use crate::op::texture::TextureOpImage;
+use crate::op::{Op, OpPlugin, OpType};
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 use crate::ui::graph::OpRef;
 use crate::OpName;
 use bevy::asset::AssetContainer;
-use bevy::math::Vec4;
+use bevy::ecs::system::lifetimeless::*;
+use bevy::ecs::system::{SystemParam, SystemParamItem};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::view::RenderLayers;
@@ -16,69 +18,107 @@ pub struct ComponentOpWindowPlugin;
 
 impl Plugin for ComponentOpWindowPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (spawn_component_op::<ComponentOpWindow>, spawn_op, update).chain(),
-        );
+        app.add_plugins(OpPlugin::<OpType<ComponentOpWindow>>::default());
     }
 }
 
 #[derive(Component, Clone, Debug)]
 pub struct WindowTexture(Entity);
 
-fn update(
-    mut commands: Commands,
-    mut self_q: Query<(Entity, &mut Window), With<ComponentOpType<ComponentOpWindow>>>,
-    texture_q: Query<&TextureOpImage>,
-    param_q: Query<&ParamValue>,
-    param_index: Res<CompositeIndex2<OpRef, ParamName>>,
-    images: Res<Assets<Image>>,
-) {
-    for (entity, mut window) in self_q.iter_mut() {
-        let param_entity = param_index.get(&(OpRef(entity), ParamName("Texture".to_string())));
-        if let Some(param_entity) = param_entity {
-            if let Ok(param_value) = param_q.get(*param_entity) {
-                if let ParamValue::TextureOp(texture_entity) = param_value {
-                    if let Some(texture_entity) = texture_entity {
-                        if let Ok(texture) = texture_q.get(*texture_entity) {
-                            let image = images.get(texture.0.clone()).unwrap();
-
-                            window
-                                .resolution
-                                .set_physical_resolution(image.width(), image.height());
-
-                            commands
-                                .entity(entity)
-                                .insert(SpriteBundle {
-                                    texture: texture.0.clone(),
-                                    ..default()
-                                })
-                                .insert(WindowTexture(*texture_entity));
-                        }
-                    }
-                }
-            }
-        }
-    }
+#[derive(SystemParam)]
+struct UpdateWindowParam<'w, 's> {
+    commands: Commands<'w, 's>,
+    self_q: Query<
+        'w,
+        's,
+        (Entity, &'static mut Window, Option<&'static WindowTexture>),
+        With<ComponentOpType<ComponentOpWindow>>,
+    >,
+    texture_q: Query<'w, 's, &'static TextureOpImage>,
+    param_q: Query<'w, 's, &'static ParamValue>,
+    param_index: Res<'w, CompositeIndex2<OpRef, ParamName>>,
+    images: Res<'w, Assets<Image>>,
 }
 
-fn spawn_op(
-    mut commands: Commands,
-    added_q: Query<
-        (Entity, &OpName),
-        (With<ComponentOp>, Added<ComponentOpType<ComponentOpWindow>>),
-    >,
-    count_q: Query<Entity, With<Window>>,
-) {
-    let mut count = count_q.iter().count();
-    if count > 32 {
-        panic!("Too many windows")
+#[derive(Component, Clone, Default, Debug)]
+pub struct ComponentOpWindow;
+
+impl Op for OpType<ComponentOpWindow> {
+    type OpType = ComponentOpType<ComponentOpWindow>;
+    type UpdateParam = (
+        SCommands,
+        SQuery<
+            (Write<Window>, Option<Read<WindowTexture>>),
+            With<ComponentOpType<ComponentOpWindow>>,
+        >,
+        SQuery<Read<TextureOpImage>>,
+        SQuery<Read<ParamValue>>,
+        SRes<CompositeIndex2<OpRef, ParamName>>,
+        SRes<Assets<Image>>,
+    );
+    type BundleParam = (SQuery<Read<OpName>>, SQuery<Entity, With<Window>>);
+    type Bundle = (Window, Camera2dBundle, RenderLayers);
+
+    fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>) {
+        let (commands, self_q, texture_q, param_q, param_index, images) = param;
+
+        let (mut window, curr_window_texture) = self_q.get_mut(entity).unwrap();
+
+        let param_entity = param_index.get(&(OpRef(entity), ParamName("Texture".to_string())));
+        let Some(param_entity) = param_entity else {
+            return;
+        };
+
+        let Ok(param_value) = param_q.get(*param_entity) else {
+            return;
+        };
+
+        let ParamValue::TextureOp(texture_entity) = param_value else {
+            return;
+        };
+
+        let Some(texture_entity) = texture_entity else {
+            return;
+        };
+
+        let Ok(texture) = texture_q.get(*texture_entity) else {
+            return;
+        };
+
+        if let Some(curr_window_texture) = curr_window_texture {
+            if curr_window_texture.0 == *texture_entity {
+                return;
+            }
+        }
+
+        let image = images.get(texture.0.clone()).unwrap();
+
+        window
+            .resolution
+            .set_physical_resolution(image.width(), image.height());
+
+        commands
+            .entity(entity)
+            .insert(SpriteBundle {
+                texture: texture.0.clone(),
+                ..default()
+            })
+            .insert(WindowTexture(*texture_entity));
     }
-    for (entity, op_name) in added_q.iter() {
-        count += 1;
-        commands.entity(entity).insert((
+
+    fn create_bundle<'w>(
+        entity: Entity,
+        (name_q, count_q): &mut SystemParamItem<'w, '_, Self::BundleParam>,
+    ) -> Self::Bundle {
+        let mut count = count_q.iter().count();
+        if count > 32 {
+            panic!("Too many windows")
+        }
+
+        let name = name_q.get(entity).unwrap();
+        (
             Window {
-                title: op_name.0.clone(),
+                title: name.0.clone(),
                 ..default()
             },
             Camera2dBundle {
@@ -89,22 +129,23 @@ fn spawn_op(
                 ..default()
             },
             RenderLayers::layer(count as u8),
-        ));
+        )
     }
-}
-
-#[derive(Component, Clone, Default, Debug)]
-pub struct ComponentOpWindow;
-
-impl ComponentOpMeta for ComponentOpWindow {
-    type OpType = ComponentOpType<ComponentOpWindow>;
 
     fn params() -> Vec<ParamBundle> {
-        vec![ParamBundle {
-            name: ParamName("Texture".to_string()),
-            value: ParamValue::TextureOp(None),
-            order: ParamOrder(0),
-            ..default()
-        }]
+        vec![
+            ParamBundle {
+                name: ParamName("Texture".to_string()),
+                value: ParamValue::TextureOp(None),
+                order: ParamOrder(0),
+                ..default()
+            },
+            ParamBundle {
+                name: ParamName("Open".to_string()),
+                value: ParamValue::Bool(false),
+                order: ParamOrder(1),
+                ..default()
+            },
+        ]
     }
 }

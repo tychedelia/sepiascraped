@@ -8,8 +8,8 @@ use crate::script::helper::RustylineHelper;
 use crate::op::texture::types::composite::TextureOpComposite;
 use crate::op::texture::types::noise::TextureOpNoise;
 use crate::op::texture::types::ramp::TextureOpRamp;
-use crate::op::texture::{TextureOp, TextureOpType};
-use crate::ui::graph::{GraphRef, OpRef};
+use crate::op::texture::{TextureOp};
+use crate::ui::graph::{ConnectedTo, GraphRef, GraphState, OpRef};
 use crate::OpName;
 use crate::Sets::Params;
 use bevy::app::AppExit;
@@ -33,8 +33,9 @@ use steel::steel_vm::engine::Engine;
 use steel::steel_vm::register_fn::RegisterFn;
 use steel::SteelVal;
 use steel_derive::Steel;
-use crate::op::component::{ComponentOp, ComponentOpType};
 use crate::op::component::types::window::ComponentOpWindow;
+use crate::op::OpType;
+use crate::ui::event::Connect;
 
 pub struct ScriptPlugin;
 
@@ -57,7 +58,7 @@ fn clear_touched(mut commands: Commands, touched_q: Query<Entity, With<ScriptTou
 fn drop_untouched(
     mut commands: Commands,
     mut index: ResMut<UniqueIndex<OpName>>,
-    touched_q: Query<(Entity, &GraphRef, &OpName), (With<TextureOp>, Without<ScriptTouched>)>,
+    touched_q: Query<(Entity, &GraphRef, &OpName), Without<ScriptTouched>>,
 ) {
     for (entity, graph_ref, op_name) in touched_q.iter() {
         commands.entity(entity).despawn_recursive();
@@ -127,10 +128,12 @@ steel::custom_reference!(WorldHolder<'a>);
 fn setup(world: &mut World) {
     let mut engine = Engine::new();
     engine.register_value("*world*", SteelVal::Void);
+    engine.register_value("*time*", SteelVal::Void);
     let editor = ReadLineEditor::default();
     let engine = Rc::new(RefCell::new(engine));
     world.insert_non_send_resource(editor);
     world.insert_non_send_resource(LispEngine(engine));
+    let curr_time = world.resource::<Time>().elapsed_seconds();
     let world_cell = world.as_unsafe_world_cell();
     unsafe {
         world_cell
@@ -145,10 +148,17 @@ fn setup(world: &mut World) {
                     .update_value("*world*", world)
                     .expect("TODO: panic message");
                 engine
+                    .update_value(
+                        "*time*",
+                        SteelVal::from(curr_time),
+                    )
+                    .expect("TODO: panic message");
+                engine
                     .register_fn("-op", op)
                     .register_fn("-op!", op_bang)
                     .register_fn("-param", param)
                     .register_fn("-param!", set_bang)
+                    .register_fn("-connect!", connect_bang)
                     .register_fn("rand", rand);
                 let prog = engine
                     .emit_raw_program_no_path(
@@ -167,6 +177,9 @@ fn setup(world: &mut World) {
                         (define (param! entity name val)
                             (when entity
                                 (-param! *world* entity name val)))
+                        ; connect two ops
+                        (define (connect! output input)
+                            (-connect! *world* output input))
                     "#,
                     )
                     .unwrap();
@@ -176,6 +189,7 @@ fn setup(world: &mut World) {
 }
 
 fn update(world: &mut World) {
+    let curr_time = world.resource::<Time>().elapsed_seconds();
     let world_cell = world.as_unsafe_world_cell();
     unsafe {
         let mut editor = world_cell
@@ -221,6 +235,12 @@ fn update(world: &mut World) {
                 engine
                     .update_value("*world*", world)
                     .expect("TODO: panic message");
+                engine
+                    .update_value(
+                        "*time*",
+                        SteelVal::from(curr_time),
+                    )
+                    .expect("TODO: panic message");
                 engine.register_fn("-op", op).register_fn("-param", param);
 
                 if let Some(line) = &line {
@@ -261,20 +281,21 @@ fn op_bang(world: &mut WorldHolder, ty: String, name: String) -> Option<EntityRe
     let index = world.get_resource::<UniqueIndex<OpName>>().unwrap();
     if let Some(entity) = index.get(&OpName(name.clone())) {
         let entity_ref = EntityRef(entity.clone());
-        world.entity_mut(*entity).insert(ScriptTouched);
+        if let Some(mut entity) = world.get_entity_mut(*entity) {
+            entity.insert(ScriptTouched);
+        }
         return Some(entity_ref);
     }
 
     let name = OpName(name);
     let entity = match ty.as_str() {
-        "ramp" => world.spawn((name, TextureOp, TextureOpType::<TextureOpRamp>::default())),
+        "ramp" => world.spawn((name, OpType::<TextureOpRamp>::default())),
         "composite" => world.spawn((
             name,
-            TextureOp,
-            TextureOpType::<TextureOpComposite>::default(),
+            OpType::<TextureOpComposite>::default(),
         )),
-        "noise" => world.spawn((name, TextureOp, TextureOpType::<TextureOpNoise>::default())),
-        "window" => world.spawn((name, ComponentOp, ComponentOpType::<ComponentOpWindow>::default())),
+        "noise" => world.spawn((name, OpType::<TextureOpNoise>::default())),
+        "window" => world.spawn((name, OpType::<ComponentOpWindow>::default())),
         _ => return None,
     };
 
@@ -316,6 +337,25 @@ fn param(world: &mut WorldHolder, entity: EntityRef, name: String) -> SteelVal {
         });
     name
 }
+
+fn connect_bang(world: &mut WorldHolder, output: EntityRef, input: EntityRef) -> SteelVal {
+    let mut world = unsafe { world.world_mut() };
+
+    // TODO: run this as an event
+    // let mut graph_state = world.get_resource_mut::<GraphState>().unwrap();
+
+    // world.entity_mut(*output).insert(ConnectedTo(*input));
+    // graph_state
+    //     .graph
+    //     .add_edge(to_graph_id.0, from_graph_id.0, (0, 0));
+    // ev_connect.send(Connect {
+    //     output: to_graph_ref.0,
+    //     input: from_graph_ref.0,
+    // });
+    //
+    SteelVal::Void
+}
+
 
 fn rand(min: f32, max: f32) -> f32 {
     let mut rng = rand::thread_rng();

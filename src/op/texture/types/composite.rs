@@ -1,15 +1,11 @@
-use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
-use crate::Sets::{Graph, Uniforms};
 use bevy::prelude::*;
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
-use bevy::render::render_graph::{RenderLabel, RenderSubGraph};
 use bevy::render::render_resource::ShaderType;
-use bevy_egui::{egui, EguiContexts};
 
+use crate::op::{Op, OpPlugin, OpType};
 use crate::op::texture::render::TextureOpRenderPlugin;
-use crate::op::texture::{spawn_top, update, TextureOpMeta, TextureOpType};
-use crate::ui::graph::SelectedNode;
-use crate::ui::UiState;
+use crate::op::texture::TextureOp;
+use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 
 #[derive(Default)]
 pub struct TextureOpCompositePlugin;
@@ -17,24 +13,17 @@ pub struct TextureOpCompositePlugin;
 impl Plugin for TextureOpCompositePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            ExtractComponentPlugin::<TextureOpType<TextureOpComposite>>::default(),
+            ExtractComponentPlugin::<OpType<TextureOpComposite>>::default(),
+            OpPlugin::<OpType<TextureOpComposite>>::default(),
             TextureOpRenderPlugin::<TextureOpComposite>::default(),
-        ))
-        .add_systems(
-            Update,
-            (
-                spawn_top::<TextureOpComposite>.in_set(Graph),
-                update::<TextureOpComposite>.in_set(Uniforms),
-            ),
-        );
+        ));
     }
 }
 
-impl TextureOpMeta for TextureOpComposite {
+impl TextureOp for TextureOpComposite {
     const SHADER: &'static str = "shaders/texture/composite.wgsl";
     const INPUTS: usize = 2;
     const OUTPUTS: usize = 1;
-    type OpType = TextureOpType<Self>;
     type Uniform = CompositeSettings;
 
     fn params() -> Vec<ParamBundle> {
@@ -105,9 +94,3 @@ pub struct CompositeSettings {
     #[cfg(feature = "webgl2")]
     _webgl2_padding: Vec3,
 }
-
-#[derive(Debug, Hash, PartialEq, Eq, Clone, RenderSubGraph)]
-struct CompositeSubGraph;
-
-#[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
-struct CompositeLabel;

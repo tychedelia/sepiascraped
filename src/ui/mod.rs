@@ -6,9 +6,10 @@ use bevy_mod_picking::DefaultPickingPlugins;
 use crate::op::texture::types::composite::TextureOpComposite;
 use crate::op::texture::types::noise::TextureOpNoise;
 use crate::op::texture::types::ramp::TextureOpRamp;
-use crate::op::texture::{TextureOp, TextureOpType};
+use crate::op::texture::{TextureOp};
 use crate::Sets::Ui;
 use camera::CameraControllerPlugin;
+use crate::op::OpType;
 
 use crate::ui::event::ClickNode;
 use crate::ui::graph::GraphPlugin;
@@ -99,13 +100,13 @@ pub fn ui(
             .fixed_pos(node_menu.pos)
             .show(ctx, |ui| {
                 if ui.button("Ramp").clicked() {
-                    commands.spawn((TextureOp, TextureOpType::<TextureOpRamp>::default()));
+                    commands.spawn((OpType::<TextureOpRamp>::default()));
                 }
                 if ui.button("Noise").clicked() {
-                    commands.spawn((TextureOp, TextureOpType::<TextureOpNoise>::default()));
+                    commands.spawn((OpType::<TextureOpNoise>::default()));
                 }
                 if ui.button("Composite").clicked() {
-                    commands.spawn((TextureOp, TextureOpType::<TextureOpComposite>::default()));
+                    commands.spawn((OpType::<TextureOpComposite>::default()));
                 }
             });
     }

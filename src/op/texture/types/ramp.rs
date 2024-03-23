@@ -1,15 +1,12 @@
-use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
-use crate::Sets::{Graph, Uniforms};
 use bevy::prelude::*;
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::render_resource::ShaderType;
-use bevy_egui::egui::{Align, CollapsingHeader};
-use bevy_egui::{egui, EguiContexts};
 
+use crate::op::{OpPlugin, OpType};
 use crate::op::texture::render::TextureOpRenderPlugin;
-use crate::op::texture::{spawn_top, update, TextureOpMeta, TextureOpType};
-use crate::ui::graph::SelectedNode;
-use crate::ui::UiState;
+use crate::op::texture::TextureOp;
+use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
+use crate::Sets::{Graph, Uniforms};
 
 #[derive(Default)]
 pub struct TextureOpRampPlugin;
@@ -17,27 +14,20 @@ pub struct TextureOpRampPlugin;
 impl Plugin for TextureOpRampPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            ExtractComponentPlugin::<TextureOpType<TextureOpRamp>>::default(),
+            ExtractComponentPlugin::<OpType<TextureOpRamp>>::default(),
+            OpPlugin::<OpType<TextureOpRamp>>::default(),
             TextureOpRenderPlugin::<TextureOpRamp>::default(),
-        ))
-        .add_systems(
-            Update,
-            (
-                spawn_top::<TextureOpRamp>.in_set(Graph),
-                update::<TextureOpRamp>.in_set(Uniforms),
-            ),
-        );
+        ));
     }
 }
 
 #[derive(Component, Clone, Default, Debug)]
 pub struct TextureOpRamp;
 
-impl TextureOpMeta for TextureOpRamp {
+impl TextureOp for TextureOpRamp {
     const SHADER: &'static str = "shaders/texture/ramp.wgsl";
     const INPUTS: usize = 0;
     const OUTPUTS: usize = 1;
-    type OpType = TextureOpType<Self>;
     type Uniform = TextureRampSettings;
 
     fn params() -> Vec<ParamBundle> {
@@ -65,7 +55,7 @@ impl TextureOpMeta for TextureOpRamp {
 
     fn update_uniform(uniform: &mut Self::Uniform, params: &Vec<(&ParamName, &ParamValue)>) {
         for (name, value) in params {
-            match name.0.as_str() {
+            match name.as_str() {
                 "Color A" => {
                     if let ParamValue::Color(color) = value {
                         uniform.color_a = *color;
