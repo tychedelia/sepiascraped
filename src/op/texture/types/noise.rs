@@ -6,7 +6,7 @@ use bevy::render::render_resource::ShaderType;
 use crate::op::{OpPlugin, OpType};
 
 use crate::op::texture::render::TextureOpRenderPlugin;
-use crate::op::texture::{TextureOp};
+use crate::op::texture::{impl_op, TextureOp};
 
 #[derive(Default)]
 pub struct TextureOpNoisePlugin;
@@ -15,7 +15,7 @@ impl Plugin for TextureOpNoisePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
             ExtractComponentPlugin::<OpType<TextureOpNoise>>::default(),
-            OpPlugin::<OpType<TextureOpNoise>>::default(),
+            OpPlugin::<TextureOpNoise>::default(),
             TextureOpRenderPlugin::<TextureOpNoise>::default(),
         ));
     }
@@ -24,9 +24,9 @@ impl Plugin for TextureOpNoisePlugin {
 #[derive(Component, Clone, Default, Debug)]
 pub struct TextureOpNoise;
 
+impl_op!(TextureOpNoise, 0, 1);
+
 impl TextureOp for TextureOpNoise {
-    const INPUTS: usize = 0;
-    const OUTPUTS: usize = 1;
     const SHADER: &'static str = "shaders/texture/noise.wgsl";
     type Uniform = TextureNoiseSettings;
 

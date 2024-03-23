@@ -4,7 +4,7 @@ use bevy::render::render_resource::ShaderType;
 
 use crate::op::{OpPlugin, OpType};
 use crate::op::texture::render::TextureOpRenderPlugin;
-use crate::op::texture::TextureOp;
+use crate::op::texture::{impl_op, TextureOp};
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 use crate::Sets::{Graph, Uniforms};
 
@@ -15,7 +15,7 @@ impl Plugin for TextureOpRampPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
             ExtractComponentPlugin::<OpType<TextureOpRamp>>::default(),
-            OpPlugin::<OpType<TextureOpRamp>>::default(),
+            OpPlugin::<TextureOpRamp>::default(),
             TextureOpRenderPlugin::<TextureOpRamp>::default(),
         ));
     }
@@ -24,10 +24,10 @@ impl Plugin for TextureOpRampPlugin {
 #[derive(Component, Clone, Default, Debug)]
 pub struct TextureOpRamp;
 
+impl_op!(TextureOpRamp, 0, 1);
+
 impl TextureOp for TextureOpRamp {
     const SHADER: &'static str = "shaders/texture/ramp.wgsl";
-    const INPUTS: usize = 0;
-    const OUTPUTS: usize = 1;
     type Uniform = TextureRampSettings;
 
     fn params() -> Vec<ParamBundle> {

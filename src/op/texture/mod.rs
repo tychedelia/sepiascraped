@@ -32,7 +32,7 @@ use crate::param::{
 use crate::ui::event::{Connect, Disconnect};
 use crate::ui::graph::{GraphRef, NodeMaterial, OpRef, SelectedNode};
 use crate::ui::UiState;
-use crate::{OpName, Sets};
+use crate::{OpName, Sets, ui};
 use crate::op::{Op, OpType};
 
 pub mod render;
@@ -54,7 +54,7 @@ impl Plugin for TexturePlugin {
             .add_systems(
                 Update,
                 (
-                    selected_node_ui,
+                    ui::selected_node_ui,
                     update_materials,
                     connect_handler,
                     disconnect_handler,
@@ -144,191 +144,112 @@ pub struct TextureOpBundle {
     pub outputs: TextureOpOutputs,
 }
 
-impl <T> Op for OpType<T>
-    where T: TextureOp + Component + Clone + Debug + Send + Sync + 'static
-{
-    const INPUTS: usize = <T as TextureOp>::INPUTS;
-    const OUTPUTS: usize = <T as TextureOp>::OUTPUTS;
+macro_rules! impl_op {
+    ($name:ident, $inputs:expr, $outputs:expr) => {
+        impl crate::op::Op for $name {
+            const INPUTS: usize = $inputs;
+            const OUTPUTS: usize = $outputs;
 
-    type OpType = OpType<Self>;
-    type UpdateParam = (
-        SQuery<(Read<Children>, Write<T::Uniform>)>,
-        SQuery<(
-            Read<ParamName>, Read<ParamValue>
-        )>,
-    );
-    type BundleParam = (SResMut<Assets<Image>>);
-    type Bundle = (TextureOpBundle, T::Uniform);
+            type OpType = OpType<Self>;
+            type UpdateParam = (
+                bevy::ecs::system::lifetimeless::SQuery<(
+                    bevy::ecs::system::lifetimeless::Read<Children>, bevy::ecs::system::lifetimeless::Write<<$name as TextureOp>::Uniform>)>,
+                bevy::ecs::system::lifetimeless::SQuery<(
+                    bevy::ecs::system::lifetimeless::Read<ParamName>, bevy::ecs::system::lifetimeless::Read<ParamValue>
+                )>,
+            );
+            type BundleParam = (bevy::ecs::system::lifetimeless::SResMut<bevy::prelude::Assets<bevy::prelude::Image>>);
+            type Bundle = (crate::op::texture::TextureOpBundle, <$name as TextureOp>::Uniform);
 
+            fn update<'w>(entity: bevy::prelude::Entity, param: &mut bevy::ecs::system::SystemParamItem<'w, '_, Self::UpdateParam>) {
+                let (self_q, params_q) = param;
 
-    fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>) {
-        let (self_q, params_q) = param;
+                let (children, mut uniform) = self_q.get_mut(entity).unwrap();
 
-        let (children, mut uniform) = self_q.get_mut(entity).unwrap();
+                let params = children
+                    .iter()
+                    .filter_map(|entity| params_q.get(*entity).ok())
+                    .collect();
 
-        let params = children
-            .iter()
-            .filter_map(|entity| params_q.get(*entity).ok())
-            .collect();
+                <$name as TextureOp>::update_uniform(&mut uniform, &params)
+            }
 
-        T::update_uniform(&mut uniform, &params)
-    }
+            fn create_bundle<'w>(entity: bevy::prelude::Entity, (mut images): &mut bevy::ecs::system::SystemParamItem<'w, '_, Self::BundleParam>) -> Self::Bundle
+            {
+                let size = bevy::render::render_resource::Extent3d {
+                    width: 512,
+                    height: 512,
+                    ..default()
+                };
 
-    fn create_bundle<'w>(entity: Entity, (mut images): &mut SystemParamItem<'w, '_, Self::BundleParam>) -> Self::Bundle
-    {
-        let size = Extent3d {
-            width: 512,
-            height: 512,
-            ..default()
-        };
-
-        let mut image = Image {
-            texture_descriptor: TextureDescriptor {
-                label: None,
-                size,
-                dimension: TextureDimension::D2,
-                format: TextureFormat::Rgba8UnormSrgb,
-                mip_level_count: 1,
-                sample_count: 1,
-                usage: TextureUsages::TEXTURE_BINDING
-                    | TextureUsages::COPY_DST
-                    | TextureUsages::RENDER_ATTACHMENT,
-                view_formats: &[],
-            },
-            ..default()
-        };
-
-        image.resize(size);
-
-        let image = images.add(image);
-
-        (
-            TextureOpBundle {
-                camera: Camera3dBundle {
-                    camera_render_graph: CameraRenderGraph::new(TextureOpSubGraph),
-                    camera: Camera {
-                        order: 3,
-                        target: image.clone().into(),
-                        ..default()
+                let mut image = bevy::prelude::Image {
+                    texture_descriptor: bevy::render::render_resource::TextureDescriptor {
+                        label: None,
+                        size,
+                        dimension: bevy::render::render_resource::TextureDimension::D2,
+                        format: bevy::render::render_resource::TextureFormat::Rgba8UnormSrgb,
+                        mip_level_count: 1,
+                        sample_count: 1,
+                        usage: bevy::render::render_resource::TextureUsages::TEXTURE_BINDING
+                            | bevy::render::render_resource::TextureUsages::COPY_DST
+                            | bevy::render::render_resource::TextureUsages::RENDER_ATTACHMENT,
+                        view_formats: &[],
                     },
                     ..default()
-                },
-                image: TextureOpImage(image.clone()),
-                inputs: TextureOpInputs {
-                    count: T::INPUTS,
-                    connections: HashMap::new(),
-                },
-                outputs: TextureOpOutputs { count: T::OUTPUTS },
-            },
-            T::Uniform::default(),
-        )
-    }
+                };
 
-    fn params() -> Vec<ParamBundle> {
-        let common_params = vec![
-            ParamBundle {
-                name: ParamName("Resolution".to_string()),
-                value: ParamValue::Vec2(Vec2::new(512.0, 512.0)),
-                order: ParamOrder(0),
-                page: ParamPage("Common".to_string()),
-                ..default()
-            },
-            ParamBundle {
-                name: ParamName("View".to_string()),
-                value: ParamValue::Bool(false),
-                order: ParamOrder(1),
-                page: ParamPage("Common".to_string()),
-                ..default()
-            },
-        ];
+                image.resize(size);
 
-        [common_params, <T as TextureOp>::params()]
-            .concat()
-    }
-}
+                let image = images.add(image);
 
-fn selected_node_ui(
-    mut commands: Commands,
-    mut ui_state: ResMut<UiState>,
-    mut egui_contexts: EguiContexts,
-    selected_q: Query<&Children, With<SelectedNode>>,
-    mut params_q: Query<(
-        Entity,
-        &ParamName,
-        &mut ParamValue,
-        Option<&ScriptedParamError>,
-    )>,
-    mut op_name_q: Query<&OpName>,
-    op_name_idx: Res<UniqueIndex<OpName>>,
-) {
-    if let Ok(children) = selected_q.get_single() {
-        ui_state.node_info = Some(
-            egui::Window::new("node_info")
-                .resizable(false)
-                .collapsible(false)
-                .movable(false)
-                .show(egui_contexts.ctx_mut(), |ui| {
-                    egui::Grid::new("texture_ramp_params").show(ui, |ui| {
-                        ui.heading("Params");
-                        ui.end_row();
-                        ui.separator();
-                        ui.end_row();
-                        for entity in children {
-                            let (param, name, mut value, script_error) =
-                                params_q.get_mut(*entity).expect("Failed to get param");
-                            ui.label(name.0.clone());
-                            match value.as_mut() {
-                                ParamValue::Color(color) => {
-                                    ui.color_edit_button_rgba_premultiplied(color.as_mut());
-                                }
-                                ParamValue::F32(f) => {
-                                    ui.add(egui::Slider::new(f, 0.0..=100.0));
-                                }
-                                ParamValue::Vec2(v) => {
-                                    ui.add(egui::DragValue::new(&mut v.x));
-                                    ui.add(egui::DragValue::new(&mut v.y));
-                                }
-                                ParamValue::None => {}
-                                ParamValue::U32(x) => {
-                                    ui.add(egui::Slider::new(x, 0..=100));
-                                }
-                                ParamValue::Bool(x) => {
-                                    ui.checkbox(x, "");
-                                }
-                                ParamValue::TextureOp(x) => {
+                (
+                    crate::op::texture::TextureOpBundle {
+                        camera: bevy::prelude::Camera3dBundle {
+                            camera_render_graph: bevy::render::camera::CameraRenderGraph::new(crate::op::texture::TextureOpSubGraph),
+                            camera: bevy::prelude::Camera {
+                                order: 3,
+                                target: image.clone().into(),
+                                ..default()
+                            },
+                            ..default()
+                        },
+                        image: crate::op::texture::TextureOpImage(image.clone()),
+                        inputs: crate::op::texture::TextureOpInputs {
+                            count: $inputs,
+                            connections: bevy::utils::HashMap::new(),
+                        },
+                        outputs: crate::op::texture::TextureOpOutputs { count: $outputs },
+                    },
+                    <$name as TextureOp>::Uniform::default(),
+                )
+            }
 
-                                    let mut name = if let Some(entity) = x {
-                                        let name = op_name_q.get(*entity).unwrap();
-                                        name.0.clone()
-                                    } else {
-                                        String::new()
-                                    };
-                                    ui.text_edit_singleline(&mut name);
-                                    if !name.is_empty() {
-                                        if let Some(entity) = op_name_idx.get(&OpName(name)) {
-                                            *x = Some(entity.clone());
-                                        }
-                                    }
-                                }
-                            }
-                            ui.end_row();
-                            if let Some(error) = script_error {
-                                let prev_color = ui.visuals_mut().override_text_color;
-                                ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
-                                ui.label(error.0.clone());
-                                ui.visuals_mut().override_text_color = prev_color;
-                                ui.end_row();
-                            }
-                        }
-                    })
-                })
-                .unwrap()
-                .inner
-                .unwrap()
-                .response,
-        );
+            fn params() -> Vec<crate::param::ParamBundle> {
+                let common_params = vec![
+                    crate::param::ParamBundle {
+                        name: crate::param::ParamName("Resolution".to_string()),
+                        value: crate::param::ParamValue::Vec2(Vec2::new(512.0, 512.0)),
+                        order: crate::param::ParamOrder(0),
+                        page: crate::param::ParamPage("Common".to_string()),
+                        ..default()
+                    },
+                    crate::param::ParamBundle {
+                        name: crate::param::ParamName("View".to_string()),
+                        value: crate::param::ParamValue::Bool(false),
+                        order: crate::param::ParamOrder(1),
+                        page: crate::param::ParamPage("Common".to_string()),
+                        ..default()
+                    },
+                ];
+
+                [common_params, <$name as TextureOp>::params()]
+                    .concat()
+            }
+        }
     }
 }
+
+pub(crate) use impl_op;
 
 fn connect_handler(
     mut ev_connect: EventReader<Connect>,
@@ -378,10 +299,7 @@ fn disconnect_handler(
     }
 }
 
-pub trait TextureOp {
-    const INPUTS: usize = 0;
-    const OUTPUTS: usize = 0;
-
+pub trait TextureOp: Op {
     const SHADER: &'static str;
     type Uniform: Component + ExtractComponent + ShaderType + WriteInto + Clone + Default;
 

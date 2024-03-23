@@ -37,7 +37,7 @@ impl Plugin for GraphPlugin {
                 Update,
                 (
                     ui.in_set(Sets::Ui),
-                    texture_ui.in_set(Sets::Ui),
+                    add_graph_ids.in_set(Sets::Ui),
                     update_graph.in_set(Sets::Graph),
                     update_connections.in_set(Sets::Graph),
                     click_node.run_if(on_event::<ClickNode>()),
@@ -480,7 +480,7 @@ fn update_connections(
     }
 }
 
-fn texture_ui(
+fn add_graph_ids(
     mut commands: Commands,
     mut graph: ResMut<GraphState>,
     mut textures: Query<(Entity), (With<OpName>, Without<GraphId>)>,

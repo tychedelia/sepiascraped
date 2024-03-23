@@ -18,32 +18,17 @@ pub struct ComponentOpWindowPlugin;
 
 impl Plugin for ComponentOpWindowPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(OpPlugin::<OpType<ComponentOpWindow>>::default());
+        app.add_plugins(OpPlugin::<ComponentOpWindow>::default());
     }
 }
 
 #[derive(Component, Clone, Debug)]
 pub struct WindowTexture(Entity);
 
-#[derive(SystemParam)]
-struct UpdateWindowParam<'w, 's> {
-    commands: Commands<'w, 's>,
-    self_q: Query<
-        'w,
-        's,
-        (Entity, &'static mut Window, Option<&'static WindowTexture>),
-        With<ComponentOpType<ComponentOpWindow>>,
-    >,
-    texture_q: Query<'w, 's, &'static TextureOpImage>,
-    param_q: Query<'w, 's, &'static ParamValue>,
-    param_index: Res<'w, CompositeIndex2<OpRef, ParamName>>,
-    images: Res<'w, Assets<Image>>,
-}
-
 #[derive(Component, Clone, Default, Debug)]
 pub struct ComponentOpWindow;
 
-impl Op for OpType<ComponentOpWindow> {
+impl Op for ComponentOpWindow {
     type OpType = ComponentOpType<ComponentOpWindow>;
     type UpdateParam = (
         SCommands,

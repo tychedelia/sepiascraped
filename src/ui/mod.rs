@@ -3,16 +3,15 @@ use bevy::window::PrimaryWindow;
 use bevy_egui::{egui, EguiContexts};
 use bevy_mod_picking::DefaultPickingPlugins;
 
-use crate::op::texture::types::composite::TextureOpComposite;
-use crate::op::texture::types::noise::TextureOpNoise;
-use crate::op::texture::types::ramp::TextureOpRamp;
-use crate::op::texture::{TextureOp};
-use crate::Sets::Ui;
 use camera::CameraControllerPlugin;
-use crate::op::OpType;
 
+use crate::index::UniqueIndex;
+use crate::op::texture::TextureOp;
+use crate::OpName;
+use crate::param::{ParamName, ParamValue, ScriptedParamError};
+use crate::Sets::Ui;
 use crate::ui::event::ClickNode;
-use crate::ui::graph::GraphPlugin;
+use crate::ui::graph::{GraphPlugin, SelectedNode};
 use crate::ui::grid::InfiniteGridPlugin;
 
 mod camera;
@@ -83,38 +82,93 @@ pub fn ui(
 ) {
     let ctx = egui_contexts.ctx_mut();
 
-    if keys.just_pressed(KeyCode::Tab) {
-        let window = windows.single();
-        // let pos = window.cursor_position().unwrap();
-        // ui_state.node_menu = Some(NodeMenuState { pos: (pos.x, pos.y)});
-    }
-    if keys.just_released(KeyCode::Escape) {
-        ui_state.node_menu = None;
-    }
-
-    if let Some(node_menu) = &ui_state.node_menu {
-        egui::Window::new("Node Info")
-            .title_bar(false)
-            .resizable(false)
-            .collapsible(false)
-            .fixed_pos(node_menu.pos)
-            .show(ctx, |ui| {
-                if ui.button("Ramp").clicked() {
-                    commands.spawn((OpType::<TextureOpRamp>::default()));
-                }
-                if ui.button("Noise").clicked() {
-                    commands.spawn((OpType::<TextureOpNoise>::default()));
-                }
-                if ui.button("Composite").clicked() {
-                    commands.spawn((OpType::<TextureOpComposite>::default()));
-                }
-            });
-    }
-
     ui_state.top_panel = Some(
         egui::TopBottomPanel::top("top_panel")
             .resizable(false)
             .show(ctx, |ui| {})
             .response,
     );
+}
+
+pub fn selected_node_ui(
+    mut commands: Commands,
+    mut ui_state: ResMut<UiState>,
+    mut egui_contexts: EguiContexts,
+    selected_q: Query<&Children, With<SelectedNode>>,
+    mut params_q: Query<(
+        Entity,
+        &ParamName,
+        &mut ParamValue,
+        Option<&ScriptedParamError>,
+    )>,
+    mut op_name_q: Query<&OpName>,
+    op_name_idx: Res<UniqueIndex<OpName>>,
+) {
+    if let Ok(children) = selected_q.get_single() {
+        ui_state.node_info = Some(
+            egui::Window::new("node_info")
+                .resizable(false)
+                .collapsible(false)
+                .movable(false)
+                .show(egui_contexts.ctx_mut(), |ui| {
+                    egui::Grid::new("texture_ramp_params").show(ui, |ui| {
+                        ui.heading("Params");
+                        ui.end_row();
+                        ui.separator();
+                        ui.end_row();
+                        for entity in children {
+                            let (param, name, mut value, script_error) =
+                                params_q.get_mut(*entity).expect("Failed to get param");
+                            ui.label(name.0.clone());
+                            match value.as_mut() {
+                                ParamValue::Color(color) => {
+                                    ui.color_edit_button_rgba_premultiplied(color.as_mut());
+                                }
+                                ParamValue::F32(f) => {
+                                    ui.add(egui::Slider::new(f, 0.0..=100.0));
+                                }
+                                ParamValue::Vec2(v) => {
+                                    ui.add(egui::DragValue::new(&mut v.x));
+                                    ui.add(egui::DragValue::new(&mut v.y));
+                                }
+                                ParamValue::None => {}
+                                ParamValue::U32(x) => {
+                                    ui.add(egui::Slider::new(x, 0..=100));
+                                }
+                                ParamValue::Bool(x) => {
+                                    ui.checkbox(x, "");
+                                }
+                                ParamValue::TextureOp(x) => {
+
+                                    let mut name = if let Some(entity) = x {
+                                        let name = op_name_q.get(*entity).unwrap();
+                                        name.0.clone()
+                                    } else {
+                                        String::new()
+                                    };
+                                    ui.text_edit_singleline(&mut name);
+                                    if !name.is_empty() {
+                                        if let Some(entity) = op_name_idx.get(&OpName(name)) {
+                                            *x = Some(entity.clone());
+                                        }
+                                    }
+                                }
+                            }
+                            ui.end_row();
+                            if let Some(error) = script_error {
+                                let prev_color = ui.visuals_mut().override_text_color;
+                                ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
+                                ui.label(error.0.clone());
+                                ui.visuals_mut().override_text_color = prev_color;
+                                ui.end_row();
+                            }
+                        }
+                    })
+                })
+                .unwrap()
+                .inner
+                .unwrap()
+                .response,
+        );
+    }
 }

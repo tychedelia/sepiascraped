@@ -93,7 +93,7 @@ pub fn prepare_texture_op_pipelines<T>(
     mut pipeline: ResMut<TextureOpPipeline>,
     pipeline_cache: Res<PipelineCache>,
     mut pipelines: ResMut<SpecializedRenderPipelines<TextureOpPipeline>>,
-    views: Query<(Entity, &ExtractedView, &TextureOpInputs), With<<OpType<T> as Op>::OpType>>,
+    views: Query<(Entity, &ExtractedView, &TextureOpInputs), With<<T as Op>::OpType>>,
     shader_handle: Res<TextureOpShaderHandle<T>>,
     render_device: Res<RenderDevice>,
 ) where
@@ -144,7 +144,7 @@ pub fn prepare_texture_op_bind_group<T>(
             &TextureOpInputs,
             &DynamicUniformIndex<T::Uniform>,
         ),
-        With<<OpType<T> as Op>::OpType>
+        With<<T as Op>::OpType>
     >,
     shader_handle: Res<TextureOpShaderHandle<T>>,
     images: Res<RenderAssets<Image>>,

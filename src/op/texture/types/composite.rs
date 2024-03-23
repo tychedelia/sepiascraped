@@ -4,7 +4,7 @@ use bevy::render::render_resource::ShaderType;
 
 use crate::op::{Op, OpPlugin, OpType};
 use crate::op::texture::render::TextureOpRenderPlugin;
-use crate::op::texture::TextureOp;
+use crate::op::texture::{impl_op, TextureOp};
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 
 #[derive(Default)]
@@ -14,16 +14,16 @@ impl Plugin for TextureOpCompositePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
             ExtractComponentPlugin::<OpType<TextureOpComposite>>::default(),
-            OpPlugin::<OpType<TextureOpComposite>>::default(),
+            OpPlugin::<TextureOpComposite>::default(),
             TextureOpRenderPlugin::<TextureOpComposite>::default(),
         ));
     }
 }
 
+impl_op!(TextureOpComposite, 2, 1);
+
 impl TextureOp for TextureOpComposite {
     const SHADER: &'static str = "shaders/texture/composite.wgsl";
-    const INPUTS: usize = 2;
-    const OUTPUTS: usize = 1;
     type Uniform = CompositeSettings;
 
     fn params() -> Vec<ParamBundle> {
