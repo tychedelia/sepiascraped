@@ -1,17 +1,17 @@
-use crate::index::CompositeIndex2;
-use crate::op::component::{ComponentOpType};
-use crate::op::texture::TextureOpImage;
-use crate::op::{Op, OpPlugin, OpType};
-use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
-use crate::ui::graph::OpRef;
-use crate::OpName;
 use bevy::asset::AssetContainer;
 use bevy::ecs::system::lifetimeless::*;
-use bevy::ecs::system::{SystemParam, SystemParamItem};
+use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::view::RenderLayers;
 use bevy::window::WindowRef;
+
+use crate::index::CompositeIndex2;
+use crate::op::{Op, OpPlugin, OpType};
+use crate::op::OpRef;
+use crate::op::texture::TextureOpImage;
+use crate::OpName;
+use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 
 #[derive(Default)]
 pub struct ComponentOpWindowPlugin;
@@ -29,12 +29,12 @@ pub struct WindowTexture(Entity);
 pub struct ComponentOpWindow;
 
 impl Op for ComponentOpWindow {
-    type OpType = ComponentOpType<ComponentOpWindow>;
+    type OpType = OpType<ComponentOpWindow>;
     type UpdateParam = (
         SCommands,
         SQuery<
             (Write<Window>, Option<Read<WindowTexture>>),
-            With<ComponentOpType<ComponentOpWindow>>,
+            With<OpType<ComponentOpWindow>>,
         >,
         SQuery<Read<TextureOpImage>>,
         SQuery<Read<ParamValue>>,
@@ -78,9 +78,11 @@ impl Op for ComponentOpWindow {
 
         let image = images.get(texture.0.clone()).unwrap();
 
+        let scale_factor = window.resolution.scale_factor();
+        let window_size = image.size_f32() * scale_factor;
         window
             .resolution
-            .set_physical_resolution(image.width(), image.height());
+            .set_physical_resolution(window_size.x as u32, window_size.y as u32);
 
         commands
             .entity(entity)

@@ -1,23 +1,16 @@
 extern crate rustyline;
+
+use std::borrow::Cow;
+
 use colored::*;
-
-use std::{cell::RefCell, rc::Rc};
-
+use rustyline::{Context, Helper, hint::Hinter};
+use rustyline::completion::Completer;
+use rustyline::completion::Pair;
 use rustyline::highlight::{Highlighter, MatchingBracketHighlighter};
 use rustyline::validate::{
     MatchingBracketValidator, ValidationContext, ValidationResult, Validator,
 };
-
-use rustyline::{hint::Hinter, Context, Helper};
-
 use steel_parser::lexer::TokenStream;
-
-use rustyline::completion::Completer;
-use rustyline::completion::Pair;
-
-use std::borrow::Cow;
-
-use steel::steel_vm::engine::Engine;
 
 impl Completer for RustylineHelper {
     type Candidate = Pair;

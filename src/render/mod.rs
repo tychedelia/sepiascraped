@@ -1,8 +1,8 @@
-use crate::Sets::{Graph, Params};
 use bevy::prelude::*;
 
 use crate::op::texture::TextureOp;
-use crate::ui::graph::{update_graph, GraphState};
+use crate::Sets::{Graph, Params};
+use crate::ui::graph::{GraphState, update_graph};
 
 pub struct RenderPlugin;
 

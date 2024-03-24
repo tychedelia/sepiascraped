@@ -1,10 +1,9 @@
-use crate::{OpName, Sets};
 use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle};
-use bevy::utils::{info, HashMap};
-use bevy_mod_picking::prelude::*;
+use bevy::utils::{HashMap, info};
 use bevy_mod_picking::PickableBundle;
+use bevy_mod_picking::prelude::*;
 use bevy_prototype_lyon::draw::Stroke;
 use bevy_prototype_lyon::path::PathBuilder;
 use bevy_prototype_lyon::prelude::ShapeBundle;
@@ -17,6 +16,8 @@ use layout::topo::placer::Placer;
 use petgraph::stable_graph::{DefaultIx, IndexType, NodeIndex};
 use rand::{random, Rng};
 
+use crate::{OpName, Sets};
+use crate::op::OpRef;
 use crate::op::texture::{
     TextureOp, TextureOpDefaultImage, TextureOpImage, TextureOpInputs, TextureOpOutputs,
 };
@@ -54,8 +55,6 @@ impl Plugin for GraphPlugin {
 #[derive(Component, Deref, DerefMut, Copy, Clone, PartialEq, Eq, Hash, Debug, Ord, PartialOrd)]
 pub struct GraphId(NodeIndex<DefaultIx>);
 
-#[derive(Component, Deref, DerefMut, Copy, Clone, PartialEq, Eq, Hash, Debug, Ord, PartialOrd)]
-pub struct OpRef(pub Entity);
 #[derive(Component, Deref, DerefMut, Copy, Clone, PartialEq, Eq, Hash, Debug, Ord, PartialOrd)]
 pub struct GraphRef(pub Entity);
 

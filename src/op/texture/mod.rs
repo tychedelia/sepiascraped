@@ -8,20 +8,22 @@ use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes, SResMut, Write};
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
-use bevy::render::render_resource::encase::internal::WriteInto;
 use bevy::render::render_resource::{
     Extent3d, ShaderType, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
+use bevy::render::render_resource::encase::internal::WriteInto;
 use bevy::sprite::Material2d;
 use bevy::utils::{HashMap, info};
-use bevy_egui::egui::{Align, CollapsingHeader};
 use bevy_egui::{egui, EguiContexts};
+use bevy_egui::egui::{Align, CollapsingHeader};
 
 use types::composite::TextureOpCompositePlugin;
 use types::ramp::TextureOpRampPlugin;
 
-use crate::index::{UniqueIndex, UniqueIndexPlugin};
+use crate::{OpName, Sets, ui};
 use crate::event::SpawnOp;
+use crate::index::{UniqueIndex, UniqueIndexPlugin};
+use crate::op::{Op, OpRef, OpType};
 use crate::op::texture::render::TextureOpSubGraph;
 use crate::op::texture::types::composite::{CompositeMode, CompositeSettings};
 use crate::op::texture::types::noise::TextureOpNoisePlugin;
@@ -30,10 +32,8 @@ use crate::param::{
     ParamBundle, ParamName, ParamOrder, ParamPage, ParamValue, ScriptedParam, ScriptedParamError,
 };
 use crate::ui::event::{Connect, Disconnect};
-use crate::ui::graph::{GraphRef, NodeMaterial, OpRef, SelectedNode};
+use crate::ui::graph::{GraphRef, NodeMaterial, SelectedNode};
 use crate::ui::UiState;
-use crate::{OpName, Sets, ui};
-use crate::op::{Op, OpType};
 
 pub mod render;
 pub mod types;
@@ -54,7 +54,6 @@ impl Plugin for TexturePlugin {
             .add_systems(
                 Update,
                 (
-                    ui::selected_node_ui,
                     update_materials,
                     connect_handler,
                     disconnect_handler,
@@ -164,7 +163,7 @@ macro_rules! impl_op {
             fn update<'w>(entity: bevy::prelude::Entity, param: &mut bevy::ecs::system::SystemParamItem<'w, '_, Self::UpdateParam>) {
                 let (self_q, params_q) = param;
 
-                let (children, mut uniform) = self_q.get_mut(entity).unwrap();
+                let (children, mut uniform) = self_q.get_mut(entity).expect("Expected update entity to exist in self_q");
 
                 let params = children
                     .iter()

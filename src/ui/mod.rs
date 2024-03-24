@@ -1,11 +1,11 @@
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 use bevy_egui::{egui, EguiContexts};
 use bevy_mod_picking::DefaultPickingPlugins;
 
 use camera::CameraControllerPlugin;
 
 use crate::index::UniqueIndex;
+use crate::op::OpTypeName;
 use crate::op::texture::TextureOp;
 use crate::OpName;
 use crate::param::{ParamName, ParamValue, ScriptedParamError};
@@ -31,7 +31,7 @@ impl Plugin for UiPlugin {
         ))
         .add_event::<ClickNode>()
         .add_systems(Startup, ui_setup)
-        .add_systems(Update, ui.in_set(Ui))
+        .add_systems(Update, (ui, selected_node_ui).in_set(Ui))
         .init_resource::<UiState>()
         .insert_resource(AmbientLight {
             color: Color::WHITE,
@@ -39,6 +39,10 @@ impl Plugin for UiPlugin {
         });
     }
 }
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Components
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[derive(Component, Default)]
 pub struct UiCamera;
@@ -74,13 +78,20 @@ pub fn ui_setup(mut commands: Commands) {
 }
 
 pub fn ui(
-    mut commands: Commands,
+    mut time: ResMut<Time<Virtual>>,
     mut ui_state: ResMut<UiState>,
-    windows: Query<&Window, With<PrimaryWindow>>,
     keys: Res<ButtonInput<KeyCode>>,
     mut egui_contexts: EguiContexts,
 ) {
     let ctx = egui_contexts.ctx_mut();
+
+    if keys.just_pressed(KeyCode::Space) {
+        if time.is_paused() {
+            time.unpause();
+        } else {
+            time.pause();
+        }
+    }
 
     ui_state.top_panel = Some(
         egui::TopBottomPanel::top("top_panel")
@@ -94,7 +105,7 @@ pub fn selected_node_ui(
     mut commands: Commands,
     mut ui_state: ResMut<UiState>,
     mut egui_contexts: EguiContexts,
-    selected_q: Query<&Children, With<SelectedNode>>,
+    selected_q: Query<(&Children, &OpTypeName), With<SelectedNode>>,
     mut params_q: Query<(
         Entity,
         &ParamName,
@@ -104,14 +115,15 @@ pub fn selected_node_ui(
     mut op_name_q: Query<&OpName>,
     op_name_idx: Res<UniqueIndex<OpName>>,
 ) {
-    if let Ok(children) = selected_q.get_single() {
+    if let Ok((children, op_type_name)) = selected_q.get_single() {
         ui_state.node_info = Some(
-            egui::Window::new("node_info")
+            egui::Window::new(&op_type_name.0)
+                .anchor(egui::Align2::LEFT_TOP, egui::Vec2::new(10.0, 30.0))
                 .resizable(false)
                 .collapsible(false)
                 .movable(false)
                 .show(egui_contexts.ctx_mut(), |ui| {
-                    egui::Grid::new("texture_ramp_params").show(ui, |ui| {
+                    egui::Grid::new("op_params").show(ui, |ui| {
                         ui.heading("Params");
                         ui.end_row();
                         ui.separator();
@@ -119,7 +131,7 @@ pub fn selected_node_ui(
                         for entity in children {
                             let (param, name, mut value, script_error) =
                                 params_q.get_mut(*entity).expect("Failed to get param");
-                            ui.label(name.0.clone());
+                            ui.label(&name.0);
                             match value.as_mut() {
                                 ParamValue::Color(color) => {
                                     ui.color_edit_button_rgba_premultiplied(color.as_mut());
@@ -139,7 +151,6 @@ pub fn selected_node_ui(
                                     ui.checkbox(x, "");
                                 }
                                 ParamValue::TextureOp(x) => {
-
                                     let mut name = if let Some(entity) = x {
                                         let name = op_name_q.get(*entity).unwrap();
                                         name.0.clone()

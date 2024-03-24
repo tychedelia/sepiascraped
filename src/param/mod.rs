@@ -1,13 +1,17 @@
-use crate::index::CompositeIndex2Plugin;
-use crate::ui::graph::OpRef;
-use bevy::prelude::*;
 use std::collections::BTreeMap;
+
+use bevy::prelude::*;
+
+use crate::index::CompositeIndex2Plugin;
+use crate::op::OpRef;
 
 pub struct ParamPlugin;
 
 impl Plugin for ParamPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(CompositeIndex2Plugin::<OpRef, ParamName>::new());
+        app.add_plugins(
+            CompositeIndex2Plugin::<OpRef, ParamName>::new()
+        );
     }
 }
 

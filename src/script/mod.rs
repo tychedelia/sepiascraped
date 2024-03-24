@@ -1,41 +1,43 @@
-mod asset;
-mod helper;
+use std::cell::RefCell;
+use std::ops::Deref;
+use std::rc::Rc;
+use std::sync::mpsc::{Receiver, TryRecvError};
 
-use crate::index::{CompositeIndex2, UniqueIndex};
-use crate::param::{ParamName, ParamValue, ScriptedParamError};
-use crate::script::asset::{ProgramCache, Script, ScriptAssetPlugin};
-use crate::script::helper::RustylineHelper;
-use crate::op::texture::types::composite::TextureOpComposite;
-use crate::op::texture::types::noise::TextureOpNoise;
-use crate::op::texture::types::ramp::TextureOpRamp;
-use crate::op::texture::{TextureOp};
-use crate::ui::graph::{ConnectedTo, GraphRef, GraphState, OpRef};
-use crate::OpName;
-use crate::Sets::Params;
 use bevy::app::AppExit;
 use bevy::asset::AssetContainer;
 use bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use colored::Colorize;
+use rand::Rng;
+use rustyline::{DefaultEditor, Editor};
 use rustyline::error::ReadlineError;
 use rustyline::highlight::MatchingBracketHighlighter;
 use rustyline::validate::MatchingBracketValidator;
-use rustyline::{DefaultEditor, Editor};
-use std::cell::RefCell;
-use std::ops::Deref;
-use std::rc::Rc;
-use std::sync::mpsc::{Receiver, TryRecvError};
-use rand::Rng;
 use steel::gc::unsafe_erased_pointers::CustomReference;
 use steel::rvals::{CustomType, IntoSteelVal};
 use steel::steel_vm::engine::Engine;
 use steel::steel_vm::register_fn::RegisterFn;
 use steel::SteelVal;
 use steel_derive::Steel;
+
+use crate::index::{CompositeIndex2, UniqueIndex};
+use crate::op::{OpRef, OpType};
 use crate::op::component::types::window::ComponentOpWindow;
-use crate::op::OpType;
+use crate::op::texture::TextureOp;
+use crate::op::texture::types::composite::TextureOpComposite;
+use crate::op::texture::types::noise::TextureOpNoise;
+use crate::op::texture::types::ramp::TextureOpRamp;
+use crate::OpName;
+use crate::param::{ParamName, ParamValue, ScriptedParamError};
+use crate::script::asset::{ProgramCache, Script, ScriptAssetPlugin};
+use crate::script::helper::RustylineHelper;
+use crate::Sets::Params;
 use crate::ui::event::Connect;
+use crate::ui::graph::{ConnectedTo, GraphRef, GraphState};
+
+mod asset;
+mod helper;
 
 pub struct ScriptPlugin;
 
@@ -133,7 +135,7 @@ fn setup(world: &mut World) {
     let engine = Rc::new(RefCell::new(engine));
     world.insert_non_send_resource(editor);
     world.insert_non_send_resource(LispEngine(engine));
-    let curr_time = world.resource::<Time>().elapsed_seconds();
+    let curr_time = world.resource::<Time<Virtual>>().elapsed_seconds();
     let world_cell = world.as_unsafe_world_cell();
     unsafe {
         world_cell
@@ -189,7 +191,7 @@ fn setup(world: &mut World) {
 }
 
 fn update(world: &mut World) {
-    let curr_time = world.resource::<Time>().elapsed_seconds();
+    let curr_time = world.resource::<Time<Virtual>>().elapsed_seconds();
     let world_cell = world.as_unsafe_world_cell();
     unsafe {
         let mut editor = world_cell

@@ -1,10 +1,10 @@
-use crate::event::SpawnOp;
-use crate::index::UniqueIndexPlugin;
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::plugin::ShapePlugin;
-use crate::op::component::ComponentPlugin;
 
+use crate::event::SpawnOp;
+use crate::index::UniqueIndexPlugin;
+use crate::op::component::ComponentPlugin;
 use crate::op::texture::TexturePlugin;
 use crate::param::ParamPlugin;
 use crate::render::RenderPlugin;

@@ -1,10 +1,11 @@
-use crate::script::LispEngine;
+use bevy::asset::{AssetLoader, AsyncReadExt, BoxedFuture, LoadContext, ron};
 use bevy::asset::io::Reader;
-use bevy::asset::{ron, AssetLoader, AsyncReadExt, BoxedFuture, LoadContext};
 use bevy::prelude::*;
-use bevy::utils::thiserror::Error;
 use bevy::utils::HashMap;
+use bevy::utils::thiserror::Error;
 use steel::compiler::program::RawProgramWithSymbols;
+
+use crate::script::LispEngine;
 
 pub struct ScriptAssetPlugin;
 
