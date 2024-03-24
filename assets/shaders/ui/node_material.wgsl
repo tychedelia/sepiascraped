@@ -11,7 +11,6 @@ struct NodeMaterial {
 
 @fragment
 fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
-
     if (distance(mesh.uv, vec2<f32>(0.5, 0.5)) > 0.7) {
         return vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }

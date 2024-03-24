@@ -188,13 +188,25 @@ pub fn ui(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<NodeMaterial>>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
+    mut asset_server: ResMut<AssetServer>,
     default_image: Res<OpDefaultImage>,
     mut parent: Query<(Entity, &InheritedVisibility), With<InfiniteGridSettings>>,
-    op_q: Query<(Entity, &OpCategory, &OpImage, &OpInputs, &OpOutputs, &GraphId), Added<GraphId>>,
+    op_q: Query<
+        (
+            Entity,
+            &OpName,
+            &OpCategory,
+            &OpImage,
+            &OpInputs,
+            &OpOutputs,
+            &GraphId,
+        ),
+        Added<GraphId>,
+    >,
 ) {
-    for (entity, category, image, input_config, output_config, graph_id) in op_q.iter() {
+    for (entity, name, category, image, input_config, output_config, graph_id) in op_q.iter() {
         let (grid, _) = parent.single_mut();
-        let index = (*graph_id).index() as f32 + 10.0;
+        let index = ((*graph_id).index() as f32 / 100.0) + 10.0;
         let mut rng = rand::thread_rng();
 
         commands.entity(grid).with_children(|parent| {
@@ -209,7 +221,7 @@ pub fn ui(
                         material: materials.add(NodeMaterial {
                             selected: 0,
                             category_color: category.to_color(),
-                            texture: (**image).clone()
+                            texture: (**image).clone(),
                         }),
                         transform: Transform::from_translation(Vec3::new(rng.gen::<f32>() * 80.0, rng.gen::<f32>() * 80.0, index)),
                         ..Default::default()
@@ -221,8 +233,7 @@ pub fn ui(
                     On::<Pointer<Drag>>::run(
                         |drag: ListenerMut<Pointer<Drag>>,
                          projection: Query<&OrthographicProjection, With<UiCamera>>,
-                         mut transform: Query<&mut Transform, With<OpRef>>
-                        | {
+                         mut transform: Query<&mut Transform, With<OpRef>>| {
                             if let Ok(mut transform) = transform.get_mut(drag.target) {
                                 let projection = projection.single();
 
@@ -237,22 +248,34 @@ pub fn ui(
                         OpRefConnection
                     );
                     parent.spawn(
+                        Text2dBundle {
+                            text: Text::from_section(&name.0, TextStyle {
+                                font: asset_server.load("fonts/Compagnon-Light.otf"),
+                                font_size: 10.0,
+                                color: Color::WHITE,
+                                ..default()
+                            }),
+                            transform: Transform::from_translation(Vec3::new(0.0, -40.0, 0.001)),
+                            ..default()
+                        }
+                    );
+                    parent.spawn(
                         MaterialMesh2dBundle {
                             mesh: meshes
                                 .add(Mesh::from(Rectangle::new(90.0, 90.0)))
                                 .into(),
                             material: color_materials.add(default_image.0.clone()),
-                            transform: Transform::from_translation(Vec3::new(0.0, 0.0, -0.1)),
+                            transform: Transform::from_translation(Vec3::new(0.0, 0.0, -0.001)),
                             ..Default::default()
                         }
                     );
                     for i in 0..input_config.count {
                         let offset = -50.0;
-                        spawn_port(&mut meshes, &mut color_materials, parent, InPort(i as u8), Vec3::new(offset, 0.0, -0.2));
+                        spawn_port(&mut meshes, &mut color_materials, parent, InPort(i as u8), Vec3::new(offset, 0.0, -0.002));
                     }
                     for i in 0..output_config.count {
                         let offset = 50.0;
-                        spawn_port(&mut meshes, &mut color_materials, parent, OutPort(i as u8), Vec3::new(offset, 0.0, -0.2));
+                        spawn_port(&mut meshes, &mut color_materials, parent, OutPort(i as u8), Vec3::new(offset, 0.0, -0.002));
                     }
                 });
         });
@@ -445,7 +468,7 @@ fn draw_connection(commands: &mut Commands, start: &Vec2, end: &Vec2, entity: En
             ShapeBundle {
                 path,
                 spatial: SpatialBundle {
-                    transform: Transform::from_translation(Vec3::new(0.0, 0.0, -0.3)),
+                    transform: Transform::from_translation(Vec3::new(0.0, 0.0, -5.03)),
                     ..default()
                 },
                 ..default()
@@ -483,7 +506,9 @@ fn draw_refs(
                         commands.entity(entity).insert((
                             ShapeBundle {
                                 spatial: SpatialBundle {
-                                    transform: Transform::from_translation(Vec3::new(0.0, 0.0, -0.4)),
+                                    transform: Transform::from_translation(Vec3::new(
+                                        0.0, 0.0, -0.4,
+                                    )),
                                     ..default()
                                 },
                                 path: GeometryBuilder::build_as(&Line(start, end)),

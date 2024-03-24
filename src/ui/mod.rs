@@ -7,7 +7,7 @@ use camera::CameraControllerPlugin;
 use crate::index::UniqueIndex;
 use crate::op::texture::TextureOp;
 use crate::op::OpTypeName;
-use crate::param::{ParamName, ParamValue, ScriptedParamError};
+use crate::param::{ParamName, ParamValue, ScriptedParam, ScriptedParamError};
 use crate::ui::event::ClickNode;
 use crate::ui::graph::{GraphPlugin, SelectedNode};
 use crate::ui::grid::InfiniteGridPlugin;
@@ -110,6 +110,7 @@ pub fn selected_node_ui(
         Entity,
         &ParamName,
         &mut ParamValue,
+        Has<ScriptedParam>,
         Option<&ScriptedParamError>,
     )>,
     mut op_name_q: Query<&OpName>,
@@ -131,26 +132,30 @@ pub fn selected_node_ui(
                             ui.separator();
                             ui.end_row();
                             for entity in children {
-                                let (param, name, mut value, script_error) =
+                                let (param, name, mut value, is_scripted, script_error) =
                                     params_q.get_mut(*entity).expect("Failed to get param");
-                                ui.label(&name.0);
+                                ui.label(name.0.to_string() + if is_scripted { " *" } else { "" });
+
+
                                 match value.as_mut() {
                                     ParamValue::Color(color) => {
-                                        ui.color_edit_button_rgba_premultiplied(color.as_mut());
+                                        ui.add_enabled_ui(!is_scripted, |ui| ui.color_edit_button_rgba_premultiplied(color.as_mut()));
                                     }
                                     ParamValue::F32(f) => {
-                                        ui.add(egui::Slider::new(f, 0.0..=100.0));
+                                        ui.add_enabled_ui(!is_scripted, |ui| ui.add(egui::Slider::new(f, 0.0..=100.0)));
                                     }
                                     ParamValue::Vec2(v) => {
-                                        ui.add(egui::DragValue::new(&mut v.x));
-                                        ui.add(egui::DragValue::new(&mut v.y));
+                                        ui.add_enabled_ui(!is_scripted, |ui| {
+                                            ui.add(egui::DragValue::new(&mut v.x));
+                                            ui.add(egui::DragValue::new(&mut v.y));
+                                        });
                                     }
                                     ParamValue::None => {}
                                     ParamValue::U32(x) => {
-                                        ui.add(egui::Slider::new(x, 0..=100));
+                                        ui.add_enabled_ui(!is_scripted, |ui| ui.add(egui::Slider::new(x, 0..=100)));
                                     }
                                     ParamValue::Bool(x) => {
-                                        ui.checkbox(x, "");
+                                        ui.add_enabled_ui(!is_scripted, |ui| ui.checkbox(x, ""));
                                     }
                                     ParamValue::TextureOp(x) | ParamValue::MeshOp(x) => {
                                         let mut name = if let Some(entity) = x {
@@ -159,7 +164,9 @@ pub fn selected_node_ui(
                                         } else {
                                             String::new()
                                         };
-                                        ui.text_edit_singleline(&mut name);
+                                        ui.add_enabled_ui(!is_scripted, |ui| {
+                                            ui.text_edit_singleline(&mut name);
+                                        });
                                         if !name.is_empty() {
                                             if let Some(entity) = op_name_idx.get(&OpName(name)) {
                                                 *x = Some(entity.clone());

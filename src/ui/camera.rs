@@ -1,6 +1,8 @@
 use bevy::input::mouse::MouseWheel;
 use bevy::input::touchpad::TouchpadMagnify;
 use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
+use crate::ui::UiCamera;
 
 #[derive(Component)]
 pub struct CameraController {
@@ -26,7 +28,7 @@ impl Plugin for CameraControllerPlugin {
 fn camera_controller(
     mut evr_touchpad_magnify: EventReader<TouchpadMagnify>,
     mut scroll_evr: EventReader<MouseWheel>,
-    mut query: Query<&mut OrthographicProjection>,
+    mut query: Query<&mut OrthographicProjection, With<UiCamera>>,
 ) {
     if let Ok(mut projection) = query.get_single_mut() {
         // Handle zoom input

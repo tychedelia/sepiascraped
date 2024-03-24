@@ -7,13 +7,13 @@ use bevy::app::AppExit;
 use bevy::asset::AssetContainer;
 use bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell;
 use bevy::prelude::*;
-use bevy::utils::{HashMap, warn};
+use bevy::utils::{warn, HashMap};
 use colored::Colorize;
 use rand::Rng;
-use rustyline::{DefaultEditor, Editor};
 use rustyline::error::ReadlineError;
 use rustyline::highlight::MatchingBracketHighlighter;
 use rustyline::validate::MatchingBracketValidator;
+use rustyline::{DefaultEditor, Editor};
 use steel::gc::unsafe_erased_pointers::CustomReference;
 use steel::rvals::{CustomType, IntoSteelVal};
 use steel::steel_vm::engine::Engine;
@@ -22,21 +22,21 @@ use steel::SteelVal;
 use steel_derive::Steel;
 
 use crate::index::{CompositeIndex2, UniqueIndex};
-use crate::op::{OpRef, OpType};
 use crate::op::component::types::window::ComponentOpWindow;
 use crate::op::material::types::standard::MaterialOpStandard;
 use crate::op::mesh::types::cuboid::MeshOpCuboid;
-use crate::op::texture::TextureOp;
 use crate::op::texture::types::composite::TextureOpComposite;
 use crate::op::texture::types::noise::TextureOpNoise;
 use crate::op::texture::types::ramp::TextureOpRamp;
-use crate::OpName;
-use crate::param::{ParamName, ParamValue, ScriptedParamError};
+use crate::op::texture::TextureOp;
+use crate::op::{OpRef, OpType};
+use crate::param::{ParamName, ParamValue, ScriptedParam, ScriptedParamError};
 use crate::script::asset::{ProgramCache, Script, ScriptAssetPlugin};
 use crate::script::helper::RustylineHelper;
-use crate::Sets::Params;
 use crate::ui::event::Connect;
 use crate::ui::graph::{ConnectedTo, GraphRef, GraphState};
+use crate::OpName;
+use crate::Sets::Params;
 
 mod asset;
 mod helper;
@@ -152,16 +152,13 @@ fn setup(world: &mut World) {
                     .update_value("*world*", world)
                     .expect("TODO: panic message");
                 engine
-                    .update_value(
-                        "*time*",
-                        SteelVal::from(curr_time),
-                    )
+                    .update_value("*time*", SteelVal::from(curr_time))
                     .expect("TODO: panic message");
                 engine
                     .register_fn("-op", op)
                     .register_fn("-op!", op_bang)
                     .register_fn("-param", param)
-                    .register_fn("-param!", set_bang)
+                    .register_fn("-param!", param_bang)
                     .register_fn("-connect!", connect_bang)
                     .register_fn("rand", rand);
                 let prog = engine
@@ -240,10 +237,7 @@ fn update(world: &mut World) {
                     .update_value("*world*", world)
                     .expect("TODO: panic message");
                 engine
-                    .update_value(
-                        "*time*",
-                        SteelVal::from(curr_time),
-                    )
+                    .update_value("*time*", SteelVal::from(curr_time))
                     .expect("TODO: panic message");
                 engine.register_fn("-op", op).register_fn("-param", param);
 
@@ -294,10 +288,7 @@ fn op_bang(world: &mut WorldHolder, ty: String, name: String) -> Option<EntityRe
     let name = OpName(name);
     let entity = match ty.as_str() {
         "ramp" => world.spawn((name, OpType::<TextureOpRamp>::default())),
-        "composite" => world.spawn((
-            name,
-            OpType::<TextureOpComposite>::default(),
-        )),
+        "composite" => world.spawn((name, OpType::<TextureOpComposite>::default())),
         "noise" => world.spawn((name, OpType::<TextureOpNoise>::default())),
         "window" => world.spawn((name, OpType::<ComponentOpWindow>::default())),
         "cuboid" => world.spawn((name, OpType::<MeshOpCuboid>::default())),
@@ -319,13 +310,21 @@ fn op(world: &mut WorldHolder, name: String) -> Option<EntityRef> {
     }
 }
 
-fn set_bang(world: &mut WorldHolder, entity: EntityRef, name: String, val: SteelVal) {
+fn param_bang(world: &mut WorldHolder, entity: EntityRef, name: String, val: SteelVal) {
     let world = unsafe { world.world_mut() };
-    let index = world.get_resource::<CompositeIndex2<OpRef, ParamName>>().unwrap();
+    let index = world
+        .get_resource::<CompositeIndex2<OpRef, ParamName>>()
+        .unwrap();
     let name = ParamName(name);
     if let Some(entity) = index.get(&(OpRef(*entity), name.clone())) {
-        let mut param = world.get_mut::<ParamValue>(*entity).unwrap();
-        update_param(&mut param, val);
+        let entity = *entity;
+        world.entity_mut(entity.clone()).insert(ScriptedParam);
+        let mut param = world.get_mut::<ParamValue>(entity.clone()).unwrap();
+        if let Err(e) = update_param(&mut param, val) {
+            world
+                .entity_mut(entity)
+                .insert(ScriptedParamError(e.to_string()));
+        }
     } else {
     }
 }
@@ -362,126 +361,140 @@ fn connect_bang(world: &mut WorldHolder, output: EntityRef, input: EntityRef) ->
     SteelVal::Void
 }
 
-
 fn rand(min: f32, max: f32) -> f32 {
     let mut rng = rand::thread_rng();
     rng.gen_range(min..max)
 }
 
-fn update_param(param_value: &mut ParamValue, steel_val: SteelVal) {
+#[non_exhaustive]
+#[derive(Debug, thiserror::Error)]
+pub enum ScriptError {
+    #[error("Could not convert value: {0}")]
+    Conversion(SteelVal),
+}
+
+fn update_param(param_value: &mut ParamValue, steel_val: SteelVal) -> Result<(), ScriptError> {
     match param_value {
         ParamValue::None => {}
-        ParamValue::F32(p) => {
-            match steel_val {
-                SteelVal::NumV(n) => *p = n as f32,
-                SteelVal::IntV(n) => *p = n as f32,
-                _ => warn!("Mismatched type"),
-            }
-        }
-        ParamValue::U32(p) => {
-            match steel_val {
-                SteelVal::NumV(n) => *p = n as u32,
-                SteelVal::IntV(n) => *p = n as u32,
-                _ => warn!("Mismatched type"),
-            }
-        }
-        ParamValue::Vec2(p) => {
-            match steel_val {
-                SteelVal::ListV(v) => {
-                    let mut iter = v.into_iter();
-                    let x = iter.next().unwrap();
-                    let y = iter.next().unwrap();
-                    match (x, y) {
-                        (SteelVal::NumV(x), SteelVal::NumV(y)) => {
-                            p.x = x as f32;
-                            p.y = y as f32;
-                        }
-                        (SteelVal::IntV(x), SteelVal::IntV(y)) => {
-                            p.x = x as f32;
-                            p.y = y as f32;
-                        }
-                        _ => warn!("Mismatched type"),
+        ParamValue::F32(p) => match steel_val {
+            SteelVal::NumV(n) => *p = n as f32,
+            SteelVal::IntV(n) => *p = n as f32,
+            _ => return Err(ScriptError::Conversion(steel_val)),
+        },
+        ParamValue::U32(p) => match steel_val {
+            SteelVal::NumV(n) => *p = n as u32,
+            SteelVal::IntV(n) => *p = n as u32,
+            _ => return Err(ScriptError::Conversion(steel_val)),
+        },
+        ParamValue::Vec2(p) => match steel_val {
+            SteelVal::ListV(ref v) => {
+                let mut iter = v.into_iter();
+                let x = iter.next().unwrap();
+                let y = iter.next().unwrap();
+                match (x, y) {
+                    (SteelVal::NumV(x), SteelVal::NumV(y)) => {
+                        p.x = *x as f32;
+                        p.y = *y as f32;
                     }
-                }
-                _ => warn!("Mismatched type"),
-            }
-        }
-        ParamValue::Color(p) => {
-            match steel_val {
-                SteelVal::ListV(v) => {
-                    let mut iter = v.into_iter();
-                    let r = iter.next().unwrap();
-                    let g = iter.next().unwrap();
-                    let b = iter.next().unwrap();
-                    let a = iter.next().unwrap();
-                    match (r, g, b, a) {
-                        (SteelVal::NumV(r), SteelVal::NumV(g), SteelVal::NumV(b), SteelVal::NumV(a)) => {
-                            p.x = r as f32;
-                            p.y = g as f32;
-                            p.z = b as f32;
-                            p.w = a as f32;
-                        }
-                        (SteelVal::IntV(r), SteelVal::IntV(g), SteelVal::IntV(b), SteelVal::IntV(a)) => {
-                            p.x = r as f32;
-                            p.y = g as f32;
-                            p.z = b as f32;
-                            p.w = a as f32;
-                        }
-                        _ => warn!("Mismatched type"),
+                    (SteelVal::IntV(x), SteelVal::IntV(y)) => {
+                        p.x = *x as f32;
+                        p.y = *y as f32;
                     }
+                    _ => return Err(ScriptError::Conversion(steel_val)),
                 }
-                SteelVal::VectorV(v) => {
-                    let mut iter = v.iter();
-                    let r = iter.next().unwrap();
-                    let g = iter.next().unwrap();
-                    let b = iter.next().unwrap();
-                    let a = iter.next().unwrap();
-                    match (r, g, b, a) {
-                        (SteelVal::NumV(r), SteelVal::NumV(g), SteelVal::NumV(b), SteelVal::NumV(a)) => {
-                            p.x = *r as f32;
-                            p.y = *g as f32;
-                            p.z = *b as f32;
-                            p.w = *a as f32;
-                        }
-                        (SteelVal::IntV(r), SteelVal::IntV(g), SteelVal::IntV(b), SteelVal::IntV(a)) => {
-                            p.x = *r as f32;
-                            p.y = *g as f32;
-                            p.z = *b as f32;
-                            p.w = *a as f32;
-                        }
-                        _ => warn!("Mismatched type"),
+            }
+            _ => return Err(ScriptError::Conversion(steel_val)),
+        },
+        ParamValue::Color(p) => match steel_val {
+            SteelVal::ListV(ref v) => {
+                let mut iter = v.into_iter();
+                let r = iter.next().unwrap();
+                let g = iter.next().unwrap();
+                let b = iter.next().unwrap();
+                let a = iter.next().unwrap();
+                match (r, g, b, a) {
+                    (
+                        SteelVal::NumV(r),
+                        SteelVal::NumV(g),
+                        SteelVal::NumV(b),
+                        SteelVal::NumV(a),
+                    ) => {
+                        p.x = *r as f32;
+                        p.y = *g as f32;
+                        p.z = *b as f32;
+                        p.w = *a as f32;
                     }
+                    (
+                        SteelVal::IntV(r),
+                        SteelVal::IntV(g),
+                        SteelVal::IntV(b),
+                        SteelVal::IntV(a),
+                    ) => {
+                        p.x = *r as f32;
+                        p.y = *g as f32;
+                        p.z = *b as f32;
+                        p.w = *a as f32;
+                    }
+                    _ => return Err(ScriptError::Conversion(steel_val)),
                 }
-                _ => warn!("Mismatched type"),
             }
-        }
-        ParamValue::Bool(p) => {
-            match steel_val {
-                SteelVal::BoolV(b) => *p = b,
-                _ => warn!("Mismatched type"),
-            }
-        }
-        ParamValue::TextureOp(p) => {
-            match steel_val {
-                SteelVal::Custom(mut c) => {
-                    let custom = c.borrow_mut();
-                    let entity = custom.as_any_ref().downcast_ref::<EntityRef>().unwrap();
-                    *p = Some(entity.0.clone());
+            SteelVal::VectorV(ref v) => {
+                let mut iter = v.iter();
+                let r = iter.next().unwrap();
+                let g = iter.next().unwrap();
+                let b = iter.next().unwrap();
+                let a = iter.next().unwrap();
+                match (r, g, b, a) {
+                    (
+                        SteelVal::NumV(r),
+                        SteelVal::NumV(g),
+                        SteelVal::NumV(b),
+                        SteelVal::NumV(a),
+                    ) => {
+                        p.x = *r as f32;
+                        p.y = *g as f32;
+                        p.z = *b as f32;
+                        p.w = *a as f32;
+                    }
+                    (
+                        SteelVal::IntV(r),
+                        SteelVal::IntV(g),
+                        SteelVal::IntV(b),
+                        SteelVal::IntV(a),
+                    ) => {
+                        p.x = *r as f32;
+                        p.y = *g as f32;
+                        p.z = *b as f32;
+                        p.w = *a as f32;
+                    }
+                    _ => return Err(ScriptError::Conversion(steel_val)),
                 }
-                _ => warn!("Mismatched type"),
             }
-        }
-        ParamValue::MeshOp(p) => {
-            match steel_val {
-                SteelVal::Custom(mut c) => {
-                    let custom = c.borrow_mut();
-                    let entity = custom.as_any_ref().downcast_ref::<EntityRef>().unwrap();
-                    *p = Some(entity.0.clone());
-                }
-                _ => warn!("Mismatched type"),
+            _ => return Err(ScriptError::Conversion(steel_val)),
+        },
+        ParamValue::Bool(p) => match steel_val {
+            SteelVal::BoolV(b) => *p = b,
+            _ => return Err(ScriptError::Conversion(steel_val)),
+        },
+        ParamValue::TextureOp(p) => match steel_val {
+            SteelVal::Custom(mut c) => {
+                let custom = c.borrow_mut();
+                let entity = custom.as_any_ref().downcast_ref::<EntityRef>().unwrap();
+                *p = Some(entity.0.clone());
             }
-        }
+            _ => return Err(ScriptError::Conversion(steel_val)),
+        },
+        ParamValue::MeshOp(p) => match steel_val {
+            SteelVal::Custom(mut c) => {
+                let custom = c.borrow_mut();
+                let entity = custom.as_any_ref().downcast_ref::<EntityRef>().unwrap();
+                *p = Some(entity.0.clone());
+            }
+            _ => return Err(ScriptError::Conversion(steel_val)),
+        },
     }
+
+    Ok(())
 }
 
 impl From<ParamValue> for SteelVal {
@@ -499,18 +512,14 @@ impl From<ParamValue> for SteelVal {
                 vec![x, y].into_steelval().unwrap()
             }
             ParamValue::Bool(x) => SteelVal::from(x),
-            ParamValue::TextureOp(x) => {
-                match x {
-                    None => SteelVal::Void,
-                    Some(x) => EntityRef(x).into_steelval().unwrap()
-                }
-            }
-            ParamValue::MeshOp(x) => {
-                match x {
-                    None => SteelVal::Void,
-                    Some(x) => EntityRef(x).into_steelval().unwrap()
-                }
-            }
+            ParamValue::TextureOp(x) => match x {
+                None => SteelVal::Void,
+                Some(x) => EntityRef(x).into_steelval().unwrap(),
+            },
+            ParamValue::MeshOp(x) => match x {
+                None => SteelVal::Void,
+                Some(x) => EntityRef(x).into_steelval().unwrap(),
+            },
         }
     }
 }
