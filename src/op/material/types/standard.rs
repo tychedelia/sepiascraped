@@ -1,45 +1,70 @@
-use std::f32::consts::PI;
+use std::ops::Deref;
 use bevy::ecs::system::lifetimeless::*;
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
-use bevy::render::render_resource::{Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages};
+use bevy::render::render_resource::{
+    Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+};
 use bevy::render::view::RenderLayers;
 use bevy::utils::HashMap;
 
-use crate::op::mesh::{MeshOpBundle, MeshOpHandle};
+use crate::op::material::{MaterialOpBundle, MaterialOpHandle};
 use crate::op::{Op, OpImage, OpInputs, OpOutputs, OpPlugin, OpType};
-use crate::param::ParamBundle;
+use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 
 #[derive(Default)]
-pub struct MeshOpCuboidPlugin;
+pub struct MaterialOpCuboidPlugin;
 
-impl Plugin for MeshOpCuboidPlugin {
+impl Plugin for MaterialOpCuboidPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(OpPlugin::<MeshOpCuboid>::default());
+        app.add_plugins(OpPlugin::<MaterialOpCuboid>::default());
     }
 }
 
 #[derive(Component, Clone, Default, Debug)]
-pub struct MeshOpCuboid;
+pub struct MaterialOpCuboid;
 
-impl Op for MeshOpCuboid {
-    type OpType = OpType<MeshOpCuboid>;
-    type UpdateParam = (SCommands,);
+impl Op for MaterialOpCuboid {
+    type OpType = OpType<MaterialOpCuboid>;
+    type UpdateParam = (
+        SResMut<Assets<StandardMaterial>>,
+        SQuery<Read<OpImage>>,
+        SQuery<(Read<Children>, Read<MaterialOpHandle<StandardMaterial>>)>,
+        SQuery<(Read<ParamName>, Read<ParamValue>)>,
+    );
     type BundleParam = (
         SCommands,
-        SResMut<Assets<Mesh>>,
-        SResMut<Assets<Image>>,
         SResMut<Assets<StandardMaterial>>,
+        SResMut<Assets<Image>>,
         SQuery<Read<RenderLayers>, With<Camera>>,
     );
-    type Bundle = (MeshOpBundle, RenderLayers);
+    type Bundle = (MaterialOpBundle<StandardMaterial>, RenderLayers);
 
-    fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>) {}
+    fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>) {
+        let (materials, image_q, self_q, params_q) = param;
+
+        let (children, handle) = self_q
+            .get_mut(entity)
+            .expect("Expected update entity to exist in self_q");
+
+        for (param_name, param_value) in params_q.iter_many(children) {
+            match param_name.0.as_str() {
+                "Texture" => {
+                    if let ParamValue::TextureOp(Some(texture_entity)) = param_value {
+                        let material = materials.get_mut(&**handle).unwrap();
+                        let texture = image_q.get(*texture_entity).unwrap();
+                        material.base_color_texture = Some(texture.deref().clone());
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
 
     fn create_bundle<'w>(
         entity: Entity,
-        (commands, meshes, images, materials, render_layer_q): &mut SystemParamItem<
+        (commands, materials, images, render_layer_q): &mut SystemParamItem<
             'w,
             '_,
             Self::BundleParam,
@@ -54,8 +79,6 @@ impl Op for MeshOpCuboid {
         if new_layer > 32 {
             panic!("Too many layers");
         }
-
-        let mesh = meshes.add(Mesh::from(Cuboid::default()));
 
         let size = Extent3d {
             width: 512,
@@ -85,8 +108,7 @@ impl Op for MeshOpCuboid {
 
         commands.spawn((
             Camera3dBundle {
-                transform: Transform::from_xyz(0.0, 0.0, 4.0)
-                    .looking_at(Vec3::ZERO, Vec3::Y),
+                transform: Transform::from_xyz(0.0, 0.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
                 camera: Camera {
                     target: RenderTarget::Image(image.clone()),
                     ..default()
@@ -97,15 +119,8 @@ impl Op for MeshOpCuboid {
         ));
 
         (
-            MeshOpBundle {
-                mesh: MeshOpHandle(mesh.clone()),
-                pbr: PbrBundle {
-                    mesh,
-                    material: materials.add(Color::GRAY),
-                    transform: Transform::from_xyz(0.0, 0.0, 0.0)
-                        .with_rotation(Quat::from_rotation_x(-PI / 4.0)),
-                    ..default()
-                },
+            MaterialOpBundle {
+                material: MaterialOpHandle(materials.add(StandardMaterial::default())),
                 image: OpImage(image),
                 inputs: OpInputs {
                     count: Self::INPUTS,
@@ -120,6 +135,11 @@ impl Op for MeshOpCuboid {
     }
 
     fn params() -> Vec<ParamBundle> {
-        vec![]
+        vec![ParamBundle {
+            name: ParamName("Texture".to_string()),
+            value: ParamValue::TextureOp(None),
+            order: ParamOrder(0),
+            ..default()
+        }]
     }
 }

@@ -1,12 +1,13 @@
 use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle};
-use bevy::utils::{HashMap, info};
-use bevy_mod_picking::PickableBundle;
+use bevy::utils::{info, HashMap};
 use bevy_mod_picking::prelude::*;
+use bevy_mod_picking::PickableBundle;
 use bevy_prototype_lyon::draw::Stroke;
 use bevy_prototype_lyon::path::PathBuilder;
-use bevy_prototype_lyon::prelude::ShapeBundle;
+use bevy_prototype_lyon::prelude::{GeometryBuilder, ShapeBundle};
+use bevy_prototype_lyon::shapes::Line;
 use layout::core::base::Orientation;
 use layout::core::geometry::Point;
 use layout::core::style::StyleAttr;
@@ -16,12 +17,13 @@ use layout::topo::placer::Placer;
 use petgraph::stable_graph::{DefaultIx, IndexType, NodeIndex};
 use rand::{random, Rng};
 
-use crate::{OpName, Sets};
-use crate::op::{OpInputs, OpOutputs, OpRef, OpDefaultImage, OpImage};
 use crate::op::texture::TextureOp;
+use crate::op::{OpDefaultImage, OpImage, OpInputs, OpOutputs, OpRef};
+use crate::param::ParamValue;
 use crate::ui::event::{ClickNode, Connect, Disconnect};
 use crate::ui::grid::InfiniteGridSettings;
 use crate::ui::UiCamera;
+use crate::{OpName, Sets};
 
 pub struct GraphPlugin;
 
@@ -37,8 +39,9 @@ impl Plugin for GraphPlugin {
                 (
                     ui.in_set(Sets::Ui),
                     add_graph_ids.in_set(Sets::Ui),
+                    draw_refs.in_set(Sets::Ui),
+                    update_connections.in_set(Sets::Ui),
                     update_graph.in_set(Sets::Graph),
-                    update_connections.in_set(Sets::Graph),
                     click_node.run_if(on_event::<ClickNode>()),
                     update_graph_refs.in_set(Sets::Graph),
                 ),
@@ -81,6 +84,9 @@ pub struct ConnectedTo(Entity);
 
 #[derive(Component, Debug)]
 pub struct NodeRoot;
+
+#[derive(Component, Debug)]
+pub struct OpRefConnection;
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Resources
@@ -182,16 +188,7 @@ pub fn ui(
     mut color_materials: ResMut<Assets<ColorMaterial>>,
     default_image: Res<OpDefaultImage>,
     mut parent: Query<(Entity, &InheritedVisibility), With<InfiniteGridSettings>>,
-    op_q: Query<
-        (
-            Entity,
-            &OpImage,
-            &OpInputs,
-            &OpOutputs,
-            &GraphId,
-        ),
-        Added<GraphId>,
-    >,
+    op_q: Query<(Entity, &OpImage, &OpInputs, &OpOutputs, &GraphId), Added<GraphId>>,
 ) {
     for (entity, image, input_config, output_config, graph_id) in op_q.iter() {
         let (grid, _) = parent.single_mut();
@@ -233,6 +230,9 @@ pub fn ui(
                     ),
                 ))
                 .with_children(|parent| {
+                    parent.spawn(
+                        OpRefConnection
+                    );
                     parent.spawn(
                         MaterialMesh2dBundle {
                             mesh: meshes
@@ -451,6 +451,45 @@ fn draw_connection(commands: &mut Commands, start: &Vec2, end: &Vec2, entity: En
             Pickable::IGNORE,
         ));
     });
+}
+
+fn draw_refs(
+    mut commands: Commands,
+    params_q: Query<(&ParamValue, &Parent)>,
+    graph_q: Query<&GraphRef>,
+    transform_q: Query<&GlobalTransform>,
+    children_q: Query<&Children, With<NodeRoot>>,
+    op_ref_connection_q: Query<Entity, With<OpRefConnection>>,
+) {
+    for (param_value, parent) in params_q.iter() {
+        match param_value {
+            ParamValue::TextureOp(Some(entity)) | ParamValue::MeshOp(Some(entity)) => {
+                let parent = parent.get();
+                let from_graph_ref = graph_q.get(parent).unwrap();
+                let to_graph_ref = graph_q.get(*entity).unwrap();
+                let from_transform = transform_q.get(from_graph_ref.0).unwrap();
+                let to_transform = transform_q.get(to_graph_ref.0).unwrap();
+                let from_children = children_q.get(from_graph_ref.0).unwrap();
+
+                let start = Vec2::ZERO;
+                let end = to_transform.translation().xy() - from_transform.translation().xy();
+
+                for child in from_children.iter() {
+                    let entity = *child;
+                    if let Ok(entity) = op_ref_connection_q.get(entity) {
+                        commands.entity(entity).insert((
+                            ShapeBundle {
+                                path: GeometryBuilder::build_as(&Line(start, end)),
+                                ..default()
+                            },
+                            Stroke::new(Color::GRAY, 1.5),
+                        ));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 fn update_connections(

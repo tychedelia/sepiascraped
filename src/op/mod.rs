@@ -13,6 +13,7 @@ use crate::Sets;
 pub mod component;
 pub mod mesh;
 pub mod texture;
+pub mod material;
 
 #[derive(Default)]
 pub struct OpPlugin<T: Op> {

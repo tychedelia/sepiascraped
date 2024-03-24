@@ -7,7 +7,7 @@ use bevy::app::AppExit;
 use bevy::asset::AssetContainer;
 use bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell;
 use bevy::prelude::*;
-use bevy::utils::HashMap;
+use bevy::utils::{HashMap, warn};
 use colored::Colorize;
 use rand::Rng;
 use rustyline::{DefaultEditor, Editor};
@@ -466,7 +466,17 @@ fn update_param(param_value: &mut ParamValue, steel_val: SteelVal) {
                     let entity = custom.as_any_ref().downcast_ref::<EntityRef>().unwrap();
                     *p = Some(entity.0.clone());
                 }
-                _ => {}
+                _ => warn!("Mismatched type"),
+            }
+        }
+        ParamValue::MeshOp(p) => {
+            match steel_val {
+                SteelVal::Custom(mut c) => {
+                    let custom = c.borrow_mut();
+                    let entity = custom.as_any_ref().downcast_ref::<EntityRef>().unwrap();
+                    *p = Some(entity.0.clone());
+                }
+                _ => warn!("Mismatched type"),
             }
         }
     }
@@ -488,6 +498,12 @@ impl From<ParamValue> for SteelVal {
             }
             ParamValue::Bool(x) => SteelVal::from(x),
             ParamValue::TextureOp(x) => {
+                match x {
+                    None => SteelVal::Void,
+                    Some(x) => EntityRef(x).into_steelval().unwrap()
+                }
+            }
+            ParamValue::MeshOp(x) => {
                 match x {
                     None => SteelVal::Void,
                     Some(x) => EntityRef(x).into_steelval().unwrap()

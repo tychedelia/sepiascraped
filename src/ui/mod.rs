@@ -150,7 +150,7 @@ pub fn selected_node_ui(
                                 ParamValue::Bool(x) => {
                                     ui.checkbox(x, "");
                                 }
-                                ParamValue::TextureOp(x) => {
+                                ParamValue::TextureOp(x) | ParamValue::MeshOp(x) => {
                                     let mut name = if let Some(entity) = x {
                                         let name = op_name_q.get(*entity).unwrap();
                                         name.0.clone()

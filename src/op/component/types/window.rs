@@ -7,7 +7,7 @@ use bevy::render::view::RenderLayers;
 use bevy::window::WindowRef;
 
 use crate::index::CompositeIndex2;
-use crate::op::{Op, OpPlugin, OpType};
+use crate::op::{Op, OpInputs, OpOutputs, OpPlugin, OpType};
 use crate::op::OpRef;
 use crate::op::OpImage;
 use crate::OpName;
@@ -42,7 +42,7 @@ impl Op for ComponentOpWindow {
         SRes<Assets<Image>>,
     );
     type BundleParam = (SQuery<Read<OpName>>, SQuery<Entity, With<Window>>);
-    type Bundle = (Window, Camera2dBundle, RenderLayers);
+    type Bundle = (Window, Camera2dBundle, RenderLayers, OpImage, OpInputs, OpOutputs);
 
     fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>) {
         let (commands, self_q, texture_q, param_q, param_index, images) = param;
@@ -86,6 +86,7 @@ impl Op for ComponentOpWindow {
 
         commands
             .entity(entity)
+            .insert(OpImage(texture.0.clone()))
             .insert(SpriteBundle {
                 texture: texture.0.clone(),
                 ..default()
@@ -116,6 +117,9 @@ impl Op for ComponentOpWindow {
                 ..default()
             },
             RenderLayers::layer(count as u8),
+            OpImage::default(),
+            OpInputs::default(),
+            OpOutputs::default(),
         )
     }
 

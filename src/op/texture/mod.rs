@@ -150,8 +150,7 @@ macro_rules! impl_op {
                 <$name as TextureOp>::update_uniform(&mut uniform, &params)
             }
 
-            fn create_bundle<'w>(entity: bevy::prelude::Entity, (mut images): &mut bevy::ecs::system::SystemParamItem<'w, '_, Self::BundleParam>) -> Self::Bundle
-            {
+            fn create_bundle<'w>(entity: bevy::prelude::Entity, (mut images): &mut bevy::ecs::system::SystemParamItem<'w, '_, Self::BundleParam>) -> Self::Bundle {
                 let size = bevy::render::render_resource::Extent3d {
                     width: 512,
                     height: 512,
