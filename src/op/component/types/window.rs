@@ -8,10 +8,12 @@ use bevy::window::WindowRef;
 
 use crate::index::CompositeIndex2;
 use crate::op::{Op, OpInputs, OpOutputs, OpPlugin, OpType};
+use crate::op::component::CATEGORY;
 use crate::op::OpRef;
 use crate::op::OpImage;
 use crate::OpName;
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
+use crate::render_layers::RenderLayerManager;
 
 #[derive(Default)]
 pub struct ComponentOpWindowPlugin;
@@ -29,6 +31,7 @@ pub struct WindowTexture(Entity);
 pub struct ComponentOpWindow;
 
 impl Op for ComponentOpWindow {
+    const CATEGORY: &'static str = CATEGORY;
     type OpType = OpType<ComponentOpWindow>;
     type UpdateParam = (
         SCommands,
@@ -41,7 +44,7 @@ impl Op for ComponentOpWindow {
         SRes<CompositeIndex2<OpRef, ParamName>>,
         SRes<Assets<Image>>,
     );
-    type BundleParam = (SQuery<Read<OpName>>, SQuery<Entity, With<Window>>);
+    type BundleParam = (SQuery<Read<OpName>>, SResMut<RenderLayerManager>);
     type Bundle = (Window, Camera2dBundle, RenderLayers, OpImage, OpInputs, OpOutputs);
 
     fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>) {
@@ -96,13 +99,8 @@ impl Op for ComponentOpWindow {
 
     fn create_bundle<'w>(
         entity: Entity,
-        (name_q, count_q): &mut SystemParamItem<'w, '_, Self::BundleParam>,
+        (name_q, layer_manager): &mut SystemParamItem<'w, '_, Self::BundleParam>,
     ) -> Self::Bundle {
-        let mut count = count_q.iter().count();
-        if count > 32 {
-            panic!("Too many windows")
-        }
-
         let name = name_q.get(entity).unwrap();
         (
             Window {
@@ -116,7 +114,7 @@ impl Op for ComponentOpWindow {
                 },
                 ..default()
             },
-            RenderLayers::layer(count as u8),
+            RenderLayers::layer(layer_manager.next_open_layer()),
             OpImage::default(),
             OpInputs::default(),
             OpOutputs::default(),

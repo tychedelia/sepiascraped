@@ -7,13 +7,14 @@ use bevy::render::extract_component::ExtractComponent;
 use bevy::utils::HashMap;
 
 use crate::event::SpawnOp;
+use crate::index::UniqueIndexPlugin;
 use crate::param::ParamBundle;
-use crate::Sets;
+use crate::{OpName, Sets};
 
 pub mod component;
+pub mod material;
 pub mod mesh;
 pub mod texture;
-pub mod material;
 
 #[derive(Default)]
 pub struct OpPlugin<T: Op> {
@@ -21,8 +22,8 @@ pub struct OpPlugin<T: Op> {
 }
 
 impl<T> Plugin for OpPlugin<T>
-    where
-        T: Op + Component + Send + Sync + Debug + 'static,
+where
+    T: Op + Component + Send + Sync + Debug + 'static,
 {
     fn build(&self, app: &mut App) {
         app.add_systems(
@@ -53,9 +54,46 @@ where
     }
 }
 
+#[derive(Component, Clone, Debug)]
+pub struct OpCategory(&'static str);
+
+impl OpCategory {
+    pub fn to_color(&self) -> Color {
+        match self.0 {
+            "Component" => Color::SILVER,
+            "Material" => Color::ORANGE,
+            "Mesh" => Color::TEAL,
+            "Texture" => Color::PURPLE,
+            _ => panic!("Unknown category: {}", self.0),
+        }
+    }
+}
+
+#[derive(Component, ExtractComponent, Clone, Default, Debug)]
+pub struct OpInputs {
+    pub(crate) count: usize,
+    pub(crate) connections: HashMap<Entity, Handle<Image>>,
+}
+
+impl OpInputs {
+    pub fn is_fully_connected(&self) -> bool {
+        self.count == 0 || self.connections.len() == self.count
+    }
+}
+
+#[derive(Component, Default)]
+pub struct OpOutputs {
+    pub(crate) count: usize,
+}
+
+#[derive(Component, Clone, Debug, Deref, DerefMut, ExtractComponent, Default)]
+pub struct OpImage(pub Handle<Image>);
+
+
 pub trait Op {
     const INPUTS: usize = 0;
     const OUTPUTS: usize = 0;
+    const CATEGORY: &'static str;
 
     /// The type of the op.
     type OpType: Debug + Component + ExtractComponent + Send + Sync + 'static;
@@ -105,7 +143,11 @@ fn spawn<'w, 's, T>(
         let bundle = T::create_bundle(entity, &mut param);
         commands
             .entity(entity)
-            .insert((OpTypeName(OpType::<T>::name().to_string()), bundle))
+            .insert((
+                OpCategory(T::CATEGORY),
+                OpTypeName(OpType::<T>::name().to_string()),
+                bundle,
+            ))
             .with_children(|parent| {
                 T::params().into_iter().for_each(|param| {
                     parent.spawn((OpRef(parent.parent_entity()), param));
@@ -115,26 +157,6 @@ fn spawn<'w, 's, T>(
         spawn_op_evt.send(SpawnOp(entity));
     }
 }
-
-#[derive(Component, ExtractComponent, Clone, Default, Debug)]
-pub struct OpInputs {
-    pub(crate) count: usize,
-    pub(crate) connections: HashMap<Entity, Handle<Image>>,
-}
-
-impl OpInputs {
-    pub fn is_fully_connected(&self) -> bool {
-        self.count == 0 || self.connections.len() == self.count
-    }
-}
-
-#[derive(Component, Default)]
-pub struct OpOutputs {
-    pub(crate) count: usize,
-}
-
-#[derive(Component, Clone, Debug, Deref, DerefMut, ExtractComponent, Default)]
-pub struct OpImage(pub Handle<Image>);
 
 #[derive(Resource, Clone, Default)]
 pub struct OpDefaultImage(pub Handle<Image>);

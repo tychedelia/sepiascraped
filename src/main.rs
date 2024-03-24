@@ -10,6 +10,7 @@ use crate::op::mesh::MeshPlugin;
 use crate::op::texture::TexturePlugin;
 use crate::param::ParamPlugin;
 use crate::render::RenderPlugin;
+use crate::render_layers::{RenderLayerManager, RenderLayerPlugin};
 use crate::script::ScriptPlugin;
 use crate::ui::UiPlugin;
 
@@ -20,6 +21,7 @@ mod param;
 mod render;
 mod script;
 mod ui;
+mod render_layers;
 
 fn main() {
     let mut app = App::new();
@@ -36,6 +38,7 @@ fn main() {
         ComponentPlugin,
         UiPlugin,
         ShapePlugin,
+        RenderLayerPlugin,
         UniqueIndexPlugin::<OpName>::default(),
     ))
     .add_event::<SpawnOp>()

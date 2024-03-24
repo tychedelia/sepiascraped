@@ -18,7 +18,7 @@ use petgraph::stable_graph::{DefaultIx, IndexType, NodeIndex};
 use rand::{random, Rng};
 
 use crate::op::texture::TextureOp;
-use crate::op::{OpDefaultImage, OpImage, OpInputs, OpOutputs, OpRef};
+use crate::op::{OpCategory, OpDefaultImage, OpImage, OpInputs, OpOutputs, OpRef};
 use crate::param::ParamValue;
 use crate::ui::event::{ClickNode, Connect, Disconnect};
 use crate::ui::grid::InfiniteGridSettings;
@@ -107,6 +107,8 @@ pub struct GraphState {
 pub struct NodeMaterial {
     #[uniform(0)]
     pub selected: u32,
+    #[uniform(0)]
+    pub category_color: Color,
     #[texture(1)]
     #[sampler(2)]
     pub texture: Handle<Image>,
@@ -188,9 +190,9 @@ pub fn ui(
     mut color_materials: ResMut<Assets<ColorMaterial>>,
     default_image: Res<OpDefaultImage>,
     mut parent: Query<(Entity, &InheritedVisibility), With<InfiniteGridSettings>>,
-    op_q: Query<(Entity, &OpImage, &OpInputs, &OpOutputs, &GraphId), Added<GraphId>>,
+    op_q: Query<(Entity, &OpCategory, &OpImage, &OpInputs, &OpOutputs, &GraphId), Added<GraphId>>,
 ) {
-    for (entity, image, input_config, output_config, graph_id) in op_q.iter() {
+    for (entity, category, image, input_config, output_config, graph_id) in op_q.iter() {
         let (grid, _) = parent.single_mut();
         let index = (*graph_id).index() as f32 + 10.0;
         let mut rng = rand::thread_rng();
@@ -206,6 +208,7 @@ pub fn ui(
                             .into(),
                         material: materials.add(NodeMaterial {
                             selected: 0,
+                            category_color: category.to_color(),
                             texture: (**image).clone()
                         }),
                         transform: Transform::from_translation(Vec3::new(rng.gen::<f32>() * 80.0, rng.gen::<f32>() * 80.0, index)),
@@ -442,7 +445,7 @@ fn draw_connection(commands: &mut Commands, start: &Vec2, end: &Vec2, entity: En
             ShapeBundle {
                 path,
                 spatial: SpatialBundle {
-                    transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
+                    transform: Transform::from_translation(Vec3::new(0.0, 0.0, -0.3)),
                     ..default()
                 },
                 ..default()
@@ -480,7 +483,7 @@ fn draw_refs(
                         commands.entity(entity).insert((
                             ShapeBundle {
                                 spatial: SpatialBundle {
-                                    transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
+                                    transform: Transform::from_translation(Vec3::new(0.0, 0.0, -0.4)),
                                     ..default()
                                 },
                                 path: GeometryBuilder::build_as(&Line(start, end)),

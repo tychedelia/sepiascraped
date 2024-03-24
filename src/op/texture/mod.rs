@@ -38,6 +38,8 @@ use crate::ui::UiState;
 pub mod render;
 pub mod types;
 
+pub const CATEGORY: &str = "Texture";
+
 pub struct TexturePlugin;
 
 impl Plugin for TexturePlugin {
@@ -123,6 +125,7 @@ pub struct TextureOpBundle {
 macro_rules! impl_op {
     ($name:ident, $inputs:expr, $outputs:expr) => {
         impl crate::op::Op for $name {
+            const CATEGORY : &'static str = crate::op::texture::CATEGORY;
             const INPUTS: usize = $inputs;
             const OUTPUTS: usize = $outputs;
 

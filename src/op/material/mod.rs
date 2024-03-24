@@ -12,21 +12,24 @@ use crate::op::texture::TextureOp;
 
 pub mod types;
 
+pub const CATEGORY: &str = "Material";
+
 pub struct MaterialPlugin;
 
 impl Plugin for MaterialPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_plugins(MaterialOpStandardPlugin)
+            .init_resource::<MaterialDefaultMesh>()
             .add_systems(Startup, setup);
     }
 }
 
-#[derive(Component, Deref, DerefMut, Clone, Debug)]
+#[derive(Resource, Deref, DerefMut, Default, Clone, Debug)]
 pub struct MaterialDefaultMesh(Handle<Mesh>);
 
-fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
-    commands.spawn((MaterialDefaultMesh(meshes.add(Mesh::from(Torus::default())))));
+fn setup(mut default_mesh: ResMut<MaterialDefaultMesh>, mut meshes: ResMut<Assets<Mesh>>) {
+    *default_mesh = MaterialDefaultMesh(meshes.add(Mesh::from(Torus::default())));
 }
 
 #[derive(Component, Deref, DerefMut, Clone, Debug)]

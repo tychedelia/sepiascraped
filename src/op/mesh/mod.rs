@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use bevy::prelude::*;
 use bevy::render::extract_component::ExtractComponent;
+use bevy::render::primitives::Aabb;
 use bevy::render::render_resource::encase::internal::WriteInto;
 use bevy::render::render_resource::ShaderType;
 use bevy::render::view::RenderLayers;
@@ -12,29 +13,15 @@ use crate::op::texture::TextureOp;
 
 pub mod types;
 
+pub const CATEGORY : &str = "Mesh";
+
 pub struct MeshPlugin;
 
 impl Plugin for MeshPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_plugins(MeshOpCuboidPlugin)
-            .add_systems(Startup, setup);
+            .add_plugins(MeshOpCuboidPlugin);
     }
-}
-
-fn setup(mut commands: Commands) {
-    commands.spawn((PointLightBundle {
-        point_light: PointLight {
-            shadows_enabled: true,
-            intensity: 10_000_000.,
-            range: 100.0,
-            ..default()
-        },
-        transform: Transform::from_xyz(8.0, 16.0, 8.0),
-        ..default()
-    },
-    RenderLayers::all()
-    ));
 }
 
 #[derive(Component, Deref, DerefMut, Clone, Debug)]

@@ -1,8 +1,7 @@
-use bevy::asset::{AssetLoader, AsyncReadExt, BoxedFuture, LoadContext, ron};
+use bevy::asset::{AssetLoader, AsyncReadExt, LoadContext, ron};
 use bevy::asset::io::Reader;
 use bevy::prelude::*;
-use bevy::utils::HashMap;
-use bevy::utils::thiserror::Error;
+use bevy::utils::{BoxedFuture, HashMap};
 use steel::compiler::program::RawProgramWithSymbols;
 
 use crate::script::LispEngine;
@@ -82,7 +81,7 @@ pub struct Script {
 struct ScriptLoader;
 
 #[non_exhaustive]
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum ScriptLoaderError {
     /// An [IO](std::io) Error
     #[error("Could not load asset: {0}")]

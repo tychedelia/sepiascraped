@@ -2,6 +2,7 @@
 
 struct NodeMaterial {
     selected: u32,
+    category_color: vec4<f32>,
 }
 
 @group(2) @binding(0) var<uniform> material: NodeMaterial;
@@ -22,8 +23,11 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
         if (mesh.uv.x > 1.0 - hilight_border_width || mesh.uv.x < hilight_border_width || mesh.uv.y > 1.0 - hilight_border_width || mesh.uv.y < hilight_border_width) {
             if (material.selected == 1) {
                 return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+            } else {
+                return material.category_color;
             }
         }
+
         return vec4<f32>(0.1, 0.1, 0.1, 1.0);
     } else {
         return textureSample(image_texture, image_sampler, map_uv(mesh.uv));

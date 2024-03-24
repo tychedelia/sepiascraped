@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use bevy::ecs::system::lifetimeless::*;
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
@@ -8,10 +7,12 @@ use bevy::render::render_resource::{
 };
 use bevy::render::view::RenderLayers;
 use bevy::utils::HashMap;
+use std::ops::Deref;
 
-use crate::op::material::{MaterialOpBundle, MaterialOpHandle};
+use crate::op::material::{CATEGORY, MaterialDefaultMesh, MaterialOpBundle, MaterialOpHandle};
 use crate::op::{Op, OpImage, OpInputs, OpOutputs, OpPlugin, OpType};
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
+use crate::render_layers::RenderLayerManager;
 
 #[derive(Default)]
 pub struct MaterialOpStandardPlugin;
@@ -26,6 +27,7 @@ impl Plugin for MaterialOpStandardPlugin {
 pub struct MaterialOpStandard;
 
 impl Op for MaterialOpStandard {
+    const CATEGORY: &'static str = CATEGORY;
     type OpType = OpType<MaterialOpStandard>;
     type UpdateParam = (
         SResMut<Assets<StandardMaterial>>,
@@ -35,9 +37,10 @@ impl Op for MaterialOpStandard {
     );
     type BundleParam = (
         SCommands,
+        SRes<MaterialDefaultMesh>,
         SResMut<Assets<StandardMaterial>>,
         SResMut<Assets<Image>>,
-        SQuery<Read<RenderLayers>, With<Camera>>,
+        SResMut<RenderLayerManager>,
     );
     type Bundle = (MaterialOpBundle<StandardMaterial>, RenderLayers);
 
@@ -64,22 +67,12 @@ impl Op for MaterialOpStandard {
 
     fn create_bundle<'w>(
         entity: Entity,
-        (commands, materials, images, render_layer_q): &mut SystemParamItem<
+        (commands, default_mesh, materials, images, layer_manager): &mut SystemParamItem<
             'w,
             '_,
             Self::BundleParam,
         >,
     ) -> Self::Bundle {
-        let max = render_layer_q
-            .iter()
-            .map(|layer| layer.clone())
-            .max()
-            .unwrap_or(RenderLayers::layer(1));
-        let new_layer = max.bits() + 1;
-        if new_layer > 32 {
-            panic!("Too many layers");
-        }
-
         let size = Extent3d {
             width: 512,
             height: 512,
@@ -106,21 +99,48 @@ impl Op for MaterialOpStandard {
 
         let image = images.add(image);
 
+        let new_layer = layer_manager.next_open_layer();
+
         commands.spawn((
             Camera3dBundle {
-                transform: Transform::from_xyz(0.0, 0.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
+                transform: Transform::from_xyz(0.0, 1.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
                 camera: Camera {
                     target: RenderTarget::Image(image.clone()),
                     ..default()
                 },
                 ..default()
             },
-            RenderLayers::layer(new_layer as u8),
+            RenderLayers::layer(new_layer),
+        ));
+
+        commands.spawn((
+            PointLightBundle {
+                point_light: PointLight {
+                    shadows_enabled: true,
+                    intensity: 10_000_000.,
+                    range: 100.0,
+                    ..default()
+                },
+                transform: Transform::from_xyz(8.0, 16.0, 8.0),
+                ..default()
+            },
+            RenderLayers::layer(new_layer),
+        ));
+
+        let material = materials.add(StandardMaterial::default());
+
+        commands.spawn((
+            PbrBundle {
+                mesh: default_mesh.0.clone(),
+                material: material.clone(),
+                ..default()
+            },
+            RenderLayers::layer(new_layer),
         ));
 
         (
             MaterialOpBundle {
-                material: MaterialOpHandle(materials.add(StandardMaterial::default())),
+                material: MaterialOpHandle(material),
                 image: OpImage(image),
                 inputs: OpInputs {
                     count: Self::INPUTS,
@@ -130,7 +150,7 @@ impl Op for MaterialOpStandard {
                     count: Self::OUTPUTS,
                 },
             },
-            RenderLayers::layer(new_layer as u8),
+            RenderLayers::layer(new_layer),
         )
     }
 

@@ -10,6 +10,8 @@ use crate::op::texture::TextureOp;
 
 pub mod types;
 
+pub const CATEGORY : &str = "Component";
+
 pub struct ComponentPlugin;
 
 impl Plugin for ComponentPlugin {

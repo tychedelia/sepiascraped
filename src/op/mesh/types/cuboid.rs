@@ -7,9 +7,10 @@ use bevy::render::render_resource::{Extent3d, TextureDescriptor, TextureDimensio
 use bevy::render::view::RenderLayers;
 use bevy::utils::HashMap;
 
-use crate::op::mesh::{MeshOpBundle, MeshOpHandle};
+use crate::op::mesh::{CATEGORY, MeshOpBundle, MeshOpHandle};
 use crate::op::{Op, OpImage, OpInputs, OpOutputs, OpPlugin, OpType};
 use crate::param::ParamBundle;
+use crate::render_layers::RenderLayerManager;
 
 #[derive(Default)]
 pub struct MeshOpCuboidPlugin;
@@ -24,6 +25,7 @@ impl Plugin for MeshOpCuboidPlugin {
 pub struct MeshOpCuboid;
 
 impl Op for MeshOpCuboid {
+    const CATEGORY: &'static str = CATEGORY;
     type OpType = OpType<MeshOpCuboid>;
     type UpdateParam = (SCommands,);
     type BundleParam = (
@@ -31,7 +33,7 @@ impl Op for MeshOpCuboid {
         SResMut<Assets<Mesh>>,
         SResMut<Assets<Image>>,
         SResMut<Assets<StandardMaterial>>,
-        SQuery<Read<RenderLayers>, With<Camera>>,
+        SResMut<RenderLayerManager>
     );
     type Bundle = (MeshOpBundle, RenderLayers);
 
@@ -39,22 +41,12 @@ impl Op for MeshOpCuboid {
 
     fn create_bundle<'w>(
         entity: Entity,
-        (commands, meshes, images, materials, render_layer_q): &mut SystemParamItem<
+        (commands, meshes, images, materials, layer_manager): &mut SystemParamItem<
             'w,
             '_,
             Self::BundleParam,
         >,
     ) -> Self::Bundle {
-        let max = render_layer_q
-            .iter()
-            .map(|layer| layer.clone())
-            .max()
-            .unwrap_or(RenderLayers::layer(1));
-        let new_layer = max.bits() + 1;
-        if new_layer > 32 {
-            panic!("Too many layers");
-        }
-
         let mesh = meshes.add(Mesh::from(Cuboid::default()));
 
         let size = Extent3d {
@@ -83,6 +75,8 @@ impl Op for MeshOpCuboid {
 
         let image = images.add(image);
 
+        let new_layer = layer_manager.next_open_layer();
+
         commands.spawn((
             Camera3dBundle {
                 transform: Transform::from_xyz(0.0, 0.0, 4.0)
@@ -93,7 +87,21 @@ impl Op for MeshOpCuboid {
                 },
                 ..default()
             },
-            RenderLayers::layer(new_layer as u8),
+            RenderLayers::layer(new_layer),
+        ));
+
+        commands.spawn((
+            PointLightBundle {
+                point_light: PointLight {
+                    shadows_enabled: true,
+                    intensity: 10_000_000.,
+                    range: 100.0,
+                    ..default()
+                },
+                transform: Transform::from_xyz(8.0, 16.0, 8.0),
+                ..default()
+            },
+            RenderLayers::layer(new_layer),
         ));
 
         (
@@ -115,7 +123,7 @@ impl Op for MeshOpCuboid {
                     count: Self::OUTPUTS,
                 },
             },
-            RenderLayers::layer(new_layer as u8),
+            RenderLayers::layer(new_layer),
         )
     }
 
