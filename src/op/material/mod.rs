@@ -6,6 +6,7 @@ use bevy::render::extract_component::ExtractComponent;
 use bevy::render::render_resource::encase::internal::WriteInto;
 use bevy::render::render_resource::ShaderType;
 use bevy::render::view::RenderLayers;
+use types::standard::MaterialOpStandardPlugin;
 
 use crate::op::texture::TextureOp;
 
@@ -16,6 +17,7 @@ pub struct MaterialPlugin;
 impl Plugin for MaterialPlugin {
     fn build(&self, app: &mut App) {
         app
+            .add_plugins(MaterialOpStandardPlugin)
             .add_systems(Startup, setup);
     }
 }

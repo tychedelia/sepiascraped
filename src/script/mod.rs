@@ -24,6 +24,7 @@ use steel_derive::Steel;
 use crate::index::{CompositeIndex2, UniqueIndex};
 use crate::op::{OpRef, OpType};
 use crate::op::component::types::window::ComponentOpWindow;
+use crate::op::material::types::standard::MaterialOpStandard;
 use crate::op::mesh::types::cuboid::MeshOpCuboid;
 use crate::op::texture::TextureOp;
 use crate::op::texture::types::composite::TextureOpComposite;
@@ -300,6 +301,7 @@ fn op_bang(world: &mut WorldHolder, ty: String, name: String) -> Option<EntityRe
         "noise" => world.spawn((name, OpType::<TextureOpNoise>::default())),
         "window" => world.spawn((name, OpType::<ComponentOpWindow>::default())),
         "cuboid" => world.spawn((name, OpType::<MeshOpCuboid>::default())),
+        "standard-material" => world.spawn((name, OpType::<MaterialOpStandard>::default())),
         _ => return None,
     };
 

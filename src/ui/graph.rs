@@ -208,13 +208,13 @@ pub fn ui(
                             selected: 0,
                             texture: (**image).clone()
                         }),
-                        transform: Transform::from_translation(Vec3::new(rng.gen::<f32>() * 80., rng.gen::<f32>() * 80., index)),
+                        transform: Transform::from_translation(Vec3::new(rng.gen::<f32>() * 80.0, rng.gen::<f32>() * 80.0, index)),
                         ..Default::default()
                     },
-                    PickableBundle::default(), // <- Makes the mesh pickable.
-                    On::<Pointer<Down>>::send_event::<ClickNode>(), // <- Send SelectedNode event on pointer down
-                    On::<Pointer<DragStart>>::target_insert(Pickable::IGNORE), // Disable picking
-                    On::<Pointer<DragEnd>>::target_insert(Pickable::default()), // Re-enable picking
+                    PickableBundle::default(),
+                    On::<Pointer<Down>>::send_event::<ClickNode>(),
+                    On::<Pointer<DragStart>>::target_insert(Pickable::IGNORE),
+                    On::<Pointer<DragEnd>>::target_insert(Pickable::default()),
                     On::<Pointer<Drag>>::run(
                         |drag: ListenerMut<Pointer<Drag>>,
                          projection: Query<&OrthographicProjection, With<UiCamera>>,
@@ -239,17 +239,17 @@ pub fn ui(
                                 .add(Mesh::from(Rectangle::new(90.0, 90.0)))
                                 .into(),
                             material: color_materials.add(default_image.0.clone()),
-                            transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
+                            transform: Transform::from_translation(Vec3::new(0.0, 0.0, -0.1)),
                             ..Default::default()
                         }
                     );
                     for i in 0..input_config.count {
                         let offset = -50.0;
-                        spawn_port(&mut meshes, &mut color_materials, parent, InPort(i as u8), Vec3::new(offset, 0.0, -2.0));
+                        spawn_port(&mut meshes, &mut color_materials, parent, InPort(i as u8), Vec3::new(offset, 0.0, -0.2));
                     }
                     for i in 0..output_config.count {
                         let offset = 50.0;
-                        spawn_port(&mut meshes, &mut color_materials, parent, OutPort(i as u8), Vec3::new(offset, 0.0, -2.0));
+                        spawn_port(&mut meshes, &mut color_materials, parent, OutPort(i as u8), Vec3::new(offset, 0.0, -0.2));
                     }
                 });
         });
@@ -479,6 +479,10 @@ fn draw_refs(
                     if let Ok(entity) = op_ref_connection_q.get(entity) {
                         commands.entity(entity).insert((
                             ShapeBundle {
+                                spatial: SpatialBundle {
+                                    transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
+                                    ..default()
+                                },
                                 path: GeometryBuilder::build_as(&Line(start, end)),
                                 ..default()
                             },

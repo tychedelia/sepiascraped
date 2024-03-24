@@ -14,19 +14,19 @@ use crate::op::{Op, OpImage, OpInputs, OpOutputs, OpPlugin, OpType};
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 
 #[derive(Default)]
-pub struct MaterialOpCuboidPlugin;
+pub struct MaterialOpStandardPlugin;
 
-impl Plugin for MaterialOpCuboidPlugin {
+impl Plugin for MaterialOpStandardPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(OpPlugin::<MaterialOpCuboid>::default());
+        app.add_plugins(OpPlugin::<MaterialOpStandard>::default());
     }
 }
 
 #[derive(Component, Clone, Default, Debug)]
-pub struct MaterialOpCuboid;
+pub struct MaterialOpStandard;
 
-impl Op for MaterialOpCuboid {
-    type OpType = OpType<MaterialOpCuboid>;
+impl Op for MaterialOpStandard {
+    type OpType = OpType<MaterialOpStandard>;
     type UpdateParam = (
         SResMut<Assets<StandardMaterial>>,
         SQuery<Read<OpImage>>,
