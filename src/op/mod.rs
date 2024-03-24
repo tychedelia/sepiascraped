@@ -4,6 +4,7 @@ use std::marker::PhantomData;
 use bevy::ecs::system::{ReadOnlySystemParam, StaticSystemParam, SystemParam, SystemParamItem};
 use bevy::prelude::*;
 use bevy::render::extract_component::ExtractComponent;
+use bevy::utils::HashMap;
 
 use crate::event::SpawnOp;
 use crate::param::ParamBundle;
@@ -113,3 +114,26 @@ fn spawn<'w, 's, T>(
         spawn_op_evt.send(SpawnOp(entity));
     }
 }
+
+#[derive(Component, ExtractComponent, Clone, Default, Debug)]
+pub struct OpInputs {
+    pub(crate) count: usize,
+    pub(crate) connections: HashMap<Entity, Handle<Image>>,
+}
+
+impl OpInputs {
+    pub fn is_fully_connected(&self) -> bool {
+        self.count == 0 || self.connections.len() == self.count
+    }
+}
+
+#[derive(Component, Default)]
+pub struct OpOutputs {
+    pub(crate) count: usize,
+}
+
+#[derive(Component, Clone, Debug, Deref, DerefMut, ExtractComponent, Default)]
+pub struct OpImage(pub Handle<Image>);
+
+#[derive(Resource, Clone, Default)]
+pub struct OpDefaultImage(pub Handle<Image>);

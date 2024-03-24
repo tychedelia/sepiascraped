@@ -1,12 +1,13 @@
+use std::f32::consts::PI;
 use bevy::ecs::system::lifetimeless::*;
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::view::RenderLayers;
-use bevy::window::WindowRef;
+use bevy::utils::HashMap;
 
-use crate::op::{Op, OpPlugin, OpType};
-use crate::op::mesh::{MeshOpBundle, MeshOpHandle, MeshOpImage};
+use crate::op::mesh::{MeshOpBundle, MeshOpHandle};
+use crate::op::{Op, OpImage, OpInputs, OpOutputs, OpPlugin, OpType};
 use crate::param::ParamBundle;
 
 #[derive(Default)]
@@ -23,21 +24,31 @@ pub struct MeshOpCuboid;
 
 impl Op for MeshOpCuboid {
     type OpType = OpType<MeshOpCuboid>;
-    type UpdateParam = (
+    type UpdateParam = (SCommands,);
+    type BundleParam = (
         SCommands,
+        SResMut<Assets<Mesh>>,
+        SResMut<Assets<Image>>,
+        SResMut<Assets<StandardMaterial>>,
+        SQuery<Read<RenderLayers>, With<Camera>>,
     );
-    type BundleParam = (SResMut<Assets<Mesh>>, SResMut<Assets<Image>>, SQuery<Read<RenderLayers>>);
     type Bundle = (MeshOpBundle, RenderLayers);
 
-    fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>) {
-
-    }
+    fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>) {}
 
     fn create_bundle<'w>(
         entity: Entity,
-        (meshes, images, render_layer_q): &mut SystemParamItem<'w, '_, Self::BundleParam>,
+        (commands, meshes, images, materials, render_layer_q): &mut SystemParamItem<
+            'w,
+            '_,
+            Self::BundleParam,
+        >,
     ) -> Self::Bundle {
-        let max = render_layer_q.iter().map(|layer| layer.clone()).max().unwrap_or(RenderLayers::layer(1));
+        let max = render_layer_q
+            .iter()
+            .map(|layer| layer.clone())
+            .max()
+            .unwrap_or(RenderLayers::layer(1));
         let new_layer = max.bits() + 1;
         if new_layer > 32 {
             panic!("Too many layers");
@@ -51,7 +62,7 @@ impl Op for MeshOpCuboid {
             ..default()
         };
 
-        let mut image = bevy::prelude::Image {
+        let mut image = Image {
             texture_descriptor: bevy::render::render_resource::TextureDescriptor {
                 label: None,
                 size,
@@ -71,24 +82,43 @@ impl Op for MeshOpCuboid {
 
         let image = images.add(image);
 
-        (
-            MeshOpBundle {
-                mesh: MeshOpHandle(mesh),
-                camera: Camera3dBundle {
-                    camera: Camera {
-                        target: RenderTarget::Image(image.clone()),
-                        ..default()
-                    },
+        commands.spawn((
+            Camera3dBundle {
+                transform: Transform::from_xyz(0.0, 0.0, 4.0)
+                    .looking_at(Vec3::ZERO, Vec3::Y),
+                camera: Camera {
+                    target: RenderTarget::Image(image.clone()),
                     ..default()
                 },
-                image: MeshOpImage(image),
+                ..default()
+            },
+            RenderLayers::layer(new_layer as u8),
+        ));
+
+        (
+            MeshOpBundle {
+                mesh: MeshOpHandle(mesh.clone()),
+                pbr: PbrBundle {
+                    mesh,
+                    material: materials.add(Color::GRAY),
+                    transform: Transform::from_xyz(0.0, 0.0, 0.0)
+                        .with_rotation(Quat::from_rotation_x(-PI / 4.0)),
+                    ..default()
+                },
+                image: OpImage(image),
+                inputs: OpInputs {
+                    count: Self::INPUTS,
+                    connections: HashMap::new(),
+                },
+                outputs: OpOutputs {
+                    count: Self::OUTPUTS,
+                },
             },
             RenderLayers::layer(new_layer as u8),
         )
     }
 
     fn params() -> Vec<ParamBundle> {
-        vec![
-        ] 
+        vec![]
     }
 }

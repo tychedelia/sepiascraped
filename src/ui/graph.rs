@@ -17,10 +17,8 @@ use petgraph::stable_graph::{DefaultIx, IndexType, NodeIndex};
 use rand::{random, Rng};
 
 use crate::{OpName, Sets};
-use crate::op::OpRef;
-use crate::op::texture::{
-    TextureOp, TextureOpDefaultImage, TextureOpImage, TextureOpInputs, TextureOpOutputs,
-};
+use crate::op::{OpInputs, OpOutputs, OpRef, OpDefaultImage, OpImage};
+use crate::op::texture::TextureOp;
 use crate::ui::event::{ClickNode, Connect, Disconnect};
 use crate::ui::grid::InfiniteGridSettings;
 use crate::ui::UiCamera;
@@ -182,14 +180,14 @@ pub fn ui(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<NodeMaterial>>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
-    default_image: Res<TextureOpDefaultImage>,
+    default_image: Res<OpDefaultImage>,
     mut parent: Query<(Entity, &InheritedVisibility), With<InfiniteGridSettings>>,
     op_q: Query<
         (
             Entity,
-            &TextureOpImage,
-            &TextureOpInputs,
-            &TextureOpOutputs,
+            &OpImage,
+            &OpInputs,
+            &OpOutputs,
             &GraphId,
         ),
         Added<GraphId>,

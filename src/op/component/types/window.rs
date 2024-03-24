@@ -9,7 +9,7 @@ use bevy::window::WindowRef;
 use crate::index::CompositeIndex2;
 use crate::op::{Op, OpPlugin, OpType};
 use crate::op::OpRef;
-use crate::op::texture::TextureOpImage;
+use crate::op::OpImage;
 use crate::OpName;
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 
@@ -36,7 +36,7 @@ impl Op for ComponentOpWindow {
             (Write<Window>, Option<Read<WindowTexture>>),
             With<OpType<ComponentOpWindow>>,
         >,
-        SQuery<Read<TextureOpImage>>,
+        SQuery<Read<OpImage>>,
         SQuery<Read<ParamValue>>,
         SRes<CompositeIndex2<OpRef, ParamName>>,
         SRes<Assets<Image>>,

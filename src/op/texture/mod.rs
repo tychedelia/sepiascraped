@@ -23,7 +23,7 @@ use types::ramp::TextureOpRampPlugin;
 use crate::{OpName, Sets, ui};
 use crate::event::SpawnOp;
 use crate::index::{UniqueIndex, UniqueIndexPlugin};
-use crate::op::{Op, OpRef, OpType};
+use crate::op::{Op, OpInputs, OpOutputs, OpRef, OpType, OpDefaultImage, OpImage};
 use crate::op::texture::render::TextureOpSubGraph;
 use crate::op::texture::types::composite::{CompositeMode, CompositeSettings};
 use crate::op::texture::types::noise::TextureOpNoisePlugin;
@@ -44,8 +44,8 @@ impl Plugin for TexturePlugin {
     fn build(&self, app: &mut App) {
         app
             .add_plugins((
-                ExtractComponentPlugin::<TextureOpImage>::default(),
-                ExtractComponentPlugin::<TextureOpInputs>::default(),
+                ExtractComponentPlugin::<OpImage>::default(),
+                ExtractComponentPlugin::<OpInputs>::default(),
                 TextureOpRampPlugin,
                 TextureOpCompositePlugin,
                 TextureOpNoisePlugin,
@@ -109,38 +109,15 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
         });
 
     let image = images.add(image);
-    commands.insert_resource(TextureOpDefaultImage(image));
-}
-
-#[derive(Resource, Clone, Default)]
-pub struct TextureOpDefaultImage(pub Handle<Image>);
-
-#[derive(Component, Clone, Debug, Deref, DerefMut, ExtractComponent, Default)]
-pub struct TextureOpImage(pub Handle<Image>);
-
-#[derive(Component, ExtractComponent, Clone, Default, Debug)]
-pub struct TextureOpInputs {
-    pub(crate) count: usize,
-    pub(crate) connections: HashMap<Entity, Handle<Image>>,
-}
-
-impl TextureOpInputs {
-    pub fn is_fully_connected(&self) -> bool {
-        self.count == 0 || self.connections.len() == self.count
-    }
-}
-
-#[derive(Component, Default)]
-pub struct TextureOpOutputs {
-    pub(crate) count: usize,
+    commands.insert_resource(OpDefaultImage(image));
 }
 
 #[derive(Bundle, Default)]
 pub struct TextureOpBundle {
     pub camera: Camera3dBundle,
-    pub image: TextureOpImage,
-    pub inputs: TextureOpInputs,
-    pub outputs: TextureOpOutputs,
+    pub image: OpImage,
+    pub inputs: OpInputs,
+    pub outputs: OpOutputs,
 }
 
 macro_rules! impl_op {
@@ -212,12 +189,12 @@ macro_rules! impl_op {
                             },
                             ..default()
                         },
-                        image: crate::op::texture::TextureOpImage(image.clone()),
-                        inputs: crate::op::texture::TextureOpInputs {
+                        image: crate::op::texture::OpImage(image.clone()),
+                        inputs: crate::op::texture::OpInputs {
                             count: $inputs,
                             connections: bevy::utils::HashMap::new(),
                         },
-                        outputs: crate::op::texture::TextureOpOutputs { count: $outputs },
+                        outputs: crate::op::OpOutputs { count: $outputs },
                     },
                     <$name as TextureOp>::Uniform::default(),
                 )
@@ -252,8 +229,8 @@ pub(crate) use impl_op;
 
 fn connect_handler(
     mut ev_connect: EventReader<Connect>,
-    mut op_q: Query<(&mut TextureOpInputs, &TextureOpImage, &GraphRef)>,
-    input_q: Query<&TextureOpImage>,
+    mut op_q: Query<(&mut OpInputs, &OpImage, &GraphRef)>,
+    input_q: Query<&OpImage>,
 ) {
     for ev in ev_connect.read() {
         if let Ok((mut input, my_image, graph_ref)) = op_q.get_mut(ev.input) {
@@ -266,7 +243,7 @@ fn connect_handler(
 
 fn update_materials(
     mut materials: ResMut<Assets<NodeMaterial>>,
-    mut op_q: Query<(&TextureOpInputs, &TextureOpImage, &GraphRef)>,
+    mut op_q: Query<(&OpInputs, &OpImage, &GraphRef)>,
     mut material_q: Query<&Handle<NodeMaterial>>,
 ) {
     // TODO: add component to test for connected rather than constantly doing this
@@ -286,8 +263,8 @@ fn update_materials(
 
 fn disconnect_handler(
     mut ev_disconnect: EventReader<Disconnect>,
-    mut op_q: Query<&mut TextureOpInputs>,
-    input_q: Query<&TextureOpImage>,
+    mut op_q: Query<&mut OpInputs>,
+    input_q: Query<&OpImage>,
 ) {
     for ev in ev_disconnect.read() {
         if let Ok(mut input) = op_q.get_mut(ev.input) {

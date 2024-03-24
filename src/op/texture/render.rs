@@ -28,8 +28,8 @@ use bevy::render::texture::BevyDefault;
 use bevy::render::view::{ExtractedView, ViewTarget};
 use bevy::utils::{HashMap, info};
 
-use crate::op::{Op, OpType};
-use crate::op::texture::{TextureOp, TextureOpInputs};
+use crate::op::{Op, OpType, OpInputs};
+use crate::op::texture::TextureOp;
 use crate::op::texture::types::composite::TextureOpComposite;
 use crate::op::texture::types::ramp::TextureOpRamp;
 
@@ -93,7 +93,7 @@ pub fn prepare_texture_op_pipelines<T>(
     mut pipeline: ResMut<TextureOpPipeline>,
     pipeline_cache: Res<PipelineCache>,
     mut pipelines: ResMut<SpecializedRenderPipelines<TextureOpPipeline>>,
-    views: Query<(Entity, &ExtractedView, &TextureOpInputs), With<<T as Op>::OpType>>,
+    views: Query<(Entity, &ExtractedView, &OpInputs), With<<T as Op>::OpType>>,
     shader_handle: Res<TextureOpShaderHandle<T>>,
     render_device: Res<RenderDevice>,
 ) where
@@ -141,7 +141,7 @@ pub fn prepare_texture_op_bind_group<T>(
         (
             Entity,
             &ExtractedView,
-            &TextureOpInputs,
+            &OpInputs,
             &DynamicUniformIndex<T::Uniform>,
         ),
         With<<T as Op>::OpType>

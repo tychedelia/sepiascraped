@@ -1,2 +1,2 @@
-mod cuboid;
+pub mod cuboid;
 

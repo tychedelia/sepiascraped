@@ -5,6 +5,7 @@ use bevy_prototype_lyon::plugin::ShapePlugin;
 use crate::event::SpawnOp;
 use crate::index::UniqueIndexPlugin;
 use crate::op::component::ComponentPlugin;
+use crate::op::mesh::MeshPlugin;
 use crate::op::texture::TexturePlugin;
 use crate::param::ParamPlugin;
 use crate::render::RenderPlugin;
@@ -29,6 +30,7 @@ fn main() {
         EguiPlugin,
         RenderPlugin,
         TexturePlugin,
+        MeshPlugin,
         ComponentPlugin,
         UiPlugin,
         ShapePlugin,
