@@ -47,7 +47,7 @@ impl Plugin for ScriptPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(ScriptAssetPlugin)
             .add_systems(First, clear_touched)
-            .add_systems(Last, drop_untouched)
+            .add_systems(Last, (drop_untouched_entity, clear_untouched_params))
             .add_systems(Startup, setup)
             .add_systems(Update, (update, validate).in_set(Params));
     }
@@ -86,7 +86,7 @@ fn clear_touched(mut commands: Commands, touched_q: Query<Entity, With<ScriptTou
     }
 }
 
-fn drop_untouched(
+fn drop_untouched_entity(
     mut commands: Commands,
     mut index: ResMut<UniqueIndex<OpName>>,
     touched_q: Query<(Entity, &GraphRef, &OpName), Without<ScriptTouched>>,
@@ -96,6 +96,17 @@ fn drop_untouched(
         commands.entity(**graph_ref).despawn_recursive();
         // TODO: remove from index, this shouldn't be necessary
         index.remove(op_name);
+    }
+}
+
+fn clear_untouched_params(
+    mut commands: Commands,
+    mut params_q: Query<Entity, (With<ScriptedParam>, Without<ScriptTouched>)>,
+) {
+    for entity in params_q.iter() {
+        commands.entity(entity)
+            .remove::<ScriptedParam>()
+            .remove::<ScriptedParamError>();
     }
 }
 
@@ -346,8 +357,9 @@ fn param_bang(world: &mut WorldHolder, entity: EntityRef, name: String, val: Ste
     let name = ParamName(name);
     if let Some(entity) = index.get(&(OpRef(*entity), name.clone())) {
         let entity = *entity;
-
-        world.entity_mut(entity.clone()).insert(ScriptedParam);
+        world.entity_mut(entity.clone())
+            .insert(ScriptTouched)
+            .insert(ScriptedParam);
 
         let mut param = world.get_mut::<ParamValue>(entity.clone()).unwrap();
 

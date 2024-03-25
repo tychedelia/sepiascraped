@@ -54,8 +54,8 @@ where
     }
 }
 
-#[derive(Component, Clone, Debug)]
-pub struct OpCategory(&'static str);
+#[derive(Component, Default, Clone, Debug, Hash, Ord, PartialOrd, Eq, PartialEq)]
+pub struct OpCategory(pub &'static str);
 
 impl OpCategory {
     pub fn to_color(&self) -> Color {

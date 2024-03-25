@@ -5,10 +5,11 @@ edition = "2021"
 
 [dependencies]
 bevy = {  version = "0.13", features = ["default", "file_watcher"] }
-bevy_egui = "0.25.0"
+bevy_egui = "0.26.0"
 egui_extras = {  version = "0.26", features = ["syntect"] }
+egui_autocomplete = "5.0.0"
 petgraph = "0.6.4"
-bevy_mod_picking = { version = "0.18.2", default-features = false, features = [
+bevy_mod_picking = { path = "../../aevyrie/bevy_mod_picking", default-features = false, features = [
     "backend_raycast",
     "backend_bevy_ui",
     "backend_sprite",
