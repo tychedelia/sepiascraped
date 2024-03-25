@@ -67,6 +67,22 @@ impl OpCategory {
             _ => panic!("Unknown category: {}", self.0),
         }
     }
+
+    pub fn is_component(&self) -> bool {
+        self.0 == "Component"
+    }
+
+    pub fn is_material(&self) -> bool {
+        self.0 == "Material"
+    }
+
+    pub fn is_mesh(&self) -> bool {
+        self.0 == "Mesh"
+    }
+
+    pub fn is_texture(&self) -> bool {
+        self.0 == "Texture"
+    }
 }
 
 #[derive(Component, ExtractComponent, Clone, Default, Debug)]

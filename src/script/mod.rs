@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use std::sync::mpsc::{Receiver, TryRecvError};
 
@@ -29,7 +29,7 @@ use crate::op::texture::types::composite::TextureOpComposite;
 use crate::op::texture::types::noise::TextureOpNoise;
 use crate::op::texture::types::ramp::TextureOpRamp;
 use crate::op::texture::TextureOp;
-use crate::op::{OpRef, OpType};
+use crate::op::{OpCategory, OpRef, OpType};
 use crate::param::{ParamName, ParamValue, ScriptedParam, ScriptedParamError};
 use crate::script::asset::{ProgramCache, Script, ScriptAssetPlugin};
 use crate::script::helper::RustylineHelper;
@@ -49,7 +49,34 @@ impl Plugin for ScriptPlugin {
             .add_systems(First, clear_touched)
             .add_systems(Last, drop_untouched)
             .add_systems(Startup, setup)
-            .add_systems(Update, (update.in_set(Params)));
+            .add_systems(Update, (update, validate).in_set(Params));
+    }
+}
+
+fn validate(
+    mut commands: Commands,
+    mut params_q: Query<(Entity, &mut ParamValue), With<ScriptedParam>>,
+    category_q: Query<&OpCategory>,
+) {
+    for (entity, mut param_value) in params_q.iter_mut() {
+        match param_value.deref_mut() {
+            ParamValue::TextureOp(Some(e)) => {
+                let category = category_q.get(*e).unwrap();
+                if !category.is_texture() {
+                    commands.entity(entity).insert(ScriptedParamError("Invalid texture".to_string()));
+                    *param_value = ParamValue::TextureOp(None);
+                }
+            }
+            ParamValue::MeshOp(Some(e)) => {
+                let category = category_q.get(*e).unwrap();
+                if !category.is_mesh() {
+                    commands.entity(entity).insert(ScriptedParamError("Invalid mesh".to_string()));
+                    *param_value = ParamValue::MeshOp(None);
+                }
+            }
+            _ => {
+            }
+        }
     }
 }
 
@@ -312,17 +339,21 @@ fn op(world: &mut WorldHolder, name: String) -> Option<EntityRef> {
 
 fn param_bang(world: &mut WorldHolder, entity: EntityRef, name: String, val: SteelVal) {
     let world = unsafe { world.world_mut() };
+
     let index = world
         .get_resource::<CompositeIndex2<OpRef, ParamName>>()
         .unwrap();
     let name = ParamName(name);
     if let Some(entity) = index.get(&(OpRef(*entity), name.clone())) {
         let entity = *entity;
+
         world.entity_mut(entity.clone()).insert(ScriptedParam);
+
         let mut param = world.get_mut::<ParamValue>(entity.clone()).unwrap();
+
         if let Err(e) = update_param(&mut param, val) {
             world
-                .entity_mut(entity)
+                .entity_mut(entity.clone())
                 .insert(ScriptedParamError(e.to_string()));
         }
     } else {
