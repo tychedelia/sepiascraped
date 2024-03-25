@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 bevy = {  version = "0.13", features = ["default", "file_watcher"] }
-bevy_egui = "0.26.0"
+bevy_egui = "0.25.0"
 egui_extras = {  version = "0.26", features = ["syntect"] }
 petgraph = "0.6.4"
 bevy_mod_picking = { version = "0.18.2", default-features = false, features = [
