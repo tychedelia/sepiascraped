@@ -1,7 +1,10 @@
+use bevy::diagnostic::{
+    EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin, SystemInformationDiagnosticsPlugin,
+};
 use bevy::prelude::*;
+use iyes_perf_ui::prelude::*;
 use bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::plugin::ShapePlugin;
-
 use crate::event::SpawnOp;
 use crate::index::UniqueIndexPlugin;
 use crate::op::component::ComponentPlugin;

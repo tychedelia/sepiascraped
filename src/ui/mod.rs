@@ -5,6 +5,10 @@ use bevy_egui::{egui, EguiContexts};
 use bevy_mod_picking::DefaultPickingPlugins;
 use egui_autocomplete::AutoCompleteTextEdit;
 use std::collections::BTreeSet;
+use bevy::core::FrameCount;
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, SystemInformationDiagnosticsPlugin};
+use iyes_perf_ui::{PerfUiCompleteBundle, PerfUiPlugin, PerfUiRoot};
+use iyes_perf_ui::prelude::PerfUiEntryFPS;
 use steel_parser::ast::IteratorExtensions;
 
 use camera::CameraControllerPlugin;
@@ -34,6 +38,9 @@ impl Plugin for UiPlugin {
             InfiniteGridPlugin,
             DefaultPickingPlugins,
             IndexPlugin::<OpCategory>::default(),
+            FrameTimeDiagnosticsPlugin,
+            SystemInformationDiagnosticsPlugin,
+            PerfUiPlugin,
         ))
         .add_event::<ClickNode>()
         .add_systems(Startup, ui_setup)
@@ -77,6 +84,9 @@ pub struct NodeMenuState {
 
 pub fn ui_setup(mut commands: Commands) {
     commands.spawn((
+        PerfUiCompleteBundle::default()
+    ));
+    commands.spawn((
         UiCamera,
         Camera2dBundle {
             transform: Transform::from_translation(Vec3::new(0.1, 0.1, 0.0)),
@@ -88,6 +98,7 @@ pub fn ui_setup(mut commands: Commands) {
 
 pub fn ui(
     mut time: ResMut<Time<Virtual>>,
+    frame_count: Res<FrameCount>,
     mut ui_state: ResMut<UiState>,
     keys: Res<ButtonInput<KeyCode>>,
     mut egui_contexts: EguiContexts,
@@ -105,7 +116,12 @@ pub fn ui(
     ui_state.top_panel = Some(
         egui::TopBottomPanel::top("top_panel")
             .resizable(false)
-            .show(ctx, |ui| {})
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(format!("Time: {:.2}", time.elapsed_seconds()));
+                    ui.label(format!("Frames: {:.2}", frame_count.0));
+                });
+            })
             .response,
     );
 }

@@ -49,34 +49,7 @@ impl Plugin for ScriptPlugin {
             .add_systems(First, clear_touched)
             .add_systems(Last, (drop_untouched_entity, clear_untouched_params))
             .add_systems(Startup, setup)
-            .add_systems(Update, (update, validate).in_set(Params));
-    }
-}
-
-fn validate(
-    mut commands: Commands,
-    mut params_q: Query<(Entity, &mut ParamValue), With<ScriptedParam>>,
-    category_q: Query<&OpCategory>,
-) {
-    for (entity, mut param_value) in params_q.iter_mut() {
-        match param_value.deref_mut() {
-            ParamValue::TextureOp(Some(e)) => {
-                let category = category_q.get(*e).unwrap();
-                if !category.is_texture() {
-                    commands.entity(entity).insert(ScriptedParamError("Invalid texture".to_string()));
-                    *param_value = ParamValue::TextureOp(None);
-                }
-            }
-            ParamValue::MeshOp(Some(e)) => {
-                let category = category_q.get(*e).unwrap();
-                if !category.is_mesh() {
-                    commands.entity(entity).insert(ScriptedParamError("Invalid mesh".to_string()));
-                    *param_value = ParamValue::MeshOp(None);
-                }
-            }
-            _ => {
-            }
-        }
+            .add_systems(Update, update.in_set(Params));
     }
 }
 
@@ -227,7 +200,7 @@ fn setup(world: &mut World) {
     }
 }
 
-fn update(world: &mut World) {
+pub fn update(world: &mut World) {
     let curr_time = world.resource::<Time<Virtual>>().elapsed_seconds();
     let world_cell = world.as_unsafe_world_cell();
     unsafe {

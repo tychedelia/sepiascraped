@@ -1,17 +1,19 @@
 use std::collections::BTreeMap;
+use std::ops::DerefMut;
 
 use bevy::prelude::*;
 
 use crate::index::CompositeIndex2Plugin;
-use crate::op::OpRef;
+use crate::op::{OpCategory, OpRef};
+use crate::script::update;
+use crate::Sets;
 
 pub struct ParamPlugin;
 
 impl Plugin for ParamPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(
-            CompositeIndex2Plugin::<OpRef, ParamName>::new()
-        );
+        app.add_systems(Update, validate.after(update).in_set(Sets::Params))
+            .add_plugins(CompositeIndex2Plugin::<OpRef, ParamName>::new());
     }
 }
 
@@ -57,3 +59,33 @@ pub struct ParamHash(BTreeMap<Entity, u64>);
 pub struct ScriptedParam;
 #[derive(Component, Default, Debug)]
 pub struct ScriptedParamError(pub String);
+
+fn validate(
+    mut commands: Commands,
+    mut params_q: Query<(Entity, &mut ParamValue), Changed<ParamValue>>,
+    category_q: Query<&OpCategory>,
+) {
+    for (entity, mut param_value) in params_q.iter_mut() {
+        match param_value.deref_mut() {
+            ParamValue::TextureOp(Some(e)) => {
+                let category = category_q.get(*e).unwrap();
+                if !category.is_texture() {
+                    commands
+                        .entity(entity)
+                        .insert(ScriptedParamError("Invalid texture".to_string()));
+                    *param_value = ParamValue::TextureOp(None);
+                }
+            }
+            ParamValue::MeshOp(Some(e)) => {
+                let category = category_q.get(*e).unwrap();
+                if !category.is_mesh() {
+                    commands
+                        .entity(entity)
+                        .insert(ScriptedParamError("Invalid mesh".to_string()));
+                    *param_value = ParamValue::MeshOp(None);
+                }
+            }
+            _ => {}
+        }
+    }
+}
