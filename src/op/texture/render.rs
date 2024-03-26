@@ -6,6 +6,7 @@ use bevy::core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_stat
 use bevy::ecs::query::QueryItem;
 use bevy::prelude::*;
 use bevy::render::{Render, render_graph, RenderApp, RenderSet};
+use bevy::render::camera::{CameraOutputMode, ExtractedCamera};
 use bevy::render::extract_component::{
     ComponentUniforms, DynamicUniformIndex, ExtractComponent, ExtractComponentPlugin,
     UniformComponentPlugin,
@@ -255,19 +256,25 @@ struct TextureOpViewNode;
 
 impl render_graph::ViewNode for TextureOpViewNode {
     type ViewQuery = (
-        Entity,
         &'static ViewTarget,
         &'static TextureOpBindGroup,
         &'static TextureOpPipelineId,
+        Option<&'static ExtractedCamera>,
     );
 
     fn run(
         &self,
         _graph: &mut RenderGraphContext,
         render_context: &mut RenderContext,
-        (entity, view_target, bind_group, pipeline_id): QueryItem<Self::ViewQuery>,
+        (view_target, bind_group, pipeline_id, camera): QueryItem<Self::ViewQuery>,
         world: &World,
     ) -> Result<(), NodeRunError> {
+        if let Some(camera) = camera {
+            if let CameraOutputMode::Skip = camera.output_mode {
+                return Ok(());
+            }
+        }
+
         let pipeline_cache = world.resource::<PipelineCache>();
         let Some(pipeline) = pipeline_cache.get_render_pipeline(pipeline_id.0) else {
             warn!("TextureOpViewNode missing pipeline {:?}", pipeline_id);
@@ -280,7 +287,7 @@ impl render_graph::ViewNode for TextureOpViewNode {
                 view: view_target.out_texture(),
                 resolve_target: None,
                 ops: Operations {
-                    load: LoadOp::Clear(Color::BLACK.into()),
+                    load: LoadOp::Load,
                     store: StoreOp::Store,
                 },
             })],

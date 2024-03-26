@@ -51,6 +51,15 @@ pub enum ParamValue {
     MeshOp(Option<Entity>),
 }
 
+#[derive(Component, Default, Debug)]
+pub struct ParamMin(ParamValue);
+
+#[derive(Component, Default, Debug)]
+pub struct ParamMax(ParamValue);
+
+#[derive(Component, Default, Debug)]
+pub struct ParamStep(pub ParamValue);
+
 #[derive(Resource, Default, Debug)]
 pub struct ParamHash(BTreeMap<Entity, u64>);
 
