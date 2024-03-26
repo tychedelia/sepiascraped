@@ -3,8 +3,9 @@
 (op! 'composite "composite")
 (op! 'cuboid "cuboid1")
 (op! 'standard-material "mat")
-(op! 'window "window")
+;(op! 'window "window")
 
+(param! (op "noise1") "Resolution" (list 100 100))
 (param! (op "noise1") "Strength" (/ *time* 10))
 (param! (op "myRamp") "Mode" 2)
 ;(param! (op "window") "Texture" (op "mat"))

@@ -6,7 +6,7 @@ use bevy::ecs::query::QueryData;
 use bevy::ecs::system::{SystemId, SystemParamItem};
 use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes, SResMut, Write};
 use bevy::prelude::*;
-use bevy::render::camera::CameraRenderGraph;
+use bevy::render::camera::{CameraRenderGraph, RenderTarget};
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::render_resource::{
     Extent3d, ShaderType, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
@@ -61,6 +61,10 @@ impl Plugin for TexturePlugin {
                     disconnect_handler,
                 )
                     .in_set(Sets::Ui),
+            )
+            .add_systems(
+                Last,
+                update_op_cameras
             );
     }
 }
@@ -132,54 +136,42 @@ macro_rules! impl_op {
             type OpType = OpType<Self>;
             type UpdateParam = (
                 bevy::ecs::system::lifetimeless::SQuery<(
-                    bevy::ecs::system::lifetimeless::Read<Children>, bevy::ecs::system::lifetimeless::Write<<$name as TextureOp>::Uniform>)>,
+                    bevy::ecs::system::lifetimeless::Read<bevy::prelude::Children>,
+                    bevy::ecs::system::lifetimeless::Write<crate::op::OpImage>,
+                    bevy::ecs::system::lifetimeless::Write<<$name as TextureOp>::Uniform>)>,
                 bevy::ecs::system::lifetimeless::SQuery<(
                     bevy::ecs::system::lifetimeless::Read<ParamName>, bevy::ecs::system::lifetimeless::Read<ParamValue>
                 )>,
+                bevy::ecs::system::lifetimeless::SResMut<bevy::prelude::Assets<bevy::prelude::Image>>,
             );
             type BundleParam = (bevy::ecs::system::lifetimeless::SResMut<bevy::prelude::Assets<bevy::prelude::Image>>);
             type Bundle = (crate::op::texture::TextureOpBundle, <$name as TextureOp>::Uniform);
 
             fn update<'w>(entity: bevy::prelude::Entity, param: &mut bevy::ecs::system::SystemParamItem<'w, '_, Self::UpdateParam>) {
-                let (self_q, params_q) = param;
+                let (self_q, params_q, ref mut images) = param;
 
-                let (children, mut uniform) = self_q.get_mut(entity).expect("Expected update entity to exist in self_q");
+                let (children, mut image, mut uniform) = self_q.get_mut(entity).expect("Expected update entity to exist in self_q");
 
                 let params = children
                     .iter()
                     .filter_map(|entity| params_q.get(*entity).ok())
                     .collect();
 
-                <$name as TextureOp>::update_uniform(&mut uniform, &params)
+                <$name as TextureOp>::update_uniform(&mut uniform, &params);
+
+                let resolution = params.iter().find(|(name, _)| *name == &crate::param::ParamName("Resolution".to_string())).unwrap().1;
+                if let crate::param::ParamValue::Vec2(resolution) = resolution {
+                    let image_size = images.get(image.0.clone()).unwrap().size();
+                    if image_size.x != resolution.x as u32 || image_size.y != resolution.y as u32 {
+                        let mut new_image = crate::op::OpImage::new_image(resolution.x as u32, resolution.y as u32);
+                        let new_image = images.add(new_image);
+                        *image = crate::op::OpImage(new_image);
+                    }
+                }
             }
 
             fn create_bundle<'w>(entity: bevy::prelude::Entity, (mut images): &mut bevy::ecs::system::SystemParamItem<'w, '_, Self::BundleParam>) -> Self::Bundle {
-                let size = bevy::render::render_resource::Extent3d {
-                    width: 512,
-                    height: 512,
-                    ..default()
-                };
-
-                let mut image = bevy::prelude::Image {
-                    texture_descriptor: bevy::render::render_resource::TextureDescriptor {
-                        label: None,
-                        size,
-                        dimension: bevy::render::render_resource::TextureDimension::D2,
-                        format: bevy::render::render_resource::TextureFormat::Rgba8UnormSrgb,
-                        mip_level_count: 1,
-                        sample_count: 1,
-                        usage: bevy::render::render_resource::TextureUsages::TEXTURE_BINDING
-                            | bevy::render::render_resource::TextureUsages::COPY_DST
-                            | bevy::render::render_resource::TextureUsages::RENDER_ATTACHMENT,
-                        view_formats: &[],
-                    },
-                    ..default()
-                };
-
-                image.resize(size);
-
-                let image = images.add(image);
-
+                let image = images.add(crate::op::OpImage::new_image(512, 512));
                 (
                     crate::op::texture::TextureOpBundle {
                         camera: bevy::prelude::Camera3dBundle {
@@ -211,13 +203,13 @@ macro_rules! impl_op {
                         page: crate::param::ParamPage("Common".to_string()),
                         ..default()
                     },
-                    crate::param::ParamBundle {
-                        name: crate::param::ParamName("View".to_string()),
-                        value: crate::param::ParamValue::Bool(false),
-                        order: crate::param::ParamOrder(1),
-                        page: crate::param::ParamPage("Common".to_string()),
-                        ..default()
-                    },
+                    // crate::param::ParamBundle {
+                    //     name: crate::param::ParamName("View".to_string()),
+                    //     value: crate::param::ParamValue::Bool(false),
+                    //     order: crate::param::ParamOrder(1),
+                    //     page: crate::param::ParamPage("Common".to_string()),
+                    //     ..default()
+                    // },
                 ];
 
                 [common_params, <$name as TextureOp>::params()]
@@ -240,6 +232,14 @@ fn connect_handler(
                 input.connections.insert(ev.output, image.0.clone());
             }
         }
+    }
+}
+
+pub fn update_op_cameras(
+    mut op_q: Query<(&mut Camera, &mut OpImage), Changed<OpImage>>,
+) {
+    for (mut camera, mut image) in op_q.iter_mut() {
+        camera.target = RenderTarget::Image(image.0.clone());
     }
 }
 

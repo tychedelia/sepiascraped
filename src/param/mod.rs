@@ -17,10 +17,6 @@ impl Plugin for ParamPlugin {
     }
 }
 
-trait FromParams {
-    fn from_params(params: &Vec<Param>) -> Self;
-}
-
 #[derive(Bundle, Default, Clone)]
 pub struct ParamBundle {
     pub name: ParamName,
@@ -46,6 +42,8 @@ pub enum ParamValue {
     F32(f32),
     U32(u32),
     Vec2(Vec2),
+    Vec3(Vec3),
+    Quat(Quat),
     Color(Vec4),
     Bool(bool),
     TextureOp(Option<Entity>),
@@ -87,5 +85,35 @@ fn validate(
             }
             _ => {}
         }
+    }
+}
+
+trait IntoParams {
+    fn into_params(self) -> Vec<ParamBundle>;
+}
+
+/// IntoParams for Transform
+impl IntoParams for Transform {
+    fn into_params(self) -> Vec<ParamBundle> {
+        vec![
+            ParamBundle {
+                name: ParamName("Translation".to_string()),
+                value: ParamValue::Vec3(self.translation),
+                order: ParamOrder(0),
+                ..default()
+            },
+            ParamBundle {
+                name: ParamName("Rotation".to_string()),
+                value: ParamValue::Quat(self.rotation),
+                order: ParamOrder(1),
+                ..default()
+            },
+            ParamBundle {
+                name: ParamName("Scale".to_string()),
+                value: ParamValue::Vec3(self.scale),
+                order: ParamOrder(2),
+                ..default()
+            },
+        ]
     }
 }

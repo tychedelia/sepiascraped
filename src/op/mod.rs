@@ -4,6 +4,7 @@ use std::marker::PhantomData;
 use bevy::ecs::system::{ReadOnlySystemParam, StaticSystemParam, SystemParam, SystemParamItem};
 use bevy::prelude::*;
 use bevy::render::extract_component::ExtractComponent;
+use bevy::render::render_resource::{Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages};
 use bevy::utils::HashMap;
 
 use crate::event::SpawnOp;
@@ -105,6 +106,36 @@ pub struct OpOutputs {
 #[derive(Component, Clone, Debug, Deref, DerefMut, ExtractComponent, Default)]
 pub struct OpImage(pub Handle<Image>);
 
+impl OpImage {
+    pub fn new_image(width: u32, height: u32) -> Image {
+        let size = Extent3d {
+            width,
+            height,
+            ..default()
+        };
+
+        let mut image = Image {
+            texture_descriptor: TextureDescriptor {
+                label: None,
+                size,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::Rgba8UnormSrgb,
+                mip_level_count: 1,
+                sample_count: 1,
+                usage: TextureUsages::TEXTURE_BINDING
+                    | TextureUsages::COPY_DST
+                    | TextureUsages::RENDER_ATTACHMENT,
+                view_formats: &[],
+            },
+            ..default()
+        };
+
+        image.resize(size);
+
+        image
+    }
+}
+
 
 pub trait Op {
     const INPUTS: usize = 0;
@@ -134,13 +165,13 @@ pub trait Op {
 }
 
 fn update<'w, 's, T>(
-    ops_q: Query<(Entity, &Children), With<OpType<T>>>,
+    ops_q: Query<Entity, With<OpType<T>>>,
     param: StaticSystemParam<T::UpdateParam>,
 ) where
     T: Op + Component + Debug + Send + Sync + 'static,
 {
     let mut param = param.into_inner();
-    for (entity, children) in ops_q.iter() {
+    for entity in ops_q.iter() {
         T::update(entity, &mut param);
     }
 }

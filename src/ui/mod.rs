@@ -1,14 +1,14 @@
+use bevy::core::FrameCount;
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, SystemInformationDiagnosticsPlugin};
 use bevy::prelude::*;
 use bevy_egui::egui::util::cache::FrameCache;
 use bevy_egui::egui::TextEdit;
 use bevy_egui::{egui, EguiContexts};
 use bevy_mod_picking::DefaultPickingPlugins;
 use egui_autocomplete::AutoCompleteTextEdit;
-use std::collections::BTreeSet;
-use bevy::core::FrameCount;
-use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, SystemInformationDiagnosticsPlugin};
-use iyes_perf_ui::{PerfUiCompleteBundle, PerfUiPlugin, PerfUiRoot};
 use iyes_perf_ui::prelude::PerfUiEntryFPS;
+use iyes_perf_ui::{PerfUiCompleteBundle, PerfUiPlugin, PerfUiRoot};
+use std::collections::BTreeSet;
 use steel_parser::ast::IteratorExtensions;
 
 use camera::CameraControllerPlugin;
@@ -83,9 +83,7 @@ pub struct NodeMenuState {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pub fn ui_setup(mut commands: Commands) {
-    commands.spawn((
-        PerfUiCompleteBundle::default()
-    ));
+    commands.spawn((PerfUiCompleteBundle::default()));
     commands.spawn((
         UiCamera,
         Camera2dBundle {
@@ -232,7 +230,50 @@ pub fn selected_node_ui(
                                             }
                                         }
                                     }
-                                    ParamValue::MeshOp(_) => {}
+                                    ParamValue::MeshOp(x) => {
+                                        let mut ui_text = ui_text.expect("Failed to get ui_text");
+
+                                        if let Some(entity) = x {
+                                            let name = op_name_q.get(*entity).unwrap();
+                                            *ui_text = UiText(name.0.clone());
+                                        };
+                                        ui.add_enabled_ui(!is_scripted, |ui| {
+                                            // TODO: compute this in resource
+                                            let inputs = category_idx
+                                                .get(&OpCategory(crate::op::mesh::CATEGORY))
+                                                .unwrap_or(&vec![])
+                                                .iter()
+                                                .map(|e| op_name_q.get(*e).unwrap().0.clone())
+                                                .collect::<BTreeSet<_>>();
+                                            ui.add(
+                                                AutoCompleteTextEdit::new(&mut ui_text, inputs)
+                                                    .max_suggestions(5)
+                                                    .highlight_matches(true),
+                                            );
+                                        });
+                                        if !ui_text.0.is_empty() {
+                                            if let Some(entity) =
+                                                op_name_idx.get(&OpName(ui_text.0.clone()))
+                                            {
+                                                *x = Some(entity.clone());
+                                            }
+                                        }
+                                    }
+                                    ParamValue::Vec3(v) => {
+                                        ui.add_enabled_ui(!is_scripted, |ui| {
+                                            ui.add(egui::DragValue::new(&mut v.x));
+                                            ui.add(egui::DragValue::new(&mut v.y));
+                                            ui.add(egui::DragValue::new(&mut v.z));
+                                        });
+                                    }
+                                    ParamValue::Quat(v) => {
+                                        ui.add_enabled_ui(!is_scripted, |ui| {
+                                            ui.add(egui::DragValue::new(&mut v.x));
+                                            ui.add(egui::DragValue::new(&mut v.y));
+                                            ui.add(egui::DragValue::new(&mut v.z));
+                                            ui.add(egui::DragValue::new(&mut v.w));
+                                        });
+                                    }
                                 }
                                 ui.end_row();
                                 if let Some(error) = script_error {

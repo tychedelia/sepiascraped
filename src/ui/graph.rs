@@ -1,3 +1,4 @@
+use bevy::asset::LoadState;
 use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle};
@@ -45,7 +46,8 @@ impl Plugin for GraphPlugin {
                     click_node.run_if(on_event::<ClickNode>()),
                     update_graph_refs.in_set(Sets::Graph),
                 ),
-            );
+            )
+            .add_systems(First, update_op_images);
     }
 }
 
@@ -288,6 +290,18 @@ fn update_graph_refs(
 ) {
     for (entity, op_ref) in op_ref_q.iter_mut() {
         commands.entity(op_ref.0).insert(GraphRef(entity));
+    }
+}
+
+fn update_op_images(
+    mut op_q: Query<(&GraphRef, &mut OpImage), Changed<OpImage>>,
+    mut material_q: Query<&Handle<NodeMaterial>>,
+    mut materials: ResMut<Assets<NodeMaterial>>,
+) {
+    for (graph_ref, mut image) in op_q.iter_mut() {
+        let material = material_q.get_mut(**graph_ref).unwrap();
+        let mut material = materials.get_mut(material).unwrap();
+        material.texture = image.0.clone();
     }
 }
 
