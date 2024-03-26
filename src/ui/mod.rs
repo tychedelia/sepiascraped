@@ -188,8 +188,12 @@ pub fn selected_node_ui(
                                     }
                                     ParamValue::Vec2(v) => {
                                         ui.add_enabled_ui(!is_scripted, |ui| {
-                                            ui.add(egui::DragValue::new(&mut v.x));
-                                            ui.add(egui::DragValue::new(&mut v.y));
+                                            ui.add(egui::DragValue::new(&mut v.x)
+                                                .clamp_range(0.0..=1.0)
+                                                .speed(0.05));
+                                            ui.add(egui::DragValue::new(&mut v.y)
+                                                .clamp_range(0.0..=1.0)
+                                                .speed(0.05));
                                         });
                                     }
                                     ParamValue::None => {}
@@ -261,17 +265,31 @@ pub fn selected_node_ui(
                                     }
                                     ParamValue::Vec3(v) => {
                                         ui.add_enabled_ui(!is_scripted, |ui| {
-                                            ui.add(egui::DragValue::new(&mut v.x));
-                                            ui.add(egui::DragValue::new(&mut v.y));
-                                            ui.add(egui::DragValue::new(&mut v.z));
+                                            ui.add(egui::DragValue::new(&mut v.x)
+                                                .clamp_range(0.0..=1.0)
+                                                .speed(0.05));
+                                            ui.add(egui::DragValue::new(&mut v.y)
+                                                .clamp_range(0.0..=1.0)
+                                                .speed(0.05));
+                                            ui.add(egui::DragValue::new(&mut v.z)
+                                                .clamp_range(0.0..=1.0)
+                                                .speed(0.05));
                                         });
                                     }
                                     ParamValue::Quat(v) => {
                                         ui.add_enabled_ui(!is_scripted, |ui| {
-                                            ui.add(egui::DragValue::new(&mut v.x));
-                                            ui.add(egui::DragValue::new(&mut v.y));
-                                            ui.add(egui::DragValue::new(&mut v.z));
-                                            ui.add(egui::DragValue::new(&mut v.w));
+                                            ui.add(egui::DragValue::new(&mut v.x)
+                                                .clamp_range(0.0..=1.0)
+                                                .speed(0.05));
+                                            ui.add(egui::DragValue::new(&mut v.y)
+                                                .clamp_range(0.0..=1.0)
+                                                .speed(0.05));
+                                            ui.add(egui::DragValue::new(&mut v.z)
+                                                .clamp_range(0.0..=1.0)
+                                                .speed(0.05));
+                                            ui.add(egui::DragValue::new(&mut v.w)
+                                                .clamp_range(0.0..=1.0)
+                                                .speed(0.05));
                                         });
                                     }
                                 }

@@ -1,15 +1,15 @@
 use std::f32::consts::PI;
+use std::ops::DerefMut;
 use bevy::ecs::system::lifetimeless::*;
-use bevy::ecs::system::SystemParamItem;
+use bevy::ecs::system::{StaticSystemParam, SystemParamItem};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
-use bevy::render::render_resource::{Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages};
 use bevy::render::view::RenderLayers;
 use bevy::utils::HashMap;
 
 use crate::op::mesh::{CATEGORY, MeshOpBundle, MeshOpHandle};
 use crate::op::{Op, OpImage, OpInputs, OpOutputs, OpPlugin, OpType};
-use crate::param::ParamBundle;
+use crate::param::{IntoParams, ParamBundle, Params, ParamValue};
 use crate::render_layers::RenderLayerManager;
 
 #[derive(Default)]
@@ -27,7 +27,7 @@ pub struct MeshOpCuboid;
 impl Op for MeshOpCuboid {
     const CATEGORY: &'static str = CATEGORY;
     type OpType = OpType<MeshOpCuboid>;
-    type UpdateParam = (SCommands,);
+    type UpdateParam = (SQuery<Write<Transform>>, Params<'static, 'static>);
     type BundleParam = (
         SCommands,
         SResMut<Assets<Mesh>>,
@@ -37,7 +37,25 @@ impl Op for MeshOpCuboid {
     );
     type Bundle = (MeshOpBundle, RenderLayers);
 
-    fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>) {}
+    fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>) {
+        let (transform, params) = param;
+
+        params.get_mut(entity, "Translation").map(|mut param| {
+            if let ParamValue::Vec3(translation) = param.deref_mut() {
+                transform.get_mut(entity).unwrap().translation = *translation;
+            }
+        });
+        params.get_mut(entity, "Rotation").map(|mut param| {
+            if let ParamValue::Quat(rotation) = param.deref_mut() {
+                transform.get_mut(entity).unwrap().rotation = *rotation;
+            }
+        });
+        params.get_mut(entity, "Scale").map(|mut param| {
+            if let ParamValue::Vec3(scale) = param.deref_mut() {
+                transform.get_mut(entity).unwrap().scale = *scale;
+            }
+        });
+    }
 
     fn create_bundle<'w>(
         entity: Entity,
@@ -48,31 +66,7 @@ impl Op for MeshOpCuboid {
         >,
     ) -> Self::Bundle {
         let mesh = meshes.add(Mesh::from(Cuboid::default()));
-
-        let size = Extent3d {
-            width: 512,
-            height: 512,
-            ..default()
-        };
-
-        let mut image = Image {
-            texture_descriptor: TextureDescriptor {
-                label: None,
-                size,
-                dimension: TextureDimension::D2,
-                format: TextureFormat::Rgba8UnormSrgb,
-                mip_level_count: 1,
-                sample_count: 1,
-                usage: TextureUsages::TEXTURE_BINDING
-                    | TextureUsages::COPY_DST
-                    | TextureUsages::RENDER_ATTACHMENT,
-                view_formats: &[],
-            },
-            ..default()
-        };
-
-        image.resize(size);
-
+        let image = OpImage::new_image(512, 512);
         let image = images.add(image);
 
         let new_layer = layer_manager.next_open_layer();
@@ -127,7 +121,8 @@ impl Op for MeshOpCuboid {
         )
     }
 
-    fn params() -> Vec<ParamBundle> {
-        vec![]
+    fn params(bundle: &Self::Bundle) -> Vec<ParamBundle> {
+        [vec![], bundle.0.pbr.transform.as_params()]
+            .concat()
     }
 }

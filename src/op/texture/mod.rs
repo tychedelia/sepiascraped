@@ -194,7 +194,7 @@ macro_rules! impl_op {
                 )
             }
 
-            fn params() -> Vec<crate::param::ParamBundle> {
+            fn params(bundle: &Self::Bundle) -> Vec<crate::param::ParamBundle> {
                 let common_params = vec![
                     crate::param::ParamBundle {
                         name: crate::param::ParamName("Resolution".to_string()),

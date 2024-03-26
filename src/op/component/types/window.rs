@@ -121,7 +121,7 @@ impl Op for ComponentOpWindow {
         )
     }
 
-    fn params() -> Vec<ParamBundle> {
+    fn params(bundle: &Self::Bundle) -> Vec<ParamBundle> {
         vec![
             ParamBundle {
                 name: ParamName("Texture".to_string()),

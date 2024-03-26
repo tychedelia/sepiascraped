@@ -32,7 +32,8 @@ where
             (
                 spawn::<T>.in_set(Sets::Graph),
                 update::<T>.in_set(Sets::Params),
-            ),
+            )
+                .chain(),
         );
     }
 }
@@ -62,8 +63,8 @@ impl OpCategory {
     pub fn to_color(&self) -> Color {
         match self.0 {
             "Component" => Color::SILVER,
-            "Material" => Color::ORANGE,
-            "Mesh" => Color::TEAL,
+            "Material" => Color::SALMON,
+            "Mesh" => Color::NAVY,
             "Texture" => Color::PURPLE,
             _ => panic!("Unknown category: {}", self.0),
         }
@@ -161,7 +162,7 @@ pub trait Op {
     ) -> Self::Bundle;
 
     /// Get the parameters for the op.
-    fn params() -> Vec<ParamBundle>;
+    fn params(bundle: &Self::Bundle) -> Vec<ParamBundle>;
 }
 
 fn update<'w, 's, T>(
@@ -188,6 +189,7 @@ fn spawn<'w, 's, T>(
 
     for entity in added_q.iter() {
         let bundle = T::create_bundle(entity, &mut param);
+        let params = T::params(&bundle);
         commands
             .entity(entity)
             .insert((
@@ -196,7 +198,7 @@ fn spawn<'w, 's, T>(
                 bundle,
             ))
             .with_children(|parent| {
-                T::params().into_iter().for_each(|param| {
+                params.into_iter().for_each(|param| {
                     parent.spawn((OpRef(parent.parent_entity()), param));
                 });
             });

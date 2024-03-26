@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
 use std::ops::DerefMut;
+use bevy::ecs::system::SystemParam;
 
 use bevy::prelude::*;
 
-use crate::index::CompositeIndex2Plugin;
+use crate::index::{CompositeIndex2, CompositeIndex2Plugin};
 use crate::op::{OpCategory, OpRef};
 use crate::script::update;
 use crate::Sets;
@@ -88,13 +89,33 @@ fn validate(
     }
 }
 
-trait IntoParams {
-    fn into_params(self) -> Vec<ParamBundle>;
+#[derive(SystemParam)]
+pub struct Params<'w, 's> {
+    params_q: Query<'w, 's, &'static mut ParamValue>,
+    param_idx: Res<'w, CompositeIndex2<OpRef, ParamName>>,
+}
+
+impl <'w, 's> Params<'w, 's> {
+    pub fn get(&self, entity: Entity, name: impl Into<String>) -> Option<&ParamValue> {
+        self.param_idx
+            .get(&(OpRef(entity), ParamName(name.into())))
+            .map(|e| self.params_q.get(*e).unwrap())
+    }
+
+    pub fn get_mut(&mut self, entity: Entity, name: impl Into<String>) -> Option<Mut<ParamValue>> {
+        self.param_idx
+            .get(&(OpRef(entity), ParamName(name.into())))
+            .map(|e| self.params_q.get_mut(*e).unwrap())
+    }
+}
+
+pub trait IntoParams {
+    fn as_params(&self) -> Vec<ParamBundle>;
 }
 
 /// IntoParams for Transform
 impl IntoParams for Transform {
-    fn into_params(self) -> Vec<ParamBundle> {
+    fn as_params(&self) -> Vec<ParamBundle> {
         vec![
             ParamBundle {
                 name: ParamName("Translation".to_string()),

@@ -73,30 +73,7 @@ impl Op for MaterialOpStandard {
             Self::BundleParam,
         >,
     ) -> Self::Bundle {
-        let size = Extent3d {
-            width: 512,
-            height: 512,
-            ..default()
-        };
-
-        let mut image = Image {
-            texture_descriptor: TextureDescriptor {
-                label: None,
-                size,
-                dimension: TextureDimension::D2,
-                format: TextureFormat::Rgba8UnormSrgb,
-                mip_level_count: 1,
-                sample_count: 1,
-                usage: TextureUsages::TEXTURE_BINDING
-                    | TextureUsages::COPY_DST
-                    | TextureUsages::RENDER_ATTACHMENT,
-                view_formats: &[],
-            },
-            ..default()
-        };
-
-        image.resize(size);
-
+        let image = OpImage::new_image(512, 512);
         let image = images.add(image);
 
         let new_layer = layer_manager.next_open_layer();
@@ -154,7 +131,7 @@ impl Op for MaterialOpStandard {
         )
     }
 
-    fn params() -> Vec<ParamBundle> {
+    fn params(bundle: &Self::Bundle) -> Vec<ParamBundle> {
         vec![ParamBundle {
             name: ParamName("Texture".to_string()),
             value: ParamValue::TextureOp(None),

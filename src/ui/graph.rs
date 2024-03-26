@@ -189,6 +189,7 @@ pub fn ui(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<NodeMaterial>>,
+    images: Res<Assets<Image>>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
     mut asset_server: ResMut<AssetServer>,
     default_image: Res<OpDefaultImage>,
@@ -210,6 +211,7 @@ pub fn ui(
         let (grid, _) = parent.single_mut();
         let index = ((*graph_id).index() as f32 / 100.0) + 10.0;
         let mut rng = rand::thread_rng();
+        let size = images.get(&image.0).unwrap().size().as_vec2();
 
         commands.entity(grid).with_children(|parent| {
             parent
@@ -218,7 +220,7 @@ pub fn ui(
                     NodeRoot,
                     MaterialMesh2dBundle {
                         mesh: meshes
-                            .add(Mesh::from(Rectangle::new(100.0, 100.0)))
+                            .add(Mesh::from(Rectangle::new(size.x / 4.0, size.y / 4.0)))
                             .into(),
                         material: materials.add(NodeMaterial {
                             selected: 0,
@@ -264,7 +266,7 @@ pub fn ui(
                     parent.spawn(
                         MaterialMesh2dBundle {
                             mesh: meshes
-                                .add(Mesh::from(Rectangle::new(90.0, 90.0)))
+                                .add(Mesh::from(Rectangle::new(size.x / 4.0 - (size.x / 4.0 * 0.1), size.y / 4.0 - (size.y / 4.0 * 0.1))))
                                 .into(),
                             material: color_materials.add(default_image.0.clone()),
                             transform: Transform::from_translation(Vec3::new(0.0, 0.0, -0.001)),
@@ -272,11 +274,11 @@ pub fn ui(
                         }
                     );
                     for i in 0..input_config.count {
-                        let offset = -50.0;
+                        let offset = -(size.x / 8.0);
                         spawn_port(&mut meshes, &mut color_materials, parent, InPort(i as u8), Vec3::new(offset, 0.0, -0.002));
                     }
                     for i in 0..output_config.count {
-                        let offset = 50.0;
+                        let offset = (size.x/ 8.0);
                         spawn_port(&mut meshes, &mut color_materials, parent, OutPort(i as u8), Vec3::new(offset, 0.0, -0.002));
                     }
                 });
