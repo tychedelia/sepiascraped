@@ -77,7 +77,8 @@ fn clear_untouched_params(
     mut params_q: Query<Entity, (With<ScriptedParam>, Without<ScriptTouched>)>,
 ) {
     for entity in params_q.iter() {
-        commands.entity(entity)
+        commands
+            .entity(entity)
             .remove::<ScriptedParam>()
             .remove::<ScriptedParamError>();
     }
@@ -330,7 +331,8 @@ fn param_bang(world: &mut WorldHolder, entity: EntityRef, name: String, val: Ste
     let name = ParamName(name);
     if let Some(entity) = index.get(&(OpRef(*entity), name.clone())) {
         let entity = *entity;
-        world.entity_mut(entity.clone())
+        world
+            .entity_mut(entity.clone())
             .insert(ScriptTouched)
             .insert(ScriptedParam);
 
@@ -529,7 +531,7 @@ fn update_param(param_value: &mut ParamValue, steel_val: SteelVal) -> Result<(),
                 }
             }
             _ => return Err(ScriptError::Conversion(steel_val)),
-        }
+        },
         ParamValue::Quat(p) => match steel_val {
             SteelVal::ListV(ref v) => {
                 let mut iter = v.into_iter();
@@ -538,13 +540,23 @@ fn update_param(param_value: &mut ParamValue, steel_val: SteelVal) -> Result<(),
                 let z = iter.next().unwrap();
                 let w = iter.next().unwrap();
                 match (x, y, z, w) {
-                    (SteelVal::NumV(x), SteelVal::NumV(y), SteelVal::NumV(z), SteelVal::NumV(w)) => {
+                    (
+                        SteelVal::NumV(x),
+                        SteelVal::NumV(y),
+                        SteelVal::NumV(z),
+                        SteelVal::NumV(w),
+                    ) => {
                         p.x = *x as f32;
                         p.y = *y as f32;
                         p.z = *z as f32;
                         p.w = *w as f32;
                     }
-                    (SteelVal::IntV(x), SteelVal::IntV(y), SteelVal::IntV(z), SteelVal::IntV(w)) => {
+                    (
+                        SteelVal::IntV(x),
+                        SteelVal::IntV(y),
+                        SteelVal::IntV(z),
+                        SteelVal::IntV(w),
+                    ) => {
                         p.x = *x as f32;
                         p.y = *y as f32;
                         p.z = *z as f32;
@@ -554,7 +566,7 @@ fn update_param(param_value: &mut ParamValue, steel_val: SteelVal) -> Result<(),
                 }
             }
             _ => return Err(ScriptError::Conversion(steel_val)),
-        }
+        },
     }
 
     Ok(())

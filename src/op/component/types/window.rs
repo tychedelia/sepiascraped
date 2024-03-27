@@ -8,13 +8,13 @@ use bevy::render::view::RenderLayers;
 use bevy::window::WindowRef;
 
 use crate::index::CompositeIndex2;
-use crate::op::{Op, OpInputs, OpOutputs, OpPlugin, OpType};
 use crate::op::component::CATEGORY;
-use crate::op::OpRef;
 use crate::op::OpImage;
-use crate::OpName;
+use crate::op::OpRef;
+use crate::op::{Op, OpInputs, OpOutputs, OpPlugin, OpType};
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 use crate::render_layers::RenderLayerManager;
+use crate::OpName;
 
 #[derive(Default)]
 pub struct ComponentOpWindowPlugin;
@@ -36,10 +36,7 @@ impl Op for ComponentOpWindow {
     type OpType = OpType<ComponentOpWindow>;
     type UpdateParam = (
         SCommands,
-        SQuery<
-            (Write<Window>, Option<Read<WindowTexture>>),
-            With<OpType<ComponentOpWindow>>,
-        >,
+        SQuery<(Write<Window>, Option<Read<WindowTexture>>), With<OpType<ComponentOpWindow>>>,
         SQuery<Read<OpImage>>,
         SQuery<Read<ParamValue>>,
         SRes<CompositeIndex2<OpRef, ParamName>>,
@@ -49,7 +46,14 @@ impl Op for ComponentOpWindow {
     type OnConnectParam = ();
     type ConnectionDataParam = ();
     type OnDisconnectParam = ();
-    type Bundle = (Window, Camera2dBundle, RenderLayers, OpImage, OpInputs<Self>, OpOutputs);
+    type Bundle = (
+        Window,
+        Camera2dBundle,
+        RenderLayers,
+        OpImage,
+        OpInputs<Self>,
+        OpOutputs,
+    );
     type ConnectionData = ();
 
     fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>) {
@@ -143,7 +147,10 @@ impl Op for ComponentOpWindow {
         ]
     }
 
-    fn connection_data<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::ConnectionDataParam>) -> Self::ConnectionData {
+    fn connection_data<'w>(
+        entity: Entity,
+        param: &mut SystemParamItem<'w, '_, Self::ConnectionDataParam>,
+    ) -> Self::ConnectionData {
         todo!()
     }
 }

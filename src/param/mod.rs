@@ -1,6 +1,6 @@
+use bevy::ecs::system::SystemParam;
 use std::collections::BTreeMap;
 use std::ops::DerefMut;
-use bevy::ecs::system::SystemParam;
 
 use bevy::prelude::*;
 
@@ -37,9 +37,7 @@ pub struct Param;
 )]
 pub struct ParamName(pub String);
 
-trait ParamType: Default {
-
-}
+trait ParamType: Default {}
 
 #[derive(Component, Clone, Debug, Default)]
 pub enum ParamValue {
@@ -109,7 +107,7 @@ pub struct Params<'w, 's> {
     param_idx: Res<'w, CompositeIndex2<OpRef, ParamName>>,
 }
 
-impl <'w, 's> Params<'w, 's> {
+impl<'w, 's> Params<'w, 's> {
     pub fn get(&self, entity: Entity, name: impl Into<String>) -> Option<&ParamValue> {
         self.param_idx
             .get(&(OpRef(entity), ParamName(name.into())))

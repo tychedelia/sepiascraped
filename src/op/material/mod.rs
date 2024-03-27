@@ -18,8 +18,7 @@ pub struct MaterialPlugin;
 
 impl Plugin for MaterialPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_plugins(MaterialOpStandardPlugin)
+        app.add_plugins(MaterialOpStandardPlugin)
             .init_resource::<MaterialDefaultMesh>()
             .add_systems(Startup, setup);
     }
@@ -37,7 +36,8 @@ pub struct MaterialOpHandle<M: Asset>(pub Handle<M>);
 
 #[derive(Bundle)]
 pub struct MaterialOpBundle<M: Asset, T: Op>
-    where T: Op + Component + ExtractComponent + Debug + Send + Sync + 'static,
+where
+    T: Op + Component + ExtractComponent + Debug + Send + Sync + 'static,
 {
     material: MaterialOpHandle<M>,
     image: OpImage,

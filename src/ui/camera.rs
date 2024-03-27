@@ -1,8 +1,8 @@
+use crate::ui::UiCamera;
 use bevy::input::mouse::MouseWheel;
 use bevy::input::touchpad::TouchpadMagnify;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use crate::ui::UiCamera;
 
 #[derive(Component)]
 pub struct CameraController {

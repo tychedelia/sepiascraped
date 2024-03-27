@@ -6,12 +6,12 @@ use bevy::render::render_resource::encase::internal::WriteInto;
 use bevy::render::render_resource::ShaderType;
 
 use crate::op::component::types::window::ComponentOpWindowPlugin;
-use crate::op::{Op, OpInputConfig, OpInputs, OpOutputConfig, OpOutputs};
 use crate::op::texture::TextureOp;
+use crate::op::{Op, OpInputConfig, OpInputs, OpOutputConfig, OpOutputs};
 
 pub mod types;
 
-pub const CATEGORY : &str = "Component";
+pub const CATEGORY: &str = "Component";
 
 pub struct ComponentPlugin;
 
@@ -23,7 +23,8 @@ impl Plugin for ComponentPlugin {
 
 #[derive(Bundle)]
 pub struct ComponentOpBundle<T>
-where T: Op + Component + ExtractComponent + Debug + Send + Sync + 'static,
+where
+    T: Op + Component + ExtractComponent + Debug + Send + Sync + 'static,
 {
     inputs: OpInputs<T>,
     input_config: OpInputConfig,

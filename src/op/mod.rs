@@ -31,15 +31,14 @@ where
     T: Op + Component + ExtractComponent + Send + Sync + Debug + 'static,
 {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(
+        app.add_systems(
             Update,
             (
                 (spawn::<T>, on_connect::<T>, on_disconnect::<T>).in_set(Sets::Graph),
                 update::<T>.in_set(Sets::Params),
-            ).chain(),
-        )
-        ;
+            )
+                .chain(),
+        );
     }
 }
 

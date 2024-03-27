@@ -5,10 +5,8 @@ pub struct RenderLayerPlugin;
 
 impl Plugin for RenderLayerPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .init_resource::<RenderLayerManager>()
+        app.init_resource::<RenderLayerManager>()
             .add_systems(First, sync);
-
     }
 }
 
@@ -19,7 +17,9 @@ pub struct RenderLayerManager {
 
 impl Default for RenderLayerManager {
     fn default() -> Self {
-        Self { layers: vec![false; RenderLayers::TOTAL_LAYERS] }
+        Self {
+            layers: vec![false; RenderLayers::TOTAL_LAYERS],
+        }
     }
 }
 
@@ -33,7 +33,11 @@ impl RenderLayerManager {
     }
 
     pub fn next_open_layer(&mut self) -> u8 {
-        let layer = self.layers.iter().position(|layer| !*layer).map(|layer| layer as u8);
+        let layer = self
+            .layers
+            .iter()
+            .position(|layer| !*layer)
+            .map(|layer| layer as u8);
         let Some(layer) = layer else {
             panic!("No more layers available")
         };

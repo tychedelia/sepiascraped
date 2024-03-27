@@ -2,9 +2,9 @@ use bevy::prelude::*;
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::render_resource::ShaderType;
 
-use crate::op::{OpPlugin, OpType};
-use crate::op::texture::{impl_op, TextureOp};
 use crate::op::texture::render::TextureOpRenderPlugin;
+use crate::op::texture::{impl_op, TextureOp};
+use crate::op::{OpPlugin, OpType};
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 
 #[derive(Default)]

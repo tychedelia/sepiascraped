@@ -1,5 +1,8 @@
 use std::borrow::Cow;
 
+use bevy::core_pipeline::core_2d::Transparent2d;
+use bevy::render::view::{ViewUniform, ViewUniformOffset, ViewUniforms};
+use bevy::utils::FloatOrd;
 use bevy::{
     ecs::{
         query::ROQueryItem,
@@ -11,10 +14,7 @@ use bevy::{
     pbr::MeshPipelineKey,
     prelude::*,
     render::{
-        Extract,
-        ExtractSchedule,
         mesh::PrimitiveTopology,
-        Render,
         render_phase::{
             AddRenderCommand, DrawFunctions, PhaseItem, RenderCommand, RenderCommandResult,
             RenderPhase, SetItemPipeline,
@@ -26,12 +26,12 @@ use bevy::{
             PrimitiveState, RenderPipelineDescriptor, ShaderStages, ShaderType,
             SpecializedRenderPipeline, SpecializedRenderPipelines, TextureFormat, VertexState,
         },
-        RenderApp, renderer::{RenderDevice, RenderQueue}, RenderSet, texture::BevyDefault, view::{ExtractedView, ViewTarget, VisibleEntities},
+        renderer::{RenderDevice, RenderQueue},
+        texture::BevyDefault,
+        view::{ExtractedView, ViewTarget, VisibleEntities},
+        Extract, ExtractSchedule, Render, RenderApp, RenderSet,
     },
 };
-use bevy::core_pipeline::core_2d::Transparent2d;
-use bevy::render::view::{ViewUniform, ViewUniformOffset, ViewUniforms};
-use bevy::utils::FloatOrd;
 
 use crate::ui::grid::InfiniteGridSettings;
 

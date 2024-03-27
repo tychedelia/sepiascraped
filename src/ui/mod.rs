@@ -1,6 +1,7 @@
 use bevy::core::FrameCount;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, SystemInformationDiagnosticsPlugin};
 use bevy::prelude::*;
+use bevy::render::camera::CameraOutputMode;
 use bevy_egui::egui::util::cache::FrameCache;
 use bevy_egui::egui::TextEdit;
 use bevy_egui::{egui, EguiContexts};
@@ -9,7 +10,6 @@ use egui_autocomplete::AutoCompleteTextEdit;
 use iyes_perf_ui::prelude::PerfUiEntryFPS;
 use iyes_perf_ui::{PerfUiCompleteBundle, PerfUiPlugin, PerfUiRoot};
 use std::collections::BTreeSet;
-use bevy::render::camera::CameraOutputMode;
 use steel_parser::ast::IteratorExtensions;
 
 use camera::CameraControllerPlugin;
@@ -45,7 +45,10 @@ impl Plugin for UiPlugin {
         ))
         .add_event::<ClickNode>()
         .add_systems(Startup, ui_setup)
-        .add_systems(Update, (toggle_camera, init_params, ui, selected_node_ui).in_set(Ui))
+        .add_systems(
+            Update,
+            (toggle_camera, init_params, ui, selected_node_ui).in_set(Ui),
+        )
         .init_resource::<UiState>()
         .insert_resource(AmbientLight {
             color: Color::WHITE,
@@ -110,7 +113,6 @@ fn toggle_camera(
             }
         }
     }
-
 }
 
 pub fn ui(
@@ -207,12 +209,16 @@ pub fn selected_node_ui(
                                     }
                                     ParamValue::Vec2(v) => {
                                         ui.add_enabled_ui(!is_scripted, |ui| {
-                                            ui.add(egui::DragValue::new(&mut v.x)
-                                                .clamp_range(0.0..=1.0)
-                                                .speed(0.05));
-                                            ui.add(egui::DragValue::new(&mut v.y)
-                                                .clamp_range(0.0..=1.0)
-                                                .speed(0.05));
+                                            ui.add(
+                                                egui::DragValue::new(&mut v.x)
+                                                    .clamp_range(0.0..=1.0)
+                                                    .speed(0.05),
+                                            );
+                                            ui.add(
+                                                egui::DragValue::new(&mut v.y)
+                                                    .clamp_range(0.0..=1.0)
+                                                    .speed(0.05),
+                                            );
                                         });
                                     }
                                     ParamValue::None => {}
@@ -284,31 +290,45 @@ pub fn selected_node_ui(
                                     }
                                     ParamValue::Vec3(v) => {
                                         ui.add_enabled_ui(!is_scripted, |ui| {
-                                            ui.add(egui::DragValue::new(&mut v.x)
-                                                .clamp_range(0.0..=1.0)
-                                                .speed(0.05));
-                                            ui.add(egui::DragValue::new(&mut v.y)
-                                                .clamp_range(0.0..=1.0)
-                                                .speed(0.05));
-                                            ui.add(egui::DragValue::new(&mut v.z)
-                                                .clamp_range(0.0..=1.0)
-                                                .speed(0.05));
+                                            ui.add(
+                                                egui::DragValue::new(&mut v.x)
+                                                    .clamp_range(0.0..=1.0)
+                                                    .speed(0.05),
+                                            );
+                                            ui.add(
+                                                egui::DragValue::new(&mut v.y)
+                                                    .clamp_range(0.0..=1.0)
+                                                    .speed(0.05),
+                                            );
+                                            ui.add(
+                                                egui::DragValue::new(&mut v.z)
+                                                    .clamp_range(0.0..=1.0)
+                                                    .speed(0.05),
+                                            );
                                         });
                                     }
                                     ParamValue::Quat(v) => {
                                         ui.add_enabled_ui(!is_scripted, |ui| {
-                                            ui.add(egui::DragValue::new(&mut v.x)
-                                                .clamp_range(0.0..=1.0)
-                                                .speed(0.05));
-                                            ui.add(egui::DragValue::new(&mut v.y)
-                                                .clamp_range(0.0..=1.0)
-                                                .speed(0.05));
-                                            ui.add(egui::DragValue::new(&mut v.z)
-                                                .clamp_range(0.0..=1.0)
-                                                .speed(0.05));
-                                            ui.add(egui::DragValue::new(&mut v.w)
-                                                .clamp_range(0.0..=1.0)
-                                                .speed(0.05));
+                                            ui.add(
+                                                egui::DragValue::new(&mut v.x)
+                                                    .clamp_range(0.0..=1.0)
+                                                    .speed(0.05),
+                                            );
+                                            ui.add(
+                                                egui::DragValue::new(&mut v.y)
+                                                    .clamp_range(0.0..=1.0)
+                                                    .speed(0.05),
+                                            );
+                                            ui.add(
+                                                egui::DragValue::new(&mut v.z)
+                                                    .clamp_range(0.0..=1.0)
+                                                    .speed(0.05),
+                                            );
+                                            ui.add(
+                                                egui::DragValue::new(&mut v.w)
+                                                    .clamp_range(0.0..=1.0)
+                                                    .speed(0.05),
+                                            );
                                         });
                                     }
                                 }

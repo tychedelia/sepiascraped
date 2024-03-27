@@ -3,13 +3,13 @@ extern crate rustyline;
 use std::borrow::Cow;
 
 use colored::*;
-use rustyline::{Context, Helper, hint::Hinter};
 use rustyline::completion::Completer;
 use rustyline::completion::Pair;
 use rustyline::highlight::{Highlighter, MatchingBracketHighlighter};
 use rustyline::validate::{
     MatchingBracketValidator, ValidationContext, ValidationResult, Validator,
 };
+use rustyline::{hint::Hinter, Context, Helper};
 use steel_parser::lexer::TokenStream;
 
 impl Completer for RustylineHelper {
@@ -24,7 +24,10 @@ pub struct RustylineHelper {
 }
 
 impl RustylineHelper {
-    pub fn new(highlighter: MatchingBracketHighlighter, validator: MatchingBracketValidator) -> Self {
+    pub fn new(
+        highlighter: MatchingBracketHighlighter,
+        validator: MatchingBracketValidator,
+    ) -> Self {
         Self {
             highlighter,
             validator,
@@ -113,9 +116,7 @@ impl Highlighter for RustylineHelper {
                     let highlighted = format!("{}", token.source().bright_magenta());
                     ranges_to_replace.push((token.span().range(), highlighted));
                 }
-                TokenType::Identifier(ident) => {
-
-                }
+                TokenType::Identifier(ident) => {}
                 // steel::parser::tokens::TokenType::Keyword(_) => todo!(),
                 TokenType::Number(_) => {
                     let highlighted = format!("{}", token.source().bright_yellow());

@@ -1,5 +1,5 @@
-use bevy::asset::{AssetLoader, AsyncReadExt, LoadContext, ron};
 use bevy::asset::io::Reader;
+use bevy::asset::{ron, AssetLoader, AsyncReadExt, LoadContext};
 use bevy::prelude::*;
 use bevy::utils::{BoxedFuture, HashMap};
 use steel::compiler::program::RawProgramWithSymbols;

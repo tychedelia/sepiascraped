@@ -2,16 +2,18 @@ use bevy::ecs::system::lifetimeless::*;
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
+use bevy::render::extract_component::ExtractComponent;
 use bevy::render::render_resource::{
     Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
 use bevy::render::view::RenderLayers;
 use bevy::utils::HashMap;
 use std::ops::Deref;
-use bevy::render::extract_component::ExtractComponent;
 
-use crate::op::material::{CATEGORY, MaterialDefaultMesh, MaterialOpBundle, MaterialOpHandle};
-use crate::op::{Op, OpImage, OpInputConfig, OpInputs, OpOutputConfig, OpOutputs, OpPlugin, OpType};
+use crate::op::material::{MaterialDefaultMesh, MaterialOpBundle, MaterialOpHandle, CATEGORY};
+use crate::op::{
+    Op, OpImage, OpInputConfig, OpInputs, OpOutputConfig, OpOutputs, OpPlugin, OpType,
+};
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 use crate::render_layers::RenderLayerManager;
 
@@ -52,8 +54,9 @@ impl Op for MaterialOpStandard {
     fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>) {
         let (materials, image_q, self_q, params_q) = param;
 
-        let Ok((children, handle)) = self_q
-            .get_mut(entity) else { return };
+        let Ok((children, handle)) = self_q.get_mut(entity) else {
+            return;
+        };
 
         for (param_name, param_value) in params_q.iter_many(children) {
             match param_name.0.as_str() {
@@ -150,7 +153,10 @@ impl Op for MaterialOpStandard {
         }]
     }
 
-    fn connection_data<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::ConnectionDataParam>) -> Self::ConnectionData {
+    fn connection_data<'w>(
+        entity: Entity,
+        param: &mut SystemParamItem<'w, '_, Self::ConnectionDataParam>,
+    ) -> Self::ConnectionData {
         todo!()
     }
 }

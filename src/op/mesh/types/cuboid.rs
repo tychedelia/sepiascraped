@@ -1,5 +1,3 @@
-use std::f32::consts::PI;
-use std::ops::DerefMut;
 use bevy::ecs::system::lifetimeless::*;
 use bevy::ecs::system::{StaticSystemParam, SystemParamItem};
 use bevy::prelude::*;
@@ -7,10 +5,14 @@ use bevy::render::camera::RenderTarget;
 use bevy::render::extract_component::ExtractComponent;
 use bevy::render::view::RenderLayers;
 use bevy::utils::HashMap;
+use std::f32::consts::PI;
+use std::ops::DerefMut;
 
-use crate::op::mesh::{CATEGORY, MeshOpBundle, MeshOpHandle};
-use crate::op::{Op, OpImage, OpInputConfig, OpInputs, OpOutputConfig, OpOutputs, OpPlugin, OpType};
-use crate::param::{IntoParams, ParamBundle, Params, ParamValue};
+use crate::op::mesh::{MeshOpBundle, MeshOpHandle, CATEGORY};
+use crate::op::{
+    Op, OpImage, OpInputConfig, OpInputs, OpOutputConfig, OpOutputs, OpPlugin, OpType,
+};
+use crate::param::{IntoParams, ParamBundle, ParamValue, Params};
 use crate::render_layers::RenderLayerManager;
 
 #[derive(Default)]
@@ -34,7 +36,7 @@ impl Op for MeshOpCuboid {
         SResMut<Assets<Mesh>>,
         SResMut<Assets<Image>>,
         SResMut<Assets<StandardMaterial>>,
-        SResMut<RenderLayerManager>
+        SResMut<RenderLayerManager>,
     );
     type OnConnectParam = ();
     type ConnectionDataParam = ();
@@ -78,8 +80,7 @@ impl Op for MeshOpCuboid {
 
         commands.spawn((
             Camera3dBundle {
-                transform: Transform::from_xyz(0.0, 0.0, 4.0)
-                    .looking_at(Vec3::ZERO, Vec3::Y),
+                transform: Transform::from_xyz(0.0, 0.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
                 camera: Camera {
                     target: RenderTarget::Image(image.clone()),
                     ..default()
@@ -133,11 +134,13 @@ impl Op for MeshOpCuboid {
     }
 
     fn params(bundle: &Self::Bundle) -> Vec<ParamBundle> {
-        [vec![], bundle.0.pbr.transform.as_params()]
-            .concat()
+        [vec![], bundle.0.pbr.transform.as_params()].concat()
     }
 
-    fn connection_data<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::ConnectionDataParam>) -> Self::ConnectionData {
+    fn connection_data<'w>(
+        entity: Entity,
+        param: &mut SystemParamItem<'w, '_, Self::ConnectionDataParam>,
+    ) -> Self::ConnectionData {
         todo!()
     }
 }
