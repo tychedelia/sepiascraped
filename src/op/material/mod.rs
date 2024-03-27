@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::op::{Op, OpImage, OpInputConfig, OpInputs, OpOutputConfig, OpOutputs};
+use crate::op::{Op, OpImage, OpInputs, OpOutputs};
 use bevy::prelude::*;
 use bevy::render::extract_component::ExtractComponent;
 use bevy::render::render_resource::encase::internal::WriteInto;
@@ -35,14 +35,9 @@ fn setup(mut default_mesh: ResMut<MaterialDefaultMesh>, mut meshes: ResMut<Asset
 pub struct MaterialOpHandle<M: Asset>(pub Handle<M>);
 
 #[derive(Bundle)]
-pub struct MaterialOpBundle<M: Asset, T: Op>
-where
-    T: Op + Component + ExtractComponent + Debug + Send + Sync + 'static,
-{
+pub struct MaterialOpBundle<M: Asset> {
     material: MaterialOpHandle<M>,
     image: OpImage,
-    inputs: OpInputs<T>,
-    input_config: OpInputConfig,
+    inputs: OpInputs,
     outputs: OpOutputs,
-    output_config: OpOutputConfig,
 }

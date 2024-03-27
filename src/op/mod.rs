@@ -92,31 +92,15 @@ impl OpCategory {
 }
 
 #[derive(Component, ExtractComponent, Clone, Default, Debug)]
-pub struct OpInputConfig {
+pub struct OpInputs {
     pub count: usize,
+    pub connections: Vec<Entity>,
 }
 
-#[derive(Component, ExtractComponent, Clone, Default, Debug)]
-pub struct OpInputs<T>
-where
-    T: Op + Component + ExtractComponent + Debug + Send + Sync + 'static,
-{
-    pub count: usize,
-    pub connections: HashMap<Entity, T::ConnectionData>,
-}
-
-impl<T> OpInputs<T>
-where
-    T: Op + Component + ExtractComponent + Debug + Send + Sync + 'static,
-{
+impl OpInputs {
     pub fn is_fully_connected(&self) -> bool {
         self.count == 0 || self.connections.len() == self.count
     }
-}
-
-#[derive(Component, ExtractComponent, Clone, Default, Debug)]
-pub struct OpOutputConfig {
-    pub count: usize,
 }
 
 #[derive(Component, Default)]
@@ -170,14 +154,9 @@ pub trait Op {
     type BundleParam: SystemParam + 'static;
     /// The on connect parameter.
     type OnConnectParam: SystemParam + 'static;
-    /// The connection data parameter.
-    type ConnectionDataParam: SystemParam + 'static;
-    /// The on disconnect parameter.
     type OnDisconnectParam: SystemParam + 'static;
     /// The bundle type of this op;
     type Bundle: Bundle;
-    /// Connection data.
-    type ConnectionData: Default + Clone + Debug + Send + Sync + 'static;
 
     /// Update the op, i.e. to apply updates from the UI.
     fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>);
@@ -206,11 +185,6 @@ pub trait Op {
         param: &mut SystemParamItem<'w, '_, Self::OnDisconnectParam>,
     ) {
     }
-
-    fn connection_data<'w>(
-        entity: Entity,
-        param: &mut SystemParamItem<'w, '_, Self::ConnectionDataParam>,
-    ) -> Self::ConnectionData;
 }
 
 fn update<'w, 's, T>(
@@ -257,30 +231,23 @@ fn spawn<'w, 's, T>(
 
 fn on_connect<T>(
     mut ev_connect: EventReader<Connect>,
-    mut op_q: Query<&mut OpInputs<T>, With<OpType<T>>>,
-    input_q: Query<&OpImage>,
-    connection_data_param: StaticSystemParam<T::ConnectionDataParam>,
+    mut op_q: Query<&mut OpInputs, With<OpType<T>>>,
     param: StaticSystemParam<T::OnConnectParam>,
 ) where
     T: Op + Component + ExtractComponent + Debug + Send + Sync + 'static,
 {
     let mut param = param.into_inner();
-    let mut connection_data_param = connection_data_param.into_inner();
     for ev in ev_connect.read() {
         if let Ok(mut input) = op_q.get_mut(ev.input) {
-            input.connections.insert(
-                ev.output,
-                T::connection_data(ev.output, &mut connection_data_param),
-            );
+            input.connections.push(ev.output);
             T::on_connect(ev.input, *ev, input.is_fully_connected(), &mut param);
         }
     }
 }
 
 fn on_disconnect<T>(
-    mut commands: Commands,
     mut ev_disconnect: EventReader<Disconnect>,
-    mut op_q: Query<&mut OpInputs<T>, With<OpType<T>>>,
+    mut op_q: Query<&mut OpInputs, With<OpType<T>>>,
     param: StaticSystemParam<T::OnDisconnectParam>,
 ) where
     T: Op + Component + ExtractComponent + Debug + Send + Sync + 'static,
@@ -288,7 +255,7 @@ fn on_disconnect<T>(
     let mut param = param.into_inner();
     for ev in ev_disconnect.read() {
         if let Ok(mut input) = op_q.get_mut(ev.input) {
-            input.connections.remove(&ev.output);
+            input.connections.retain(|e| e != &ev.output);
             T::on_disconnect(ev.input, *ev, input.is_fully_connected(), &mut param);
         }
     }

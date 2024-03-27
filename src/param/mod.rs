@@ -45,6 +45,7 @@ pub enum ParamValue {
     None,
     F32(f32),
     U32(u32),
+    UVec2(UVec2),
     Vec2(Vec2),
     Vec3(Vec3),
     Quat(Quat),
@@ -53,15 +54,6 @@ pub enum ParamValue {
     TextureOp(Option<Entity>),
     MeshOp(Option<Entity>),
 }
-
-#[derive(Component, Default, Debug)]
-pub struct ParamMin(ParamValue);
-
-#[derive(Component, Default, Debug)]
-pub struct ParamMax(ParamValue);
-
-#[derive(Component, Default, Debug)]
-pub struct ParamStep(pub ParamValue);
 
 #[derive(Resource, Default, Debug)]
 pub struct ParamHash(BTreeMap<Entity, u64>);

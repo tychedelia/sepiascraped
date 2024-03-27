@@ -48,11 +48,9 @@ pub struct TextureOpRenderLabel;
 impl<T> Plugin for TextureOpRenderPlugin<T>
 where
     T: TextureOp + Component + ExtractComponent + Clone + Debug + Send + Sync + 'static,
-    AssetId<Image>: for<'a> From<&'a <T as Op>::ConnectionData>,
 {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            ExtractComponentPlugin::<OpInputs<T>>::default(),
             ExtractComponentPlugin::<T::Uniform>::default(),
             UniformComponentPlugin::<T::Uniform>::default(),
         ));
@@ -96,12 +94,11 @@ pub fn prepare_texture_op_pipelines<T>(
     mut pipeline: ResMut<TextureOpPipeline>,
     pipeline_cache: Res<PipelineCache>,
     mut pipelines: ResMut<SpecializedRenderPipelines<TextureOpPipeline>>,
-    views: Query<(Entity, &ExtractedView, &OpInputs<T>), With<<T as Op>::OpType>>,
+    views: Query<(Entity, &ExtractedView, &OpInputs), With<<T as Op>::OpType>>,
     shader_handle: Res<TextureOpShaderHandle<T>>,
     render_device: Res<RenderDevice>,
 ) where
     T: TextureOp + Component + ExtractComponent + Clone + Debug + Send + Sync + 'static,
-    AssetId<Image>: for<'a> From<&'a <T as Op>::ConnectionData>,
 {
     for (entity, view, inputs) in views.iter() {
         if !inputs.is_fully_connected() {
@@ -145,7 +142,8 @@ pub fn prepare_texture_op_bind_group<T>(
         (
             Entity,
             &ExtractedView,
-            &OpInputs<T>,
+            &TextureOpInputImages,
+            &OpInputs,
             &DynamicUniformIndex<T::Uniform>,
         ),
         With<<T as Op>::OpType>,
@@ -154,17 +152,15 @@ pub fn prepare_texture_op_bind_group<T>(
     images: Res<RenderAssets<Image>>,
     render_device: Res<RenderDevice>,
 ) where
-    T: TextureOp + Component + ExtractComponent + Clone + Debug + Send + Sync + 'static,
-    AssetId<Image>: for<'a> From<&'a <T as Op>::ConnectionData>,
-{
-    for (entity, view, inputs, uniform_index) in views.iter() {
+    T: TextureOp + Component + ExtractComponent + Clone + Debug + Send + Sync + 'static {
+    for (entity, view, op_images, inputs, uniform_index) in views.iter() {
         if !inputs.is_fully_connected() {
             continue;
         }
 
         let mut gpu_images = vec![];
-        for connection in inputs.connections.iter() {
-            if let Some(image) = images.get(AssetId::<Image>::from(&connection.1)) {
+        for image in op_images.iter() {
+            if let Some(image) = images.get(image) {
                 gpu_images.push(image);
             }
         }
@@ -248,6 +244,9 @@ impl SpecializedRenderPipeline for TextureOpPipeline {
         }
     }
 }
+
+#[derive(Component, ExtractComponent, Deref, DerefMut, Clone, Debug, Default)]
+pub struct TextureOpInputImages(pub Vec<Handle<Image>>);
 
 #[derive(Component, Debug)]
 pub struct TextureOpPipelineId(pub CachedRenderPipelineId);

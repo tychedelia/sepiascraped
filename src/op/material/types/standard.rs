@@ -11,9 +11,7 @@ use bevy::utils::HashMap;
 use std::ops::Deref;
 
 use crate::op::material::{MaterialDefaultMesh, MaterialOpBundle, MaterialOpHandle, CATEGORY};
-use crate::op::{
-    Op, OpImage, OpInputConfig, OpInputs, OpOutputConfig, OpOutputs, OpPlugin, OpType,
-};
+use crate::op::{Op, OpImage, OpInputs, OpOutputs, OpPlugin, OpType};
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 use crate::render_layers::RenderLayerManager;
 
@@ -46,10 +44,8 @@ impl Op for MaterialOpStandard {
         SResMut<RenderLayerManager>,
     );
     type OnConnectParam = ();
-    type ConnectionDataParam = ();
     type OnDisconnectParam = ();
-    type Bundle = (MaterialOpBundle<StandardMaterial, Self>, RenderLayers);
-    type ConnectionData = ();
+    type Bundle = (MaterialOpBundle<StandardMaterial>, RenderLayers);
 
     fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>) {
         let (materials, image_q, self_q, params_q) = param;
@@ -128,15 +124,9 @@ impl Op for MaterialOpStandard {
                 image: OpImage(image),
                 inputs: OpInputs {
                     count: Self::INPUTS,
-                    connections: HashMap::new(),
-                },
-                input_config: OpInputConfig {
-                    count: Self::INPUTS,
+                    connections: Vec::new(),
                 },
                 outputs: OpOutputs {
-                    count: Self::OUTPUTS,
-                },
-                output_config: OpOutputConfig {
                     count: Self::OUTPUTS,
                 },
             },
@@ -151,12 +141,5 @@ impl Op for MaterialOpStandard {
             order: ParamOrder(0),
             ..default()
         }]
-    }
-
-    fn connection_data<'w>(
-        entity: Entity,
-        param: &mut SystemParamItem<'w, '_, Self::ConnectionDataParam>,
-    ) -> Self::ConnectionData {
-        todo!()
     }
 }

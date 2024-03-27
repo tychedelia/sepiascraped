@@ -423,6 +423,25 @@ fn update_param(param_value: &mut ParamValue, steel_val: SteelVal) -> Result<(),
             }
             _ => return Err(ScriptError::Conversion(steel_val)),
         },
+        ParamValue::UVec2(p) => match steel_val {
+            SteelVal::ListV(ref v) => {
+                let mut iter = v.into_iter();
+                let x = iter.next().unwrap();
+                let y = iter.next().unwrap();
+                match (x, y) {
+                    (SteelVal::NumV(x), SteelVal::NumV(y)) => {
+                        p.x = *x as u32;
+                        p.y = *y as u32;
+                    }
+                    (SteelVal::IntV(x), SteelVal::IntV(y)) => {
+                        p.x = *x as u32;
+                        p.y = *y as u32;
+                    }
+                    _ => return Err(ScriptError::Conversion(steel_val)),
+                }
+            }
+            _ => return Err(ScriptError::Conversion(steel_val)),
+        },
         ParamValue::Color(p) => match steel_val {
             SteelVal::ListV(ref v) => {
                 let mut iter = v.into_iter();
@@ -602,6 +621,10 @@ impl From<ParamValue> for SteelVal {
             ParamValue::Quat(x) => {
                 let (x, y, z, w) = x.into();
                 vec![x, y, z, w].into_steelval().unwrap()
+            }
+            ParamValue::UVec2(x) => {
+                let (x, y) = x.into();
+                vec![x, y].into_steelval().unwrap()
             }
         }
     }

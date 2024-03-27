@@ -7,7 +7,7 @@ use bevy::render::render_resource::ShaderType;
 
 use crate::op::component::types::window::ComponentOpWindowPlugin;
 use crate::op::texture::TextureOp;
-use crate::op::{Op, OpInputConfig, OpInputs, OpOutputConfig, OpOutputs};
+use crate::op::{Op, OpInputs, OpOutputs};
 
 pub mod types;
 
@@ -22,12 +22,7 @@ impl Plugin for ComponentPlugin {
 }
 
 #[derive(Bundle)]
-pub struct ComponentOpBundle<T>
-where
-    T: Op + Component + ExtractComponent + Debug + Send + Sync + 'static,
-{
-    inputs: OpInputs<T>,
-    input_config: OpInputConfig,
+pub struct ComponentOpBundle {
+    inputs: OpInputs,
     outputs: OpOutputs,
-    output_config: OpOutputConfig,
 }

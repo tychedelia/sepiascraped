@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use crate::op::mesh::types::cuboid::MeshOpCuboidPlugin;
-use crate::op::{Op, OpImage, OpInputConfig, OpInputs, OpOutputConfig, OpOutputs};
+use crate::op::{Op, OpImage, OpInputs, OpOutputs};
 use bevy::prelude::*;
 use bevy::render::extract_component::ExtractComponent;
 use bevy::render::primitives::Aabb;
@@ -27,15 +27,10 @@ impl Plugin for MeshPlugin {
 pub struct MeshOpHandle(pub Handle<Mesh>);
 
 #[derive(Bundle)]
-pub struct MeshOpBundle<T: Op>
-where
-    T: Op + Component + ExtractComponent + Debug + Send + Sync + 'static,
-{
+pub struct MeshOpBundle {
     mesh: MeshOpHandle,
     pbr: PbrBundle,
     image: OpImage,
-    inputs: OpInputs<T>,
-    input_config: OpInputConfig,
+    inputs: OpInputs,
     outputs: OpOutputs,
-    output_config: OpOutputConfig,
 }

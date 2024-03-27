@@ -292,17 +292,17 @@ pub fn selected_node_ui(
                                         ui.add_enabled_ui(!is_scripted, |ui| {
                                             ui.add(
                                                 egui::DragValue::new(&mut v.x)
-                                                    .clamp_range(0.0..=1.0)
+                                                    .clamp_range(-10.0..=10.0)
                                                     .speed(0.05),
                                             );
                                             ui.add(
                                                 egui::DragValue::new(&mut v.y)
-                                                    .clamp_range(0.0..=1.0)
+                                                    .clamp_range(-10.0..=10.0)
                                                     .speed(0.05),
                                             );
                                             ui.add(
                                                 egui::DragValue::new(&mut v.z)
-                                                    .clamp_range(0.0..=1.0)
+                                                    .clamp_range(-10.0..=10.0)
                                                     .speed(0.05),
                                             );
                                         });
@@ -311,23 +311,37 @@ pub fn selected_node_ui(
                                         ui.add_enabled_ui(!is_scripted, |ui| {
                                             ui.add(
                                                 egui::DragValue::new(&mut v.x)
-                                                    .clamp_range(0.0..=1.0)
+                                                    .clamp_range(-10.0..=10.0)
                                                     .speed(0.05),
                                             );
                                             ui.add(
                                                 egui::DragValue::new(&mut v.y)
-                                                    .clamp_range(0.0..=1.0)
+                                                    .clamp_range(-10.0..=10.0)
                                                     .speed(0.05),
                                             );
                                             ui.add(
                                                 egui::DragValue::new(&mut v.z)
-                                                    .clamp_range(0.0..=1.0)
+                                                    .clamp_range(-10.0..=10.0)
                                                     .speed(0.05),
                                             );
                                             ui.add(
                                                 egui::DragValue::new(&mut v.w)
                                                     .clamp_range(0.0..=1.0)
                                                     .speed(0.05),
+                                            );
+                                        });
+                                    }
+                                    ParamValue::UVec2(x) => {
+                                        ui.add_enabled_ui(!is_scripted, |ui| {
+                                            ui.add(
+                                                egui::DragValue::new(&mut x.x)
+                                                    .clamp_range(0..=10000)
+                                                    .speed(10.0),
+                                            );
+                                            ui.add(
+                                                egui::DragValue::new(&mut x.y)
+                                                    .clamp_range(0..=10000)
+                                                    .speed(10.0),
                                             );
                                         });
                                     }

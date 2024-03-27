@@ -9,9 +9,7 @@ use std::f32::consts::PI;
 use std::ops::DerefMut;
 
 use crate::op::mesh::{MeshOpBundle, MeshOpHandle, CATEGORY};
-use crate::op::{
-    Op, OpImage, OpInputConfig, OpInputs, OpOutputConfig, OpOutputs, OpPlugin, OpType,
-};
+use crate::op::{Op, OpImage, OpInputs, OpOutputs, OpPlugin, OpType};
 use crate::param::{IntoParams, ParamBundle, ParamValue, Params};
 use crate::render_layers::RenderLayerManager;
 
@@ -39,10 +37,8 @@ impl Op for MeshOpCuboid {
         SResMut<RenderLayerManager>,
     );
     type OnConnectParam = ();
-    type ConnectionDataParam = ();
     type OnDisconnectParam = ();
-    type Bundle = (MeshOpBundle<Self>, RenderLayers);
-    type ConnectionData = ();
+    type Bundle = (MeshOpBundle, RenderLayers);
 
     fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>) {
         let (transform, params) = param;
@@ -117,15 +113,9 @@ impl Op for MeshOpCuboid {
                 image: OpImage(image),
                 inputs: OpInputs {
                     count: Self::INPUTS,
-                    connections: HashMap::new(),
-                },
-                input_config: OpInputConfig {
-                    count: Self::INPUTS,
+                    connections: Vec::new(),
                 },
                 outputs: OpOutputs {
-                    count: Self::OUTPUTS,
-                },
-                output_config: OpOutputConfig {
                     count: Self::OUTPUTS,
                 },
             },
@@ -135,12 +125,5 @@ impl Op for MeshOpCuboid {
 
     fn params(bundle: &Self::Bundle) -> Vec<ParamBundle> {
         [vec![], bundle.0.pbr.transform.as_params()].concat()
-    }
-
-    fn connection_data<'w>(
-        entity: Entity,
-        param: &mut SystemParamItem<'w, '_, Self::ConnectionDataParam>,
-    ) -> Self::ConnectionData {
-        todo!()
     }
 }
