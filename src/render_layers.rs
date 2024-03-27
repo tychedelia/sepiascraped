@@ -32,7 +32,7 @@ impl RenderLayerManager {
         self.layers.iter_mut().for_each(|layer| *layer = false);
     }
 
-    pub(crate) fn next_open_layer(&mut self) -> u8 {
+    pub fn next_open_layer(&mut self) -> u8 {
         let layer = self.layers.iter().position(|layer| !*layer).map(|layer| layer as u8);
         let Some(layer) = layer else {
             panic!("No more layers available")

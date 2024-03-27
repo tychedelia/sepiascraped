@@ -5,7 +5,6 @@ use bevy::asset::LoadState;
 use bevy::core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_state;
 use bevy::ecs::query::QueryItem;
 use bevy::prelude::*;
-use bevy::render::{Render, render_graph, RenderApp, RenderSet};
 use bevy::render::camera::{CameraOutputMode, ExtractedCamera};
 use bevy::render::extract_component::{
     ComponentUniforms, DynamicUniformIndex, ExtractComponent, ExtractComponentPlugin,
@@ -15,6 +14,8 @@ use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_graph::{
     NodeRunError, RenderGraphApp, RenderGraphContext, RenderLabel, RenderSubGraph, ViewNodeRunner,
 };
+use bevy::render::render_resource::binding_types::{sampler, texture_2d, uniform_buffer};
+use bevy::render::render_resource::encase::internal::WriteInto;
 use bevy::render::render_resource::{
     BindGroup, BindGroupEntry, BindGroupLayout, CachedRenderPipelineId, ColorTargetState,
     ColorWrites, FragmentState, IntoBinding, LoadOp, MultisampleState, Operations, PipelineCache,
@@ -22,17 +23,16 @@ use bevy::render::render_resource::{
     SamplerBindingType, ShaderStages, ShaderType, SpecializedRenderPipeline,
     SpecializedRenderPipelines, StoreOp, TextureFormat, TextureSampleType,
 };
-use bevy::render::render_resource::binding_types::{sampler, texture_2d, uniform_buffer};
-use bevy::render::render_resource::encase::internal::WriteInto;
 use bevy::render::renderer::{RenderContext, RenderDevice};
-use bevy::render::texture::BevyDefault;
+use bevy::render::texture::{BevyDefault, GpuImage};
 use bevy::render::view::{ExtractedView, ViewTarget};
-use bevy::utils::{HashMap, info};
+use bevy::render::{render_graph, Render, RenderApp, RenderSet};
+use bevy::utils::{info, HashMap};
 
-use crate::op::{Op, OpType, OpInputs};
-use crate::op::texture::TextureOp;
 use crate::op::texture::types::composite::TextureOpComposite;
 use crate::op::texture::types::ramp::TextureOpRamp;
+use crate::op::texture::TextureOp;
+use crate::op::{Op, OpInputs, OpType};
 
 #[derive(Default)]
 pub struct TextureOpRenderPlugin<T> {
@@ -47,10 +47,12 @@ pub struct TextureOpRenderLabel;
 
 impl<T> Plugin for TextureOpRenderPlugin<T>
 where
-    T: TextureOp + Component + Clone + Debug + Send + Sync + 'static
+    T: TextureOp + Component + ExtractComponent + Clone + Debug + Send + Sync + 'static,
+    AssetId<Image>: for<'a> From<&'a <T as Op>::ConnectionData>,
 {
     fn build(&self, app: &mut App) {
         app.add_plugins((
+            ExtractComponentPlugin::<OpInputs<T>>::default(),
             ExtractComponentPlugin::<T::Uniform>::default(),
             UniformComponentPlugin::<T::Uniform>::default(),
         ));
@@ -94,11 +96,12 @@ pub fn prepare_texture_op_pipelines<T>(
     mut pipeline: ResMut<TextureOpPipeline>,
     pipeline_cache: Res<PipelineCache>,
     mut pipelines: ResMut<SpecializedRenderPipelines<TextureOpPipeline>>,
-    views: Query<(Entity, &ExtractedView, &OpInputs), With<<T as Op>::OpType>>,
+    views: Query<(Entity, &ExtractedView, &OpInputs<T>), With<<T as Op>::OpType>>,
     shader_handle: Res<TextureOpShaderHandle<T>>,
     render_device: Res<RenderDevice>,
 ) where
-    T:  TextureOp + Component + Clone + Debug + Send + Sync + 'static
+    T: TextureOp + Component + ExtractComponent + Clone + Debug + Send + Sync + 'static,
+    AssetId<Image>: for<'a> From<&'a <T as Op>::ConnectionData>,
 {
     for (entity, view, inputs) in views.iter() {
         if !inputs.is_fully_connected() {
@@ -142,16 +145,17 @@ pub fn prepare_texture_op_bind_group<T>(
         (
             Entity,
             &ExtractedView,
-            &OpInputs,
+            &OpInputs<T>,
             &DynamicUniformIndex<T::Uniform>,
         ),
-        With<<T as Op>::OpType>
+        With<<T as Op>::OpType>,
     >,
     shader_handle: Res<TextureOpShaderHandle<T>>,
     images: Res<RenderAssets<Image>>,
     render_device: Res<RenderDevice>,
 ) where
-    T: TextureOp + Component + Clone + Debug + Send + Sync + 'static
+    T: TextureOp + Component + ExtractComponent + Clone + Debug + Send + Sync + 'static,
+    AssetId<Image>: for<'a> From<&'a <T as Op>::ConnectionData>,
 {
     for (entity, view, inputs, uniform_index) in views.iter() {
         if !inputs.is_fully_connected() {
@@ -160,7 +164,7 @@ pub fn prepare_texture_op_bind_group<T>(
 
         let mut gpu_images = vec![];
         for connection in inputs.connections.iter() {
-            if let Some(image) = images.get(connection.1) {
+            if let Some(image) = images.get(AssetId::<Image>::from(&connection.1)) {
                 gpu_images.push(image);
             }
         }

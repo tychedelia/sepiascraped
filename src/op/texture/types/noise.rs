@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::render_resource::ShaderType;
+use bevy::render::texture::GpuImage;
 
-use crate::op::{OpPlugin, OpType};
+use crate::op::{OpInputs, OpPlugin, OpType};
 use crate::op::texture::{impl_op, TextureOp};
 use crate::op::texture::render::TextureOpRenderPlugin;
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
@@ -20,7 +21,7 @@ impl Plugin for TextureOpNoisePlugin {
     }
 }
 
-#[derive(Component, Clone, Default, Debug)]
+#[derive(Component, ExtractComponent, Clone, Default, Debug)]
 pub struct TextureOpNoise;
 
 impl_op!(TextureOpNoise, 0, 1);

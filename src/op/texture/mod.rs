@@ -1,39 +1,26 @@
 use std::fmt::Debug;
-use std::marker::PhantomData;
 use std::ops::Deref;
 
 use bevy::ecs::query::QueryData;
-use bevy::ecs::system::{SystemId, SystemParamItem};
-use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes, SResMut, Write};
 use bevy::prelude::*;
-use bevy::render::camera::{CameraRenderGraph, RenderTarget};
+use bevy::render::camera::RenderTarget;
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::render_resource::{
     Extent3d, ShaderType, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
 use bevy::render::render_resource::encase::internal::WriteInto;
 use bevy::sprite::Material2d;
-use bevy::utils::{HashMap, info};
-use bevy_egui::{egui, EguiContexts};
-use bevy_egui::egui::{Align, CollapsingHeader};
 
 use types::composite::TextureOpCompositePlugin;
 use types::ramp::TextureOpRampPlugin;
 
-use crate::{OpName, Sets, ui};
-use crate::event::SpawnOp;
-use crate::index::{UniqueIndex, UniqueIndexPlugin};
-use crate::op::{Op, OpInputs, OpOutputs, OpRef, OpType, OpDefaultImage, OpImage};
-use crate::op::texture::render::TextureOpSubGraph;
-use crate::op::texture::types::composite::{CompositeMode, CompositeSettings};
-use crate::op::texture::types::noise::TextureOpNoisePlugin;
-use crate::op::texture::types::ramp::{TextureRampMode, TextureRampSettings};
-use crate::param::{
-    ParamBundle, ParamName, ParamOrder, ParamPage, ParamValue, ScriptedParam, ScriptedParamError,
+use crate::op::{
+    Op, OpDefaultImage, OpImage, OpInputConfig, OpInputs, OpOutputConfig, OpOutputs,
 };
-use crate::ui::event::{Connect, Disconnect};
-use crate::ui::graph::{GraphRef, NodeMaterial, SelectedNode};
-use crate::ui::UiState;
+use crate::op::texture::types::noise::TextureOpNoisePlugin;
+use crate::param::{
+    ParamBundle, ParamName, ParamValue,
+};
 
 pub mod render;
 pub mod types;
@@ -44,28 +31,14 @@ pub struct TexturePlugin;
 
 impl Plugin for TexturePlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_plugins((
-                ExtractComponentPlugin::<OpImage>::default(),
-                ExtractComponentPlugin::<OpInputs>::default(),
-                TextureOpRampPlugin,
-                TextureOpCompositePlugin,
-                TextureOpNoisePlugin,
-            ))
-            .add_systems(Startup, setup)
-            .add_systems(
-                Update,
-                (
-                    update_materials,
-                    connect_handler,
-                    disconnect_handler,
-                )
-                    .in_set(Sets::Ui),
-            )
-            .add_systems(
-                Last,
-                update_op_cameras
-            );
+        app.add_plugins((
+            ExtractComponentPlugin::<OpImage>::default(),
+            TextureOpRampPlugin,
+            TextureOpCompositePlugin,
+            TextureOpNoisePlugin,
+        ))
+        .add_systems(Startup, setup)
+        .add_systems(Last, update_op_cameras);
     }
 }
 
@@ -119,11 +92,15 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
 }
 
 #[derive(Bundle, Default)]
-pub struct TextureOpBundle {
+pub struct TextureOpBundle<T: Op>
+    where T: Op + Component + ExtractComponent + Debug + Send + Sync + 'static,
+{
     pub camera: Camera3dBundle,
     pub image: OpImage,
-    pub inputs: OpInputs,
-    pub outputs: OpOutputs,
+    inputs: OpInputs<T>,
+    input_config: OpInputConfig,
+    outputs: OpOutputs,
+    output_config: OpOutputConfig,
 }
 
 macro_rules! impl_op {
@@ -145,12 +122,25 @@ macro_rules! impl_op {
                 bevy::ecs::system::lifetimeless::SResMut<bevy::prelude::Assets<bevy::prelude::Image>>,
             );
             type BundleParam = (bevy::ecs::system::lifetimeless::SResMut<bevy::prelude::Assets<bevy::prelude::Image>>);
-            type Bundle = (crate::op::texture::TextureOpBundle, <$name as TextureOp>::Uniform);
+            type OnConnectParam = (
+                bevy::ecs::system::lifetimeless::SResMut<bevy::prelude::Assets<crate::ui::graph::NodeMaterial>>,
+                bevy::ecs::system::lifetimeless::SQuery<(
+                    bevy::ecs::system::lifetimeless::Read<crate::op::OpImage>,
+                    bevy::ecs::system::lifetimeless::Read<crate::ui::graph::GraphRef>
+                ), bevy::prelude::With<crate::op::OpType<Self>>>,
+                bevy::ecs::system::lifetimeless::SQuery<bevy::ecs::system::lifetimeless::Read<bevy::prelude::Handle<crate::ui::graph::NodeMaterial>>>,
+            );
+            type ConnectionDataParam = (
+                bevy::ecs::system::lifetimeless::SQuery<bevy::ecs::system::lifetimeless::Read<crate::op::OpImage>>
+            );
+            type OnDisconnectParam = ();
+            type Bundle = (crate::op::texture::TextureOpBundle<Self>, <$name as TextureOp>::Uniform);
+            type ConnectionData = Handle<Image>;
 
             fn update<'w>(entity: bevy::prelude::Entity, param: &mut bevy::ecs::system::SystemParamItem<'w, '_, Self::UpdateParam>) {
                 let (self_q, params_q, ref mut images) = param;
 
-                let (children, mut image, mut uniform) = self_q.get_mut(entity).expect("Expected update entity to exist in self_q");
+                let Ok((children, mut image, mut uniform)) = self_q.get_mut(entity) else { return ; };
 
                 let params = children
                     .iter()
@@ -175,7 +165,7 @@ macro_rules! impl_op {
                 (
                     crate::op::texture::TextureOpBundle {
                         camera: bevy::prelude::Camera3dBundle {
-                            camera_render_graph: bevy::render::camera::CameraRenderGraph::new(crate::op::texture::TextureOpSubGraph),
+                            camera_render_graph: bevy::render::camera::CameraRenderGraph::new(crate::op::texture::render::TextureOpSubGraph),
                             camera: bevy::prelude::Camera {
                                 order: 3,
                                 target: image.clone().into(),
@@ -188,7 +178,13 @@ macro_rules! impl_op {
                             count: $inputs,
                             connections: bevy::utils::HashMap::new(),
                         },
+                        input_config: crate::op::OpInputConfig {
+                            count: $inputs,
+                        },
                         outputs: crate::op::OpOutputs { count: $outputs },
+                        output_config: crate::op::OpOutputConfig {
+                            count: $outputs,
+                        },
                     },
                     <$name as TextureOp>::Uniform::default(),
                 )
@@ -215,65 +211,51 @@ macro_rules! impl_op {
                 [common_params, <$name as TextureOp>::params()]
                     .concat()
             }
+
+            fn connection_data<'w>(entity: bevy::prelude::Entity, param: &mut bevy::ecs::system::SystemParamItem<'w, '_, Self::ConnectionDataParam>) -> Self::ConnectionData {
+                let (image_q) = param;
+                let image = image_q.get(entity).unwrap();
+                image.0.clone()
+            }
+
+            fn on_connect<'w>(
+                entity: bevy::prelude::Entity,
+                event: crate::ui::event::Connect,
+                fully_connected: bool,
+                param: &mut bevy::ecs::system::SystemParamItem<'w, '_, Self::OnConnectParam>
+            ) {
+                let (ref mut materials, ref mut op_q, ref mut material_q) = param;
+                for (my_image, graph_ref) in op_q.iter_mut() {
+                    if fully_connected {
+                        if let Ok(material) = material_q.get(graph_ref.0) {
+                            let mut material = materials.get_mut(material).unwrap();
+                            if material.texture != my_image.0 {
+                                material.texture = my_image.0.clone();
+                            }
+                        } else {
+                            warn!("No material found for {:?}", graph_ref);
+                       }
+                    }
+                }
+            }
+
+            fn on_disconnect<'w>(
+                entity: bevy::prelude::Entity,
+                event: crate::ui::event::Disconnect,
+                fully_connected: bool,
+                param: &mut bevy::ecs::system::SystemParamItem<'w, '_, Self::OnDisconnectParam>
+            ) {
+                ()
+            }
         }
     }
 }
 
 pub(crate) use impl_op;
 
-fn connect_handler(
-    mut ev_connect: EventReader<Connect>,
-    mut op_q: Query<(&mut OpInputs, &OpImage, &GraphRef)>,
-    input_q: Query<&OpImage>,
-) {
-    for ev in ev_connect.read() {
-        if let Ok((mut input, my_image, graph_ref)) = op_q.get_mut(ev.input) {
-            if let Ok(image) = input_q.get(ev.output) {
-                input.connections.insert(ev.output, image.0.clone());
-            }
-        }
-    }
-}
-
-pub fn update_op_cameras(
-    mut op_q: Query<(&mut Camera, &mut OpImage), Changed<OpImage>>,
-) {
+pub fn update_op_cameras(mut op_q: Query<(&mut Camera, &mut OpImage), Changed<OpImage>>) {
     for (mut camera, mut image) in op_q.iter_mut() {
         camera.target = RenderTarget::Image(image.0.clone());
-    }
-}
-
-fn update_materials(
-    mut materials: ResMut<Assets<NodeMaterial>>,
-    mut op_q: Query<(&OpInputs, &OpImage, &GraphRef)>,
-    mut material_q: Query<&Handle<NodeMaterial>>,
-) {
-    // TODO: add component to test for connected rather than constantly doing this
-    for (input, my_image, graph_ref) in op_q.iter_mut() {
-        if input.is_fully_connected() {
-            if let Ok(material) = material_q.get(graph_ref.0) {
-                let mut material = materials.get_mut(material).unwrap();
-                if material.texture != my_image.0 {
-                    material.texture = my_image.0.clone();
-                }
-            } else {
-                warn!("No material found for {:?}", graph_ref);
-            }
-        }
-    }
-}
-
-fn disconnect_handler(
-    mut ev_disconnect: EventReader<Disconnect>,
-    mut op_q: Query<&mut OpInputs>,
-    input_q: Query<&OpImage>,
-) {
-    for ev in ev_disconnect.read() {
-        if let Ok(mut input) = op_q.get_mut(ev.input) {
-            if let Ok(image) = input_q.get(ev.output) {
-                input.connections.remove(&ev.output);
-            }
-        }
     }
 }
 

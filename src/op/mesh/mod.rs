@@ -6,7 +6,7 @@ use bevy::render::primitives::Aabb;
 use bevy::render::render_resource::encase::internal::WriteInto;
 use bevy::render::render_resource::ShaderType;
 use bevy::render::view::RenderLayers;
-use crate::op::{OpImage, OpInputs, OpOutputs};
+use crate::op::{Op, OpImage, OpInputConfig, OpInputs, OpOutputConfig, OpOutputs};
 use crate::op::mesh::types::cuboid::MeshOpCuboidPlugin;
 
 use crate::op::texture::TextureOp;
@@ -28,10 +28,14 @@ impl Plugin for MeshPlugin {
 pub struct MeshOpHandle(pub Handle<Mesh>);
 
 #[derive(Bundle)]
-pub struct MeshOpBundle {
+pub struct MeshOpBundle<T: Op>
+    where T: Op + Component + ExtractComponent + Debug + Send + Sync + 'static,
+{
     mesh: MeshOpHandle,
     pbr: PbrBundle,
     image: OpImage,
-    inputs: OpInputs,
+    inputs: OpInputs<T>,
+    input_config: OpInputConfig,
     outputs: OpOutputs,
+    output_config: OpOutputConfig,
 }

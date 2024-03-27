@@ -14,13 +14,13 @@ impl From<ListenerInput<Pointer<Down>>> for ClickNode {
 #[derive(Event)]
 pub struct Deselect;
 
-#[derive(Event, Debug)]
+#[derive(Event, Debug, Clone, Copy)]
 pub struct Connect {
     pub output: Entity,
     pub input: Entity,
 }
 
-#[derive(Event, Debug)]
+#[derive(Event, Debug, Clone, Copy)]
 pub struct Disconnect {
     pub output: Entity,
     pub input: Entity,

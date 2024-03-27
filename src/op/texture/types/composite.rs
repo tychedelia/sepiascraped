@@ -49,7 +49,7 @@ impl TextureOp for TextureOpComposite {
     }
 }
 
-#[derive(Component, Clone, Default, Debug)]
+#[derive(Component, ExtractComponent, Clone, Default, Debug)]
 pub struct TextureOpComposite;
 
 #[derive(Default, Clone, Copy, Debug, PartialEq)]

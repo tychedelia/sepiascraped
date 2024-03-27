@@ -20,7 +20,7 @@ impl Plugin for TextureOpRampPlugin {
     }
 }
 
-#[derive(Component, Clone, Default, Debug)]
+#[derive(Component, ExtractComponent, Clone, Default, Debug)]
 pub struct TextureOpRamp;
 
 impl_op!(TextureOpRamp, 0, 1);

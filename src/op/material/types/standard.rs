@@ -8,9 +8,10 @@ use bevy::render::render_resource::{
 use bevy::render::view::RenderLayers;
 use bevy::utils::HashMap;
 use std::ops::Deref;
+use bevy::render::extract_component::ExtractComponent;
 
 use crate::op::material::{CATEGORY, MaterialDefaultMesh, MaterialOpBundle, MaterialOpHandle};
-use crate::op::{Op, OpImage, OpInputs, OpOutputs, OpPlugin, OpType};
+use crate::op::{Op, OpImage, OpInputConfig, OpInputs, OpOutputConfig, OpOutputs, OpPlugin, OpType};
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 use crate::render_layers::RenderLayerManager;
 
@@ -23,7 +24,7 @@ impl Plugin for MaterialOpStandardPlugin {
     }
 }
 
-#[derive(Component, Clone, Default, Debug)]
+#[derive(Component, ExtractComponent, Clone, Default, Debug)]
 pub struct MaterialOpStandard;
 
 impl Op for MaterialOpStandard {
@@ -42,14 +43,17 @@ impl Op for MaterialOpStandard {
         SResMut<Assets<Image>>,
         SResMut<RenderLayerManager>,
     );
-    type Bundle = (MaterialOpBundle<StandardMaterial>, RenderLayers);
+    type OnConnectParam = ();
+    type ConnectionDataParam = ();
+    type OnDisconnectParam = ();
+    type Bundle = (MaterialOpBundle<StandardMaterial, Self>, RenderLayers);
+    type ConnectionData = ();
 
     fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>) {
         let (materials, image_q, self_q, params_q) = param;
 
-        let (children, handle) = self_q
-            .get_mut(entity)
-            .expect("Expected update entity to exist in self_q");
+        let Ok((children, handle)) = self_q
+            .get_mut(entity) else { return };
 
         for (param_name, param_value) in params_q.iter_many(children) {
             match param_name.0.as_str() {
@@ -123,7 +127,13 @@ impl Op for MaterialOpStandard {
                     count: Self::INPUTS,
                     connections: HashMap::new(),
                 },
+                input_config: OpInputConfig {
+                    count: Self::INPUTS,
+                },
                 outputs: OpOutputs {
+                    count: Self::OUTPUTS,
+                },
+                output_config: OpOutputConfig {
                     count: Self::OUTPUTS,
                 },
             },
@@ -138,5 +148,9 @@ impl Op for MaterialOpStandard {
             order: ParamOrder(0),
             ..default()
         }]
+    }
+
+    fn connection_data<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::ConnectionDataParam>) -> Self::ConnectionData {
+        todo!()
     }
 }

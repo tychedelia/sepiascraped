@@ -4,11 +4,12 @@ use bevy::ecs::system::lifetimeless::*;
 use bevy::ecs::system::{StaticSystemParam, SystemParamItem};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
+use bevy::render::extract_component::ExtractComponent;
 use bevy::render::view::RenderLayers;
 use bevy::utils::HashMap;
 
 use crate::op::mesh::{CATEGORY, MeshOpBundle, MeshOpHandle};
-use crate::op::{Op, OpImage, OpInputs, OpOutputs, OpPlugin, OpType};
+use crate::op::{Op, OpImage, OpInputConfig, OpInputs, OpOutputConfig, OpOutputs, OpPlugin, OpType};
 use crate::param::{IntoParams, ParamBundle, Params, ParamValue};
 use crate::render_layers::RenderLayerManager;
 
@@ -21,7 +22,7 @@ impl Plugin for MeshOpCuboidPlugin {
     }
 }
 
-#[derive(Component, Clone, Default, Debug)]
+#[derive(Component, ExtractComponent, Clone, Default, Debug)]
 pub struct MeshOpCuboid;
 
 impl Op for MeshOpCuboid {
@@ -35,7 +36,11 @@ impl Op for MeshOpCuboid {
         SResMut<Assets<StandardMaterial>>,
         SResMut<RenderLayerManager>
     );
-    type Bundle = (MeshOpBundle, RenderLayers);
+    type OnConnectParam = ();
+    type ConnectionDataParam = ();
+    type OnDisconnectParam = ();
+    type Bundle = (MeshOpBundle<Self>, RenderLayers);
+    type ConnectionData = ();
 
     fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>) {
         let (transform, params) = param;
@@ -113,7 +118,13 @@ impl Op for MeshOpCuboid {
                     count: Self::INPUTS,
                     connections: HashMap::new(),
                 },
+                input_config: OpInputConfig {
+                    count: Self::INPUTS,
+                },
                 outputs: OpOutputs {
+                    count: Self::OUTPUTS,
+                },
+                output_config: OpOutputConfig {
                     count: Self::OUTPUTS,
                 },
             },
@@ -124,5 +135,9 @@ impl Op for MeshOpCuboid {
     fn params(bundle: &Self::Bundle) -> Vec<ParamBundle> {
         [vec![], bundle.0.pbr.transform.as_params()]
             .concat()
+    }
+
+    fn connection_data<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::ConnectionDataParam>) -> Self::ConnectionData {
+        todo!()
     }
 }

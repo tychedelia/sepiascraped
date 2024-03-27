@@ -100,7 +100,6 @@ fn toggle_camera(
     mut selected_q: Query<(&mut Camera), With<SelectedNode>>,
 ) {
     if keys.just_pressed(KeyCode::KeyC) {
-        println!("Activate camera");
         let (mut camera) = selected_q.single_mut();
         match camera.output_mode {
             CameraOutputMode::Skip => {

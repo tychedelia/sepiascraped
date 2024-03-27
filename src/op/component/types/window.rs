@@ -3,6 +3,7 @@ use bevy::ecs::system::lifetimeless::*;
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
+use bevy::render::extract_component::ExtractComponent;
 use bevy::render::view::RenderLayers;
 use bevy::window::WindowRef;
 
@@ -27,7 +28,7 @@ impl Plugin for ComponentOpWindowPlugin {
 #[derive(Component, Clone, Debug)]
 pub struct WindowTexture(Entity);
 
-#[derive(Component, Clone, Default, Debug)]
+#[derive(Component, ExtractComponent, Clone, Default, Debug)]
 pub struct ComponentOpWindow;
 
 impl Op for ComponentOpWindow {
@@ -45,7 +46,11 @@ impl Op for ComponentOpWindow {
         SRes<Assets<Image>>,
     );
     type BundleParam = (SQuery<Read<OpName>>, SResMut<RenderLayerManager>);
-    type Bundle = (Window, Camera2dBundle, RenderLayers, OpImage, OpInputs, OpOutputs);
+    type OnConnectParam = ();
+    type ConnectionDataParam = ();
+    type OnDisconnectParam = ();
+    type Bundle = (Window, Camera2dBundle, RenderLayers, OpImage, OpInputs<Self>, OpOutputs);
+    type ConnectionData = ();
 
     fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>) {
         let (commands, self_q, texture_q, param_q, param_index, images) = param;
@@ -136,5 +141,9 @@ impl Op for ComponentOpWindow {
                 ..default()
             },
         ]
+    }
+
+    fn connection_data<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::ConnectionDataParam>) -> Self::ConnectionData {
+        todo!()
     }
 }

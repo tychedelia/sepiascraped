@@ -36,6 +36,11 @@ pub struct Param;
     Component, Deref, DerefMut, Default, Clone, PartialEq, Eq, Hash, Debug, Ord, PartialOrd,
 )]
 pub struct ParamName(pub String);
+
+trait ParamType: Default {
+
+}
+
 #[derive(Component, Clone, Debug, Default)]
 pub enum ParamValue {
     #[default]

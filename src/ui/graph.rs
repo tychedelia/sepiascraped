@@ -19,7 +19,7 @@ use petgraph::stable_graph::{DefaultIx, IndexType, NodeIndex};
 use rand::{random, Rng};
 
 use crate::op::texture::TextureOp;
-use crate::op::{OpCategory, OpDefaultImage, OpImage, OpInputs, OpOutputs, OpRef};
+use crate::op::{OpCategory, OpDefaultImage, OpImage, OpInputConfig, OpInputs, OpOutputConfig, OpOutputs, OpRef};
 use crate::param::ParamValue;
 use crate::ui::event::{ClickNode, Connect, Disconnect};
 use crate::ui::grid::InfiniteGridSettings;
@@ -200,8 +200,8 @@ pub fn ui(
             &OpName,
             &OpCategory,
             &OpImage,
-            &OpInputs,
-            &OpOutputs,
+            &OpInputConfig,
+            &OpOutputConfig,
             &GraphId,
         ),
         Added<GraphId>,

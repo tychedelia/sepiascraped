@@ -31,7 +31,7 @@ impl<T> UniqueIndexPlugin<T> {
 }
 
 #[derive(Resource, Default, Deref, DerefMut)]
-pub(crate) struct UniqueIndex<T>(BTreeMap<T, Entity>);
+pub struct UniqueIndex<T>(BTreeMap<T, Entity>);
 
 fn insert_unique_index<T>(
     mut index: ResMut<UniqueIndex<T>>,
@@ -85,7 +85,7 @@ impl<T> IndexPlugin<T> {
 }
 
 #[derive(Resource, Default, Deref, DerefMut)]
-pub(crate) struct Index<T>(BTreeMap<T, Vec<Entity>>);
+pub struct Index<T>(BTreeMap<T, Vec<Entity>>);
 
 fn insert_index<T>(mut index: ResMut<Index<T>>, insert_q: Query<(Entity, &T), Added<T>>)
 where
