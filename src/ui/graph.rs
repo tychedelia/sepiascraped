@@ -1,5 +1,6 @@
 use bevy::asset::LoadState;
 use bevy::prelude::*;
+use bevy::render::camera::CameraOutputMode;
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle};
 use bevy::utils::{info, HashMap};
@@ -39,6 +40,7 @@ impl Plugin for GraphPlugin {
                 Update,
                 (
                     ui.in_set(Sets::Ui),
+                    update_camera_enabled.in_set(Sets::Ui),
                     add_graph_ids.in_set(Sets::Ui),
                     draw_refs.in_set(Sets::Ui),
                     update_connections.in_set(Sets::Ui),
@@ -90,6 +92,9 @@ pub struct NodeRoot;
 #[derive(Component, Debug)]
 pub struct OpRefConnection;
 
+#[derive(Component, Debug)]
+pub struct DisabledNode;
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Resources
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -111,6 +116,8 @@ pub struct NodeMaterial {
     pub selected: u32,
     #[uniform(0)]
     pub category_color: Color,
+    #[uniform(0)]
+    pub disabled: u32,
     #[texture(1)]
     #[sampler(2)]
     pub texture: Handle<Image>,
@@ -225,6 +232,7 @@ pub fn ui(
                         material: materials.add(NodeMaterial {
                             selected: 0,
                             category_color: category.to_color(),
+                            disabled: 0,
                             texture: (**image).clone(),
                         }),
                         transform: Transform::from_translation(Vec3::new(rng.gen::<f32>() * 80.0, rng.gen::<f32>() * 80.0, index)),
@@ -283,6 +291,27 @@ pub fn ui(
                     }
                 });
         });
+    }
+}
+
+fn update_camera_enabled(
+    mut commands: Commands,
+    op_q: Query<(&GraphRef, &Camera), With<OpName>>,
+    material_q: Query<&Handle<NodeMaterial>>,
+    mut materials: ResMut<Assets<NodeMaterial>>,
+) {
+    for (graph_ref, mut camera) in op_q.iter() {
+        let is_disabled = matches!(camera.output_mode, CameraOutputMode::Skip);
+        let graph_entity = graph_ref.0;
+        let material = material_q.get(graph_entity).unwrap();
+        let mut material = materials.get_mut(material).unwrap();
+        if is_disabled {
+            commands.entity(graph_entity).insert(DisabledNode);
+            material.disabled = 1;
+        } else {
+            commands.entity(graph_entity).remove::<DisabledNode>();
+            material.disabled = 0;
+        }
     }
 }
 

@@ -1,8 +1,10 @@
 use bevy::ecs::system::SystemParam;
 use std::collections::BTreeMap;
+use std::hash::{Hash, Hasher};
 use std::ops::DerefMut;
 
 use bevy::prelude::*;
+use bevy::utils::AHasher;
 
 use crate::index::{CompositeIndex2, CompositeIndex2Plugin};
 use crate::op::{OpCategory, OpRef};
@@ -13,7 +15,9 @@ pub struct ParamPlugin;
 
 impl Plugin for ParamPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, validate.after(update).in_set(Sets::Params))
+        app
+            .init_resource::<ParamsHash>()
+            .add_systems(Update, validate.after(update).in_set(Sets::Params))
             .add_plugins(CompositeIndex2Plugin::<OpRef, ParamName>::new());
     }
 }
@@ -39,7 +43,7 @@ pub struct ParamName(pub String);
 
 trait ParamType: Default {}
 
-#[derive(Component, Clone, Debug, Default)]
+#[derive(Component, PartialEq, Clone, Debug, Default)]
 pub enum ParamValue {
     #[default]
     None,
@@ -55,8 +59,45 @@ pub enum ParamValue {
     MeshOp(Option<Entity>),
 }
 
+impl Hash for ParamValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            ParamValue::None => 0.hash(state),
+            ParamValue::F32(v) => v.to_bits().hash(state),
+            ParamValue::U32(v) => v.hash(state),
+            ParamValue::UVec2(v) => v.hash(state),
+            ParamValue::Vec2(v) => {
+                v.x.to_bits().hash(state);
+                v.y.to_bits().hash(state);
+            },
+            ParamValue::Vec3(v) => {
+                v.x.to_bits().hash(state);
+                v.y.to_bits().hash(state);
+                v.z.to_bits().hash(state);
+            },
+            ParamValue::Quat(v) => {
+                v.x.to_bits().hash(state);
+                v.y.to_bits().hash(state);
+                v.z.to_bits().hash(state);
+                v.w.to_bits().hash(state);
+            },
+            ParamValue::Color(v) => {
+                v.x.to_bits().hash(state);
+                v.y.to_bits().hash(state);
+                v.z.to_bits().hash(state);
+                v.w.to_bits().hash(state);
+            },
+            ParamValue::Bool(v) => v.hash(state),
+            ParamValue::TextureOp(v) => v.hash(state),
+            ParamValue::MeshOp(v) => v.hash(state),
+        }
+    }
+}
+
 #[derive(Resource, Default, Debug)]
-pub struct ParamHash(BTreeMap<Entity, u64>);
+pub struct ParamsHash {
+    pub hashes: BTreeMap<Entity, u64>,
+}
 
 #[derive(Component, Default, Debug)]
 pub struct ScriptedParam;
@@ -95,11 +136,20 @@ fn validate(
 
 #[derive(SystemParam)]
 pub struct Params<'w, 's> {
+    parent_q: Query<'w, 's, &'static Children>,
     params_q: Query<'w, 's, &'static mut ParamValue>,
     param_idx: Res<'w, CompositeIndex2<OpRef, ParamName>>,
 }
 
 impl<'w, 's> Params<'w, 's> {
+    pub fn get_all(&self, entity: Entity) -> Vec<&ParamValue> {
+        self.parent_q.get(entity)
+            .iter()
+            .flat_map(|c| c.iter().map(|e| self.params_q.get(*e)))
+            .filter_map(|p| p.ok())
+            .collect()
+    }
+
     pub fn get(&self, entity: Entity, name: impl Into<String>) -> Option<&ParamValue> {
         self.param_idx
             .get(&(OpRef(entity), ParamName(name.into())))

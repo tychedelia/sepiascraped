@@ -3,6 +3,7 @@
 struct NodeMaterial {
     selected: u32,
     category_color: vec4<f32>,
+    disabled: u32,
 }
 
 @group(2) @binding(0) var<uniform> material: NodeMaterial;
@@ -28,9 +29,13 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
         }
 
         return vec4<f32>(0.1, 0.1, 0.1, 1.0);
-    } else {
-        return textureSample(image_texture, image_sampler, map_uv(mesh.uv));
+    } else if (mesh.uv.x > 0.9 && mesh.uv.y > 0.9) {
+        if (material.disabled == 1) {
+            return vec4<f32>(1.0, 0.0, 0.0, 1.0);
+        }
     }
+
+    return textureSample(image_texture, image_sampler, map_uv(mesh.uv));
 }
 
 fn map_uv(uv: vec2<f32>) -> vec2<f32> {
