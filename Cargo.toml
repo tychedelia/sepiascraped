@@ -27,5 +27,5 @@ bevy_mod_debugdump = "0.10"
 thiserror = "1"
 rustyline = { version = "14", features = ["derive"] }
 colored = "2.1.0"
-rand = "0.8.5"
+rand = {  version = "0.8.5", features = ["small_rng"] }
 iyes_perf_ui = "0.2"

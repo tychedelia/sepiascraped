@@ -145,7 +145,7 @@ pub trait Op {
     const INPUTS: usize = 0;
     const OUTPUTS: usize = 0;
     const CATEGORY: &'static str;
-
+    
     /// The type of the op.
     type OpType: Debug + Component + ExtractComponent + Send + Sync + 'static;
     /// The update parameter.

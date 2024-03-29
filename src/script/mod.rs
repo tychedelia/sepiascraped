@@ -30,6 +30,7 @@ use crate::op::texture::types::noise::TextureOpNoise;
 use crate::op::texture::types::ramp::TextureOpRamp;
 use crate::op::texture::TextureOp;
 use crate::op::{OpCategory, OpRef, OpType};
+use crate::op::mesh::types::noise::MeshOpNoise;
 use crate::param::{ParamName, ParamValue, ScriptedParam, ScriptedParamError};
 use crate::script::asset::{ProgramCache, Script, ScriptAssetPlugin};
 use crate::script::helper::RustylineHelper;
@@ -305,6 +306,7 @@ fn op_bang(world: &mut WorldHolder, ty: String, name: String) -> Option<EntityRe
         "window" => world.spawn((name, OpType::<ComponentOpWindow>::default())),
         "cuboid" => world.spawn((name, OpType::<MeshOpCuboid>::default())),
         "standard-material" => world.spawn((name, OpType::<MaterialOpStandard>::default())),
+        "mesh-noise" => world.spawn((name, OpType::<MeshOpNoise>::default())),
         _ => return None,
     };
 
