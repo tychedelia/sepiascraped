@@ -7,13 +7,13 @@ use bevy::app::AppExit;
 use bevy::asset::AssetContainer;
 use bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell;
 use bevy::prelude::*;
-use bevy::utils::{warn, HashMap};
+use bevy::utils::{HashMap, warn};
 use colored::Colorize;
 use rand::Rng;
+use rustyline::{DefaultEditor, Editor};
 use rustyline::error::ReadlineError;
 use rustyline::highlight::MatchingBracketHighlighter;
 use rustyline::validate::MatchingBracketValidator;
-use rustyline::{DefaultEditor, Editor};
 use steel::gc::unsafe_erased_pointers::CustomReference;
 use steel::rvals::{CustomType, IntoSteelVal};
 use steel::steel_vm::engine::Engine;
@@ -22,22 +22,21 @@ use steel::SteelVal;
 use steel_derive::Steel;
 
 use crate::index::{CompositeIndex2, UniqueIndex};
+use crate::op::{OpCategory, OpRef, OpType};
 use crate::op::component::types::window::ComponentOpWindow;
 use crate::op::material::types::standard::MaterialOpStandard;
 use crate::op::mesh::types::cuboid::MeshOpCuboid;
+use crate::op::mesh::types::noise::MeshOpNoise;
+use crate::op::texture::TextureOp;
 use crate::op::texture::types::composite::TextureOpComposite;
 use crate::op::texture::types::noise::TextureOpNoise;
 use crate::op::texture::types::ramp::TextureOpRamp;
-use crate::op::texture::TextureOp;
-use crate::op::{OpCategory, OpRef, OpType};
-use crate::op::mesh::types::noise::MeshOpNoise;
+use crate::{OpName, Sets};
 use crate::param::{ParamName, ParamValue, ScriptedParam, ScriptedParamError};
 use crate::script::asset::{ProgramCache, Script, ScriptAssetPlugin};
 use crate::script::helper::RustylineHelper;
 use crate::ui::event::Connect;
 use crate::ui::graph::{ConnectedTo, GraphRef, GraphState};
-use crate::OpName;
-use crate::Sets::Params;
 
 mod asset;
 mod helper;
@@ -50,7 +49,7 @@ impl Plugin for ScriptPlugin {
             .add_systems(First, clear_touched)
             .add_systems(Last, (drop_untouched_entity, clear_untouched_params))
             .add_systems(Startup, setup)
-            .add_systems(Update, update.in_set(Params));
+            .add_systems(Update, update.in_set(Sets::Script));
     }
 }
 

@@ -47,10 +47,10 @@ fn main() {
     .add_event::<SpawnOp>()
     .configure_sets(
         Update,
-        (Sets::Ui, Sets::Graph, Sets::Params, Sets::Execute).chain(),
+        (Sets::Ui, Sets::Script, Sets::Spawn, Sets::Graph, Sets::Params, Sets::Execute).chain(),
     )
     .add_systems(Startup, setup);
-    // bevy_mod_debugdump::print_schedule_graph(&mut app, Update);
+    bevy_mod_debugdump::print_schedule_graph(&mut app, Update);
     app.run();
 }
 
@@ -65,6 +65,10 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
 enum Sets {
     /// Ui updates and events
     Ui,
+    /// Run all scripts
+    Script,
+    /// Spawn ops
+    Spawn,
     /// Updates to the op graph
     Graph,
     /// Param related behavior, i.e. preparing an op to execute

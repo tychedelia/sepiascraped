@@ -60,7 +60,7 @@ impl OpShouldExecute for TextureOpComposite {
 }
 
 impl OpExecute for TextureOpComposite {
-    fn execute(&mut self, entity: Entity, world: &mut World) {
+    fn execute(&self, entity: Entity, world: &mut World) {
     }
 }
 

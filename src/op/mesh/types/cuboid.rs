@@ -139,7 +139,7 @@ impl OpShouldExecute for MeshOpCuboid {
 }
 
 impl OpExecute for MeshOpCuboid {
-    fn execute(&mut self, entity: Entity, world: &mut World) {
+    fn execute(&self, entity: Entity, world: &mut World) {
     }
 }
 

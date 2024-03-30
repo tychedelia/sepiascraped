@@ -11,5 +11,6 @@
 (param! (op "composite") "Resolution" (list 100 100))
 (param! (op "noise1") "Strength" (/ *time* 10))
 (param! (op "myRamp") "Mode" 2)
+(param! (op "meshNoise") "Strength" (rand 0.1 0.5))
 ;(param! (op "window") "Texture" (op "mat"))
 (param! (op "mat") "Texture" (op "composite"))

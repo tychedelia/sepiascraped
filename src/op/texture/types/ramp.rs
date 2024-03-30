@@ -64,7 +64,7 @@ impl OpShouldExecute for TextureOpRamp {
 }
 
 impl OpExecute for TextureOpRamp {
-    fn execute(&mut self, entity: Entity, world: &mut World) {
+    fn execute(&self, entity: Entity, world: &mut World) {
     }
 }
 

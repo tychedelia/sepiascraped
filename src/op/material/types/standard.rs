@@ -153,7 +153,7 @@ impl OpShouldExecute for MaterialOpStandard {
 }
 
 impl OpExecute for MaterialOpStandard {
-    fn execute(&mut self, entity: Entity, world: &mut World) {
+    fn execute(&self, entity: Entity, world: &mut World) {
     }
 }
 

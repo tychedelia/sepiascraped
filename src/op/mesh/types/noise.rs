@@ -1,18 +1,18 @@
 use bevy::ecs::system::lifetimeless::*;
-use bevy::ecs::system::{StaticSystemParam, SystemParamItem};
+use bevy::ecs::system::{StaticSystemParam, SystemParamItem, SystemState};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::extract_component::ExtractComponent;
-use bevy::render::render_asset::RenderAssetUsages;
-use bevy::render::render_resource::PrimitiveTopology;
 use bevy::render::view::RenderLayers;
-use bevy::utils::HashMap;
 use rand::{Rng, SeedableRng};
 use std::f32::consts::PI;
 use std::ops::DerefMut;
 
 use crate::op::mesh::{MeshExt, MeshOpBundle, MeshOpHandle, MeshOpInputMeshes, CATEGORY};
-use crate::op::{Op, OpExecute, OpImage, OpInputs, OpOnConnect, OpOnDisconnect, OpOutputs, OpPlugin, OpShouldExecute, OpSpawn, OpType, OpUpdate};
+use crate::op::{
+    Op, OpExecute, OpImage, OpInputs, OpOnConnect, OpOnDisconnect, OpOutputs, OpPlugin,
+    OpShouldExecute, OpSpawn, OpType, OpUpdate,
+};
 use crate::param::{IntoParams, ParamBundle, ParamName, ParamOrder, ParamValue, Params};
 use crate::render_layers::RenderLayerManager;
 use crate::ui::event::{Connect, Disconnect};
@@ -108,7 +108,7 @@ impl OpSpawn for MeshOpNoise {
             vec![
                 ParamBundle {
                     name: ParamName("Strength".to_string()),
-                    value: ParamValue::F32(0.0),
+                    value: ParamValue::F32(0.1),
                     order: ParamOrder(0),
                     ..default()
                 },
@@ -121,24 +121,16 @@ impl OpSpawn for MeshOpNoise {
             ],
             bundle.0.pbr.transform.as_params(),
         ]
-            .concat()
+        .concat()
     }
 }
 
 impl OpUpdate for MeshOpNoise {
-    type Param = (
-        SResMut<Assets<Mesh>>,
-        SQuery<(
-            Write<Transform>,
-            Read<MeshOpHandle>,
-            Read<MeshOpInputMeshes>,
-        )>,
-        Params<'static, 'static>,
-    );
+    type Param = (SQuery<(Write<Transform>,)>, Params<'static, 'static>);
 
     fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>) {
-        let (meshes, me_q, params) = param;
-        let (mut transform, handle, inputs) = me_q.get_mut(entity).unwrap();
+        let (me_q, params) = param;
+        let (mut transform,) = me_q.get_mut(entity).unwrap();
 
         params.get_mut(entity, "Translation").map(|mut param| {
             if let ParamValue::Vec3(translation) = param.deref_mut() {
@@ -155,53 +147,48 @@ impl OpUpdate for MeshOpNoise {
                 transform.scale = *scale;
             }
         });
+    }
+}
 
+impl OpShouldExecute for MeshOpNoise {
+    type Param = ();
+}
 
-        if inputs.is_empty() {
+impl OpExecute for MeshOpNoise {
+    fn execute(&self, entity: Entity, world: &mut World) {
+        let mut params = SystemState::<Params>::new(world);
+        let mut params = params.get_mut(world);
+        let seed = params.get(entity, "Seed").unwrap().as_u32();
+        let strength = params.get(entity, "Strength").unwrap().as_f32();
+
+        let inputs = world.entity(entity).get::<OpInputs>().unwrap();
+        if !inputs.is_fully_connected() {
             return;
         }
+        let input = inputs.connections[0];
+        let input_mesh = world.entity(input).get::<MeshOpHandle>().unwrap().clone();
+        let my_mesh = world.entity(entity).get::<MeshOpHandle>().unwrap().clone();
 
-        let points = {
-            let input_mesh = &inputs[0];
-            let input_mesh = meshes.get(input_mesh).unwrap();
-            let points = input_mesh.points().to_vec();
-            points
-        };
-        let mesh = meshes.get_mut(handle.0.clone()).unwrap();
-
-        let ParamValue::U32(seed) = params.get(entity, "Seed").unwrap() else {
-            panic!("Seed not found")
-        };
+        let mut meshes = world.get_resource_mut::<Assets<Mesh>>().unwrap();
+        let input_mesh = meshes.get(input_mesh.0.clone()).unwrap().clone();
+        let mut mesh = meshes.get_mut(my_mesh.0.clone()).unwrap();
+        *mesh = input_mesh.clone();
 
         let [a, b, c, d] = seed.to_le_bytes();
         let mut rng = rand::rngs::SmallRng::from_seed([
             a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a,
             b, c, d,
         ]);
-        mesh.points_mut().copy_from_slice(&points);
         mesh.points_mut().iter_mut().for_each(|n| {
             let n = n.as_mut();
-            let x = rng.gen_range(-1.0..1.0);
-            let y = rng.gen_range(-1.0..1.0);
-            let z = rng.gen_range(-1.0..1.0);
-            n[0] = x;
-            n[1] = y;
-            n[2] = z;
+            let strength = strength.clone();
+            let x = rng.gen_range(-strength..strength);
+            let y = rng.gen_range(-strength..strength);
+            let z = rng.gen_range(-strength..strength);
+            n[0] = n[0] + x;
+            n[1] = n[1] + y;
+            n[2] = n[2] + z;
         });
-    }
-}
-
-impl OpShouldExecute for MeshOpNoise {
-    type Param = ();
-
-    fn should_execute<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>) -> bool {
-        todo!()
-    }
-}
-
-impl OpExecute for MeshOpNoise {
-    fn execute(&mut self, entity: Entity, world: &mut World) {
-        todo!()
     }
 }
 
@@ -224,7 +211,12 @@ impl OpOnConnect for MeshOpNoise {
 impl OpOnDisconnect for MeshOpNoise {
     type Param = ();
 
-    fn on_disconnect<'w>(entity: Entity, event: Disconnect, fully_connected: bool, param: &mut SystemParamItem<'w, '_, Self::Param>) {
+    fn on_disconnect<'w>(
+        entity: Entity,
+        event: Disconnect,
+        fully_connected: bool,
+        param: &mut SystemParamItem<'w, '_, Self::Param>,
+    ) {
         todo!()
     }
 }

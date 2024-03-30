@@ -3,18 +3,17 @@ use std::marker::PhantomData;
 
 use bevy::ecs::system::{ReadOnlySystemParam, StaticSystemParam, SystemParam, SystemParamItem};
 use bevy::prelude::*;
-use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
+use bevy::render::extract_component::ExtractComponent;
 use bevy::render::render_resource::{
     Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
-use bevy::utils::HashMap;
+use bevy::utils::AHasher;
 
 use crate::event::SpawnOp;
-use crate::index::UniqueIndexPlugin;
-use crate::param::{ParamBundle, ParamHash, Params};
+use crate::param::{validate, ParamBundle, ParamHash, Params};
 use crate::ui::event::{Connect, Disconnect};
-use crate::ui::graph::{GraphRef, GraphState};
-use crate::{OpName, Sets};
+use crate::ui::graph::{GraphState, update_graph_refs};
+use crate::Sets;
 
 pub mod component;
 pub mod material;
@@ -23,27 +22,32 @@ pub mod texture;
 
 #[derive(Default)]
 pub struct OpPlugin<T: Op> {
-    _marker: std::marker::PhantomData<T>,
+    _marker: PhantomData<T>,
 }
 
 impl<T> Plugin for OpPlugin<T>
 where
-    T: Op + Component + ExtractComponent + Send + Sync + Debug + 'static,
+    T: Op + Component + ExtractComponent + Send + Sync + Debug + Default + 'static,
 {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
-                (spawn::<T>, on_connect::<T>, on_disconnect::<T>)
-                    .in_set(Sets::Graph),
-                (update::<T>, should_execute::<T>)
-                    .chain()
-                    .in_set(Sets::Params),
-                (execute)
-                    .in_set(Sets::Execute)
-            )
-                .chain(),
-        );
+        app.add_systems(Update, apply_deferred.after(spawn::<T>))
+            .add_systems(
+                Update,
+                (
+                    (spawn::<T>
+                    ).in_set(Sets::Spawn),
+                    (
+                        update::<T>,
+                        should_execute::<T>,
+                        on_connect::<T>.run_if(on_event::<Connect>()),
+                        on_disconnect::<T>.run_if(on_event::<Disconnect>()),
+                    )
+                        .chain()
+                        .before(validate)
+                        .in_set(Sets::Params),
+                    execute.in_set(Sets::Execute),
+                ),
+            );
     }
 }
 
@@ -155,7 +159,6 @@ pub struct OpDynExecute(Box<dyn OpExecute + Send + Sync + 'static>);
 #[derive(Resource, Clone, Default)]
 pub struct OpDefaultImage(pub Handle<Image>);
 
-
 // ~~~~ Op ~~~~
 
 /// How the op spawns, including the components that are required for its main op-type specific
@@ -181,7 +184,7 @@ fn spawn<'w, 's, T>(
     added_q: Query<Entity, Added<OpType<T>>>,
     mut spawn_op_evt: EventWriter<SpawnOp>,
 ) where
-    T: Op + Component + Debug + Send + Sync + 'static,
+    T: Op + Component + Debug + Default + Send + Sync + 'static,
 {
     let mut param = param.into_inner();
 
@@ -192,7 +195,9 @@ fn spawn<'w, 's, T>(
             .entity(entity)
             .insert((
                 OpCategory(T::CATEGORY),
+                OpDynExecute(Box::new(T::default())),
                 OpTypeName(OpType::<T>::name().to_string()),
+                ParamHash(0),
                 bundle,
             ))
             .with_children(|parent| {
@@ -234,7 +239,12 @@ pub trait OpShouldExecute {
 
     /// Should this op execute? Note, returning false does not guarantee that the op will *not*
     /// execute, only suggesting that it does not need to.
-    fn should_execute<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>) -> bool;
+    fn should_execute<'w>(
+        entity: Entity,
+        param: &mut SystemParamItem<'w, '_, Self::Param>,
+    ) -> bool {
+        false
+    }
 }
 
 fn should_execute<'w, 's, T>(
@@ -264,25 +274,34 @@ fn should_execute<'w, 's, T>(
 /// Execute this operator, with exclusive access to [World]. Ops can assume that their
 /// data dependencies have executed before them.
 pub trait OpExecute {
-
     /// Execute the op.
-    fn execute(&mut self, entity: Entity, world: &mut World);
+    fn execute(&self, entity: Entity, world: &mut World);
 }
 
 fn execute(
-    // world: &mut World,
+    world: &mut World,
     // graph_state: Res<GraphState>,
     // mut ops_q: Query<(&mut OpDynExecute), With<Execute>>
-){
-    // let sorted = petgraph::algo::toposort(&graph_state.graph, None)
-    //     .expect("There should not be a cycle");
-    // let entities = sorted.iter().map(|idx| graph_state.entity_map[idx].clone())
-    //     .collect::<Vec<Entity>>();
-    // for entity in entities {
-    //     if let Ok(mut op) = ops_q.get_mut(entity) {
-    //         op.execute(entity, world);
-    //     }
-    // }
+) {
+    let graph_state = world.get_resource::<GraphState>().unwrap();
+    let sorted =
+        petgraph::algo::toposort(&graph_state.graph, None).expect("There should not be a cycle");
+    let entities = sorted
+        .iter()
+        .map(|idx| graph_state.entity_map[idx].clone())
+        .collect::<Vec<Entity>>();
+
+    unsafe {
+        let world_cell = world.as_unsafe_world_cell();
+        let mut ops_q = world_cell
+            .world_mut()
+            .query_filtered::<&OpDynExecute, With<Execute>>();
+        for entity in entities {
+            if let Ok(mut op) = ops_q.get(world_cell.world(), entity) {
+                op.execute(entity, &mut world_cell.world_mut());
+            }
+        }
+    }
 }
 
 /// Handler for when a new connection event occurs in the ui.

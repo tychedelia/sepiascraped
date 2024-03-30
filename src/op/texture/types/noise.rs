@@ -63,7 +63,7 @@ impl OpShouldExecute for TextureOpNoise {
 }
 
 impl OpExecute for TextureOpNoise {
-    fn execute(&mut self, entity: Entity, world: &mut World) {
+    fn execute(&self, entity: Entity, world: &mut World) {
     }
 }
 

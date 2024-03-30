@@ -16,8 +16,7 @@ pub struct ParamPlugin;
 impl Plugin for ParamPlugin {
     fn build(&self, app: &mut App) {
         app
-            .init_resource::<ParamsHash>()
-            .add_systems(Update, validate.after(update).in_set(Sets::Params))
+            .add_systems(Update, validate.in_set(Sets::Params))
             .add_plugins(CompositeIndex2Plugin::<OpRef, ParamName>::new());
     }
 }
@@ -59,6 +58,78 @@ pub enum ParamValue {
     MeshOp(Option<Entity>),
 }
 
+impl ParamValue {
+    pub fn as_f32(&self) -> f32 {
+        match self {
+            ParamValue::F32(v) => *v,
+            _ => panic!("Param is not an f32"),
+        }
+    }
+
+    pub fn as_u32(&self) -> u32 {
+        match self {
+            ParamValue::U32(v) => *v,
+            _ => panic!("Param is not a u32"),
+        }
+    }
+
+    pub fn as_uvec2(&self) -> UVec2 {
+        match self {
+            ParamValue::UVec2(v) => *v,
+            _ => panic!("Param is not a UVec2"),
+        }
+    }
+
+    pub fn as_vec2(&self) -> Vec2 {
+        match self {
+            ParamValue::Vec2(v) => *v,
+            _ => panic!("Param is not a Vec2"),
+        }
+    }
+
+    pub fn as_vec3(&self) -> Vec3 {
+        match self {
+            ParamValue::Vec3(v) => *v,
+            _ => panic!("Param is not a Vec3"),
+        }
+    }
+
+    pub fn as_quat(&self) -> Quat {
+        match self {
+            ParamValue::Quat(v) => *v,
+            _ => panic!("Param is not a Quat"),
+        }
+    }
+
+    pub fn as_color(&self) -> Vec4 {
+        match self {
+            ParamValue::Color(v) => *v,
+            _ => panic!("Param is not a Color"),
+        }
+    }
+
+    pub fn as_bool(&self) -> bool {
+        match self {
+            ParamValue::Bool(v) => *v,
+            _ => panic!("Param is not a bool"),
+        }
+    }
+
+    pub fn as_texture_op(&self) -> Option<Entity> {
+        match self {
+            ParamValue::TextureOp(v) => v.clone(),
+            _ => panic!("Param is not a TextureOp"),
+        }
+    }
+
+    pub fn as_mesh_op(&self) -> Option<Entity> {
+        match self {
+            ParamValue::MeshOp(v) => v.clone(),
+            _ => panic!("Param is not a MeshOp"),
+        }
+    }
+}
+
 impl Hash for ParamValue {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
@@ -94,11 +165,6 @@ impl Hash for ParamValue {
     }
 }
 
-#[derive(Resource, Default, Debug)]
-pub struct ParamsHash {
-    pub hashes: BTreeMap<Entity, u64>,
-}
-
 #[derive(Component, Deref, DerefMut, Default, Debug)]
 pub struct ParamHash(pub u64);
 
@@ -107,7 +173,7 @@ pub struct ScriptedParam;
 #[derive(Component, Default, Debug)]
 pub struct ScriptedParamError(pub String);
 
-fn validate(
+pub fn validate(
     mut commands: Commands,
     mut params_q: Query<(Entity, &mut ParamValue), Changed<ParamValue>>,
     category_q: Query<&OpCategory>,

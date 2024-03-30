@@ -39,9 +39,9 @@ impl Plugin for UiPlugin {
             InfiniteGridPlugin,
             DefaultPickingPlugins,
             IndexPlugin::<OpCategory>::default(),
-            FrameTimeDiagnosticsPlugin,
-            SystemInformationDiagnosticsPlugin,
-            PerfUiPlugin,
+            // FrameTimeDiagnosticsPlugin,
+            // SystemInformationDiagnosticsPlugin,
+            // PerfUiPlugin,
         ))
         .add_event::<ClickNode>()
         .add_systems(Startup, ui_setup)

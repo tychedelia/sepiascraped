@@ -39,14 +39,16 @@ impl Plugin for GraphPlugin {
             .add_systems(
                 Update,
                 (
-                    ui.in_set(Sets::Ui),
-                    update_camera_enabled.in_set(Sets::Ui),
-                    add_graph_ids.in_set(Sets::Ui),
-                    draw_refs.in_set(Sets::Ui),
-                    update_connections.in_set(Sets::Ui),
-                    update_graph.in_set(Sets::Graph),
-                    click_node.run_if(on_event::<ClickNode>()),
-                    update_graph_refs.in_set(Sets::Graph),
+                    (
+                        ui,
+                        update_camera_enabled,
+                        add_graph_ids,
+                        update_graph, update_graph_refs,
+                        draw_refs,
+                        update_connections,
+                        click_node.run_if(on_event::<ClickNode>()),
+                    ).chain()
+                        .in_set(Sets::Ui),
                 ),
             )
             .add_systems(First, update_op_images);
@@ -315,7 +317,7 @@ fn update_camera_enabled(
     }
 }
 
-fn update_graph_refs(
+pub fn update_graph_refs(
     mut commands: Commands,
     mut op_ref_q: Query<(Entity, &OpRef), (With<NodeRoot>, Added<OpRef>)>,
 ) {
