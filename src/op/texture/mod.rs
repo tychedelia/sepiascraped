@@ -2,6 +2,8 @@ use std::fmt::Debug;
 use std::ops::Deref;
 
 use bevy::ecs::query::QueryData;
+use bevy::ecs::system::lifetimeless;
+use bevy::ecs::system::lifetimeless::{Read, SQuery, Write};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
@@ -10,10 +12,12 @@ use bevy::render::render_resource::{
     Extent3d, ShaderType, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
 use bevy::sprite::Material2d;
+use lifetimeless::SResMut;
 
 use types::composite::TextureOpCompositePlugin;
 use types::ramp::TextureOpRampPlugin;
 
+use crate::op::texture::render::TextureOpInputImages;
 use crate::op::texture::types::noise::TextureOpNoisePlugin;
 use crate::op::{Op, OpDefaultImage, OpImage, OpInputs, OpOutputs};
 use crate::param::{ParamBundle, ParamName, ParamValue};
@@ -97,172 +101,132 @@ pub struct TextureOpBundle {
     outputs: OpOutputs,
 }
 
-macro_rules! impl_op {
-    ($name:ident, $inputs:expr, $outputs:expr) => {
-        impl crate::op::Op for $name {
-            const CATEGORY: &'static str = crate::op::texture::CATEGORY;
-            const INPUTS: usize = $inputs;
-            const OUTPUTS: usize = $outputs;
+type DefaultTextureUpdateParam<T: TextureOp> =(
+    SQuery<(Read<Children>, Write<OpImage>, Write<T::Uniform>)>,
+    SQuery<(Read<ParamName>, Read<ParamValue>)>,
+    SResMut<Assets<Image>>,
+);
 
-            type OpType = OpType<Self>;
-            type UpdateParam = (
-                bevy::ecs::system::lifetimeless::SQuery<(
-                    bevy::ecs::system::lifetimeless::Read<bevy::prelude::Children>,
-                    bevy::ecs::system::lifetimeless::Write<crate::op::OpImage>,
-                    bevy::ecs::system::lifetimeless::Write<<$name as TextureOp>::Uniform>,
-                )>,
-                bevy::ecs::system::lifetimeless::SQuery<(
-                    bevy::ecs::system::lifetimeless::Read<ParamName>,
-                    bevy::ecs::system::lifetimeless::Read<ParamValue>,
-                )>,
-                bevy::ecs::system::lifetimeless::SResMut<
-                    bevy::prelude::Assets<bevy::prelude::Image>,
-                >,
-            );
-            type BundleParam = (bevy::ecs::system::lifetimeless::SResMut<
-                bevy::prelude::Assets<bevy::prelude::Image>,
-            >);
-            type OnConnectParam = (
-                bevy::ecs::system::lifetimeless::SCommands,
-                bevy::ecs::system::lifetimeless::SResMut<
-                    bevy::prelude::Assets<crate::ui::graph::NodeMaterial>,
-                >,
-                bevy::ecs::system::lifetimeless::SQuery<
-                    (
-                        bevy::ecs::system::lifetimeless::Read<crate::op::OpImage>,
-                        bevy::ecs::system::lifetimeless::Read<crate::ui::graph::GraphRef>,
-                        bevy::ecs::system::lifetimeless::Write<crate::op::texture::render::TextureOpInputImages>
-                    )
-                >,
-                bevy::ecs::system::lifetimeless::SQuery<
-                    bevy::ecs::system::lifetimeless::Read<
-                        bevy::prelude::Handle<crate::ui::graph::NodeMaterial>,
-                    >,
-                >,
-            );
-            type OnDisconnectParam = ();
-            type Bundle = (
-                crate::op::texture::TextureOpBundle,
-                crate::op::texture::render::TextureOpInputImages,
-                <$name as TextureOp>::Uniform,
-            );
+fn update<'w, T: TextureOp>(
+    entity: Entity,
+    param: &mut bevy::ecs::system::SystemParamItem<
+        'w,
+        '_,
+        DefaultTextureUpdateParam<T>,
+    >,
+) {
+    let (self_q, params_q, ref mut images) = param;
 
-            fn update<'w>(
-                entity: bevy::prelude::Entity,
-                param: &mut bevy::ecs::system::SystemParamItem<'w, '_, Self::UpdateParam>,
-            ) {
-                let (self_q, params_q, ref mut images) = param;
-
-                let Ok((children, mut image, mut uniform)) = self_q.get_mut(entity) else {
-                    return;
-                };
-
-                let params = children
-                    .iter()
-                    .filter_map(|entity| params_q.get(*entity).ok())
-                    .collect();
-
-                <$name as TextureOp>::update_uniform(&mut uniform, &params);
-
-                let resolution = params
-                    .iter()
-                    .find(|(name, _)| *name == &crate::param::ParamName("Resolution".to_string()))
-                    .unwrap()
-                    .1;
-
-                if let crate::param::ParamValue::Vec2(resolution) = resolution {
-                    let image_size = images.get(image.0.clone()).unwrap().size();
-                    if image_size.x != resolution.x as u32 || image_size.y != resolution.y as u32 {
-                        let mut new_image =
-                            crate::op::OpImage::new_image(resolution.x as u32, resolution.y as u32);
-                        let new_image = images.add(new_image);
-                        *image = crate::op::OpImage(new_image);
-                    }
-                }
-            }
-
-            fn create_bundle<'w>(
-                entity: bevy::prelude::Entity,
-                (mut images): &mut bevy::ecs::system::SystemParamItem<'w, '_, Self::BundleParam>,
-            ) -> Self::Bundle {
-                let image = images.add(crate::op::OpImage::new_image(512, 512));
-                (
-                    crate::op::texture::TextureOpBundle {
-                        camera: bevy::prelude::Camera3dBundle {
-                            camera_render_graph: bevy::render::camera::CameraRenderGraph::new(
-                                crate::op::texture::render::TextureOpSubGraph,
-                            ),
-                            camera: bevy::prelude::Camera {
-                                order: 3,
-                                target: image.clone().into(),
-                                ..default()
-                            },
-                            ..default()
-                        },
-                        image: crate::op::texture::OpImage(image.clone()),
-                        inputs: crate::op::texture::OpInputs {
-                            count: $inputs,
-                            connections: Vec::new(),
-                        },
-                        outputs: crate::op::OpOutputs { count: $outputs },
-                    },
-                    crate::op::texture::render::TextureOpInputImages::default(),
-                    <$name as TextureOp>::Uniform::default(),
-                )
-            }
-
-            fn params(bundle: &Self::Bundle) -> Vec<crate::param::ParamBundle> {
-                let common_params = vec![
-                    crate::param::ParamBundle {
-                        name: crate::param::ParamName("Resolution".to_string()),
-                        value: crate::param::ParamValue::UVec2(UVec2::new(512, 512)),
-                        order: crate::param::ParamOrder(0),
-                        page: crate::param::ParamPage("Common".to_string()),
-                        ..default()
-                    },
-                ];
-
-                [common_params, <$name as TextureOp>::params()].concat()
-            }
-
-            fn on_connect<'w>(
-                entity: bevy::prelude::Entity,
-                event: crate::ui::event::Connect,
-                fully_connected: bool,
-                param: &mut bevy::ecs::system::SystemParamItem<'w, '_, Self::OnConnectParam>,
-            ) {
-                let (ref mut commands, ref mut materials, ref mut op_q, ref mut material_q) = param;
-                let (new_image, _, _) = op_q.get(event.output).unwrap();
-                let new_image = new_image.0.clone();
-                let (my_image, graph_ref, mut my_images) = op_q.get_mut(entity).unwrap();
-                my_images.push(new_image);
-
-                if fully_connected {
-                    if let Ok(material) = material_q.get(graph_ref.0) {
-                        let mut material = materials.get_mut(material).unwrap();
-                        if material.texture != my_image.0 {
-                            material.texture = my_image.0.clone();
-                        }
-                    } else {
-                        warn!("No material found for {:?}", graph_ref);
-                    }
-                }
-            }
-
-            fn on_disconnect<'w>(
-                entity: bevy::prelude::Entity,
-                event: crate::ui::event::Disconnect,
-                fully_connected: bool,
-                param: &mut bevy::ecs::system::SystemParamItem<'w, '_, Self::OnDisconnectParam>,
-            ) {
-                ()
-            }
-        }
+    let Ok((children, mut image, mut uniform)) = self_q.get_mut(entity) else {
+        return;
     };
+
+    let params = children
+        .iter()
+        .filter_map(|entity| params_q.get(*entity).ok())
+        .collect();
+
+    T::update_uniform(&mut uniform, &params);
+
+    let resolution = params
+        .iter()
+        .find(|(name, _)| *name == &crate::param::ParamName("Resolution".to_string()))
+        .unwrap()
+        .1;
+
+    if let crate::param::ParamValue::Vec2(resolution) = resolution {
+        let image_size = images.get(image.0.clone()).unwrap().size();
+        if image_size.x != resolution.x as u32 || image_size.y != resolution.y as u32 {
+            let mut new_image =
+                crate::op::OpImage::new_image(resolution.x as u32, resolution.y as u32);
+            let new_image = images.add(new_image);
+            *image = crate::op::OpImage(new_image);
+        }
+    }
 }
 
-pub(crate) use impl_op;
-use crate::op::texture::render::TextureOpInputImages;
+type DefaultTextureSpawnParam = (SResMut<Assets<Image>>);
+type DefaultTextureBundle<T: TextureOp> = (TextureOpBundle, TextureOpInputImages, T::Uniform);
+
+fn create_bundle<'w, T: TextureOp>(
+    entity: Entity,
+    (mut images): &mut bevy::ecs::system::SystemParamItem<'w, '_, DefaultTextureSpawnParam<>>,
+) -> DefaultTextureBundle<T> {
+    let image = images.add(crate::op::OpImage::new_image(512, 512));
+    (
+        TextureOpBundle {
+            camera: Camera3dBundle {
+                camera_render_graph: bevy::render::camera::CameraRenderGraph::new(
+                    render::TextureOpSubGraph,
+                ),
+                camera: Camera {
+                    order: 3,
+                    target: image.clone().into(),
+                    ..default()
+                },
+                ..default()
+            },
+            image: OpImage(image.clone()),
+            inputs: OpInputs {
+                count: T::INPUTS,
+                connections: Vec::new(),
+            },
+            outputs: crate::op::OpOutputs { count: T::OUTPUTS },
+        },
+        TextureOpInputImages::default(),
+        T::Uniform::default(),
+    )
+}
+
+fn params<T: TextureOp>(bundle: &DefaultTextureBundle<T>) -> Vec<ParamBundle> {
+    let common_params = vec![ParamBundle {
+        name: ParamName("Resolution".to_string()),
+        value: ParamValue::UVec2(UVec2::new(512, 512)),
+        order: crate::param::ParamOrder(0),
+        page: crate::param::ParamPage("Common".to_string()),
+        ..default()
+    }];
+
+    [common_params, <T as TextureOp>::params()].concat()
+}
+
+type DefaultTextureOnConnectParam =  (
+    lifetimeless::SCommands,
+    SResMut<Assets<crate::ui::graph::NodeMaterial>>,
+    SQuery<(
+        Read<OpImage>,
+        Read<crate::ui::graph::GraphRef>,
+        Write<TextureOpInputImages>,
+    )>,
+    SQuery<Read<Handle<crate::ui::graph::NodeMaterial>>>,
+);
+fn on_connect<'w>(
+    entity: Entity,
+    event: crate::ui::event::Connect,
+    fully_connected: bool,
+    param: &mut bevy::ecs::system::SystemParamItem<
+        'w,
+        '_,
+        DefaultTextureOnConnectParam,
+    >,
+) {
+    let (ref mut commands, ref mut materials, ref mut op_q, ref mut material_q) = param;
+    let (new_image, _, _) = op_q.get(event.output).unwrap();
+    let new_image = new_image.0.clone();
+    let (my_image, graph_ref, mut my_images) = op_q.get_mut(entity).unwrap();
+    my_images.push(new_image);
+
+    if fully_connected {
+        if let Ok(material) = material_q.get(graph_ref.0) {
+            let mut material = materials.get_mut(material).unwrap();
+            if material.texture != my_image.0 {
+                material.texture = my_image.0.clone();
+            }
+        } else {
+            warn!("No material found for {:?}", graph_ref);
+        }
+    }
+}
 
 pub fn update_op_cameras(mut op_q: Query<(&mut Camera, &mut OpImage), Changed<OpImage>>) {
     for (mut camera, mut image) in op_q.iter_mut() {

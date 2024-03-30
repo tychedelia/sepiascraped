@@ -11,9 +11,10 @@ use bevy::utils::HashMap;
 use std::ops::Deref;
 
 use crate::op::material::{MaterialDefaultMesh, MaterialOpBundle, MaterialOpHandle, CATEGORY};
-use crate::op::{Op, OpImage, OpInputs, OpOutputs, OpPlugin, OpType};
+use crate::op::{Op, OpExecute, OpImage, OpInputs, OpOnConnect, OpOnDisconnect, OpOutputs, OpPlugin, OpShouldExecute, OpSpawn, OpType, OpUpdate};
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 use crate::render_layers::RenderLayerManager;
+use crate::ui::event::{Connect, Disconnect};
 
 #[derive(Default)]
 pub struct MaterialOpStandardPlugin;
@@ -27,53 +28,22 @@ impl Plugin for MaterialOpStandardPlugin {
 #[derive(Component, ExtractComponent, Clone, Default, Debug)]
 pub struct MaterialOpStandard;
 
-impl Op for MaterialOpStandard {
-    const CATEGORY: &'static str = CATEGORY;
-    type OpType = OpType<MaterialOpStandard>;
-    type UpdateParam = (
-        SResMut<Assets<StandardMaterial>>,
-        SQuery<Read<OpImage>>,
-        SQuery<(Read<Children>, Read<MaterialOpHandle<StandardMaterial>>)>,
-        SQuery<(Read<ParamName>, Read<ParamValue>)>,
-    );
-    type BundleParam = (
+impl OpSpawn for MaterialOpStandard {
+    type Param = (
         SCommands,
         SRes<MaterialDefaultMesh>,
         SResMut<Assets<StandardMaterial>>,
         SResMut<Assets<Image>>,
         SResMut<RenderLayerManager>,
     );
-    type OnConnectParam = ();
-    type OnDisconnectParam = ();
     type Bundle = (MaterialOpBundle<StandardMaterial>, RenderLayers);
-
-    fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>) {
-        let (materials, image_q, self_q, params_q) = param;
-
-        let Ok((children, handle)) = self_q.get_mut(entity) else {
-            return;
-        };
-
-        for (param_name, param_value) in params_q.iter_many(children) {
-            match param_name.0.as_str() {
-                "Texture" => {
-                    if let ParamValue::TextureOp(Some(texture_entity)) = param_value {
-                        let material = materials.get_mut(&**handle).unwrap();
-                        let texture = image_q.get(*texture_entity).unwrap();
-                        material.base_color_texture = Some(texture.deref().clone());
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
 
     fn create_bundle<'w>(
         entity: Entity,
         (commands, default_mesh, materials, images, layer_manager): &mut SystemParamItem<
             'w,
             '_,
-            Self::BundleParam,
+            Self::Param,
         >,
     ) -> Self::Bundle {
         let image = OpImage::new_image(512, 512);
@@ -142,4 +112,66 @@ impl Op for MaterialOpStandard {
             ..default()
         }]
     }
+}
+
+impl OpUpdate for MaterialOpStandard {
+    type Param = (
+        SResMut<Assets<StandardMaterial>>,
+        SQuery<Read<OpImage>>,
+        SQuery<(Read<Children>, Read<MaterialOpHandle<StandardMaterial>>)>,
+        SQuery<(Read<ParamName>, Read<ParamValue>)>,
+    );
+
+    fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>) {
+        let (materials, image_q, self_q, params_q) = param;
+
+        let Ok((children, handle)) = self_q.get_mut(entity) else {
+            return;
+        };
+
+        for (param_name, param_value) in params_q.iter_many(children) {
+            match param_name.0.as_str() {
+                "Texture" => {
+                    if let ParamValue::TextureOp(Some(texture_entity)) = param_value {
+                        let material = materials.get_mut(&**handle).unwrap();
+                        let texture = image_q.get(*texture_entity).unwrap();
+                        material.base_color_texture = Some(texture.deref().clone());
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+impl OpShouldExecute for MaterialOpStandard {
+    type Param = ();
+
+    fn should_execute<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>) -> bool {
+        true
+    }
+}
+
+impl OpExecute for MaterialOpStandard {
+    fn execute(&mut self, entity: Entity, world: &mut World) {
+    }
+}
+
+impl OpOnConnect for MaterialOpStandard {
+    type Param = ();
+
+    fn on_connect<'w>(entity: Entity, event: Connect, fully_connected: bool, param: &mut SystemParamItem<'w, '_, Self::Param>) {
+    }
+}
+
+impl OpOnDisconnect for MaterialOpStandard {
+    type Param = ();
+
+    fn on_disconnect<'w>(entity: Entity, event: Disconnect, fully_connected: bool, param: &mut SystemParamItem<'w, '_, Self::Param>) {
+    }
+}
+
+impl Op for MaterialOpStandard {
+    const CATEGORY: &'static str = CATEGORY;
+    type OpType = OpType<MaterialOpStandard>;
 }

@@ -1,12 +1,13 @@
+use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::render_resource::ShaderType;
-use bevy::render::texture::GpuImage;
 
 use crate::op::texture::render::TextureOpRenderPlugin;
-use crate::op::texture::{impl_op, TextureOp};
-use crate::op::{OpInputs, OpPlugin, OpType};
+use crate::op::texture::{CATEGORY, create_bundle, DefaultTextureBundle, DefaultTextureOnConnectParam, DefaultTextureSpawnParam, DefaultTextureUpdateParam, on_connect, params, TextureOp, update};
+use crate::op::{Op, OpExecute, OpInputs, OpOnConnect, OpOnDisconnect, OpPlugin, OpShouldExecute, OpSpawn, OpType, OpUpdate};
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
+use crate::ui::event::{Connect, Disconnect};
 
 #[derive(Default)]
 pub struct TextureOpNoisePlugin;
@@ -24,7 +25,62 @@ impl Plugin for TextureOpNoisePlugin {
 #[derive(Component, ExtractComponent, Clone, Default, Debug)]
 pub struct TextureOpNoise;
 
-impl_op!(TextureOpNoise, 0, 1);
+impl Op for TextureOpNoise {
+    const INPUTS: usize = 0;
+    const OUTPUTS: usize = 1;
+    const CATEGORY: &'static str = CATEGORY;
+
+    type OpType = OpType<Self>;
+}
+
+impl OpSpawn for TextureOpNoise {
+    type Param = DefaultTextureSpawnParam;
+    type Bundle = DefaultTextureBundle<Self>;
+
+    fn params(bundle: &Self::Bundle) -> Vec<ParamBundle> {
+        params::<Self>(bundle)
+    }
+
+    fn create_bundle<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>) -> Self::Bundle {
+        create_bundle::<Self>(entity, param)
+    }
+}
+
+impl OpUpdate for TextureOpNoise {
+    type Param = DefaultTextureUpdateParam<Self>;
+
+    fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>) {
+        update::<Self>(entity, param)
+    }
+}
+
+impl OpShouldExecute for TextureOpNoise {
+    type Param = ();
+
+    fn should_execute<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>) -> bool {
+        false
+    }
+}
+
+impl OpExecute for TextureOpNoise {
+    fn execute(&mut self, entity: Entity, world: &mut World) {
+    }
+}
+
+impl OpOnConnect for TextureOpNoise {
+    type Param = DefaultTextureOnConnectParam;
+
+    fn on_connect<'w>(entity: Entity, event: Connect, fully_connected: bool, param: &mut SystemParamItem<'w, '_, Self::Param>) {
+        on_connect(entity, event, fully_connected, param)
+    }
+}
+
+impl OpOnDisconnect for TextureOpNoise {
+    type Param = ();
+
+    fn on_disconnect<'w>(entity: Entity, event: Disconnect, fully_connected: bool, param: &mut SystemParamItem<'w, '_, Self::Param>) {
+    }
+}
 
 impl TextureOp for TextureOpNoise {
     const SHADER: &'static str = "shaders/texture/noise.wgsl";

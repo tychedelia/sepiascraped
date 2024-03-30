@@ -47,7 +47,7 @@ fn main() {
     .add_event::<SpawnOp>()
     .configure_sets(
         Update,
-        (Sets::Ui, Sets::Graph, Sets::Params, Sets::Uniforms).chain(),
+        (Sets::Ui, Sets::Graph, Sets::Params, Sets::Execute).chain(),
     )
     .add_systems(Startup, setup);
     // bevy_mod_debugdump::print_schedule_graph(&mut app, Update);
@@ -58,15 +58,17 @@ fn main() {
 pub struct OpName(pub String);
 
 fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
-    // commands.spawn((TextureOp, TextureOpType::<TextureOpNoise>::default()));
-    // commands.spawn((TextureOp, TextureOpType::<TextureOpComposite>::default()));
-    // commands.spawn((TextureOp, TextureOpType::<TextureOpComposite>::default()));
 }
 
+/// The system sets for the application.
 #[derive(SystemSet, Hash, PartialEq, Eq, Clone, Debug)]
 enum Sets {
+    /// Ui updates and events
     Ui,
+    /// Updates to the op graph
     Graph,
+    /// Param related behavior, i.e. preparing an op to execute
     Params,
-    Uniforms,
+    /// Execute ops
+    Execute,
 }

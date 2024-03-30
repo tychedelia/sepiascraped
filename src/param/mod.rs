@@ -99,6 +99,9 @@ pub struct ParamsHash {
     pub hashes: BTreeMap<Entity, u64>,
 }
 
+#[derive(Component, Deref, DerefMut, Default, Debug)]
+pub struct ParamHash(pub u64);
+
 #[derive(Component, Default, Debug)]
 pub struct ScriptedParam;
 #[derive(Component, Default, Debug)]
@@ -142,6 +145,19 @@ pub struct Params<'w, 's> {
 }
 
 impl<'w, 's> Params<'w, 's> {
+    // Get the hash of all the parameters for an entity
+    pub fn hash(&self, entity: Entity) -> u64 {
+        self.parent_q.get(entity)
+            .iter()
+            .flat_map(|c| c.iter().map(|e| self.params_q.get(*e)))
+            .filter_map(|p| p.ok())
+            .fold(AHasher::default(), |mut h, p| {
+                p.hash(&mut h);
+                h
+            })
+            .finish()
+    }
+
     pub fn get_all(&self, entity: Entity) -> Vec<&ParamValue> {
         self.parent_q.get(entity)
             .iter()

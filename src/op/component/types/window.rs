@@ -9,12 +9,13 @@ use bevy::window::WindowRef;
 
 use crate::index::CompositeIndex2;
 use crate::op::component::CATEGORY;
-use crate::op::OpImage;
+use crate::op::{OpExecute, OpImage, OpOnConnect, OpOnDisconnect, OpShouldExecute, OpSpawn, OpUpdate};
 use crate::op::OpRef;
 use crate::op::{Op, OpInputs, OpOutputs, OpPlugin, OpType};
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 use crate::render_layers::RenderLayerManager;
 use crate::OpName;
+use crate::ui::event::{Connect, Disconnect};
 
 #[derive(Default)]
 pub struct ComponentOpWindowPlugin;
@@ -31,10 +32,8 @@ pub struct WindowTexture(Entity);
 #[derive(Component, ExtractComponent, Clone, Default, Debug)]
 pub struct ComponentOpWindow;
 
-impl Op for ComponentOpWindow {
-    const CATEGORY: &'static str = CATEGORY;
-    type OpType = OpType<ComponentOpWindow>;
-    type UpdateParam = (
+impl OpUpdate for ComponentOpWindow {
+    type Param = (
         SCommands,
         SQuery<(Write<Window>, Option<Read<WindowTexture>>), With<OpType<ComponentOpWindow>>>,
         SQuery<Read<OpImage>>,
@@ -42,19 +41,8 @@ impl Op for ComponentOpWindow {
         SRes<CompositeIndex2<OpRef, ParamName>>,
         SRes<Assets<Image>>,
     );
-    type BundleParam = (SQuery<Read<OpName>>, SResMut<RenderLayerManager>);
-    type OnConnectParam = ();
-    type OnDisconnectParam = ();
-    type Bundle = (
-        Window,
-        Camera2dBundle,
-        RenderLayers,
-        OpImage,
-        OpInputs,
-        OpOutputs,
-    );
 
-    fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>) {
+    fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>) {
         let (commands, self_q, texture_q, param_q, param_index, images) = param;
 
         let (mut window, curr_window_texture) = self_q.get_mut(entity).unwrap();
@@ -103,10 +91,39 @@ impl Op for ComponentOpWindow {
             })
             .insert(WindowTexture(*texture_entity));
     }
+}
+
+impl OpSpawn for ComponentOpWindow {
+    type Param = (SQuery<Read<OpName>>, SResMut<RenderLayerManager>);
+    type Bundle = (
+        Window,
+        Camera2dBundle,
+        RenderLayers,
+        OpImage,
+        OpInputs,
+        OpOutputs,
+    );
+
+    fn params(bundle: &Self::Bundle) -> Vec<ParamBundle> {
+        vec![
+            ParamBundle {
+                name: ParamName("Texture".to_string()),
+                value: ParamValue::TextureOp(None),
+                order: ParamOrder(0),
+                ..default()
+            },
+            ParamBundle {
+                name: ParamName("Open".to_string()),
+                value: ParamValue::Bool(false),
+                order: ParamOrder(1),
+                ..default()
+            },
+        ]
+    }
 
     fn create_bundle<'w>(
         entity: Entity,
-        (name_q, layer_manager): &mut SystemParamItem<'w, '_, Self::BundleParam>,
+        (name_q, layer_manager): &mut SystemParamItem<'w, '_, Self::Param>,
     ) -> Self::Bundle {
         let name = name_q.get(entity).unwrap();
         (
@@ -127,21 +144,36 @@ impl Op for ComponentOpWindow {
             OpOutputs::default(),
         )
     }
+}
 
-    fn params(bundle: &Self::Bundle) -> Vec<ParamBundle> {
-        vec![
-            ParamBundle {
-                name: ParamName("Texture".to_string()),
-                value: ParamValue::TextureOp(None),
-                order: ParamOrder(0),
-                ..default()
-            },
-            ParamBundle {
-                name: ParamName("Open".to_string()),
-                value: ParamValue::Bool(false),
-                order: ParamOrder(1),
-                ..default()
-            },
-        ]
+impl OpShouldExecute for ComponentOpWindow {
+    type Param = ();
+
+    fn should_execute<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>) -> bool {
+        true
     }
+}
+
+impl OpExecute for ComponentOpWindow {
+    fn execute(&mut self, entity: Entity, world: &mut World) {
+    }
+}
+
+impl OpOnConnect for ComponentOpWindow {
+    type Param = ();
+
+    fn on_connect<'w>(entity: Entity, event: Connect, fully_connected: bool, param: &mut SystemParamItem<'w, '_, Self::Param>) {
+    }
+}
+
+impl OpOnDisconnect for ComponentOpWindow {
+    type Param = ();
+
+    fn on_disconnect<'w>(entity: Entity, event: Disconnect, fully_connected: bool, param: &mut SystemParamItem<'w, '_, Self::Param>) {
+    }
+}
+
+impl Op for ComponentOpWindow {
+    const CATEGORY: &'static str = CATEGORY;
+    type OpType = OpType<ComponentOpWindow>;
 }

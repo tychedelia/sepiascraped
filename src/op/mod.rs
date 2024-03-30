@@ -11,9 +11,9 @@ use bevy::utils::HashMap;
 
 use crate::event::SpawnOp;
 use crate::index::UniqueIndexPlugin;
-use crate::param::ParamBundle;
+use crate::param::{ParamBundle, ParamHash, Params};
 use crate::ui::event::{Connect, Disconnect};
-use crate::ui::graph::GraphRef;
+use crate::ui::graph::{GraphRef, GraphState};
 use crate::{OpName, Sets};
 
 pub mod component;
@@ -34,8 +34,13 @@ where
         app.add_systems(
             Update,
             (
-                (spawn::<T>, on_connect::<T>, on_disconnect::<T>).in_set(Sets::Graph),
-                update::<T>.in_set(Sets::Params),
+                (spawn::<T>, on_connect::<T>, on_disconnect::<T>)
+                    .in_set(Sets::Graph),
+                (update::<T>, should_execute::<T>)
+                    .chain()
+                    .in_set(Sets::Params),
+                (execute)
+                    .in_set(Sets::Execute)
             )
                 .chain(),
         );
@@ -141,67 +146,38 @@ impl OpImage {
     }
 }
 
-pub trait Op {
-    const INPUTS: usize = 0;
-    const OUTPUTS: usize = 0;
-    const CATEGORY: &'static str;
-    
-    /// The type of the op.
-    type OpType: Debug + Component + ExtractComponent + Send + Sync + 'static;
-    /// The update parameter.
-    type UpdateParam: SystemParam + 'static;
-    /// The bundle parameter.
-    type BundleParam: SystemParam + 'static;
-    /// The on connect parameter.
-    type OnConnectParam: SystemParam + 'static;
-    type OnDisconnectParam: SystemParam + 'static;
-    /// The bundle type of this op;
+#[derive(Component, Clone, Debug, Default)]
+pub struct Execute;
+
+#[derive(Component, Deref, DerefMut)]
+pub struct OpDynExecute(Box<dyn OpExecute + Send + Sync + 'static>);
+
+#[derive(Resource, Clone, Default)]
+pub struct OpDefaultImage(pub Handle<Image>);
+
+
+// ~~~~ Op ~~~~
+
+/// How the op spawns, including the components that are required for its main op-type specific
+/// behavior, as well as its parameters. Should handle any initialization required for setting
+/// up the op.
+pub trait OpSpawn {
+    type Param: SystemParam + 'static;
     type Bundle: Bundle;
 
-    /// Update the op, i.e. to apply updates from the UI.
-    fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::UpdateParam>);
+    /// Get the initial parameters for the op.
+    fn params(bundle: &Self::Bundle) -> Vec<ParamBundle>;
 
     /// Create the op bundle.
     fn create_bundle<'w>(
         entity: Entity,
-        param: &mut SystemParamItem<'w, '_, Self::BundleParam>,
+        param: &mut SystemParamItem<'w, '_, Self::Param>,
     ) -> Self::Bundle;
-
-    /// Get the parameters for the op.
-    fn params(bundle: &Self::Bundle) -> Vec<ParamBundle>;
-
-    fn on_connect<'w>(
-        entity: Entity,
-        event: Connect,
-        fully_connected: bool,
-        param: &mut SystemParamItem<'w, '_, Self::OnConnectParam>,
-    ) {
-    }
-
-    fn on_disconnect<'w>(
-        entity: Entity,
-        event: Disconnect,
-        fully_connected: bool,
-        param: &mut SystemParamItem<'w, '_, Self::OnDisconnectParam>,
-    ) {
-    }
-}
-
-fn update<'w, 's, T>(
-    ops_q: Query<Entity, With<OpType<T>>>,
-    param: StaticSystemParam<T::UpdateParam>,
-) where
-    T: Op + Component + Debug + Send + Sync + 'static,
-{
-    let mut param = param.into_inner();
-    for entity in ops_q.iter() {
-        T::update(entity, &mut param);
-    }
 }
 
 fn spawn<'w, 's, T>(
     mut commands: Commands,
-    param: StaticSystemParam<T::BundleParam>,
+    param: StaticSystemParam<<T as OpSpawn>::Param>,
     added_q: Query<Entity, Added<OpType<T>>>,
     mut spawn_op_evt: EventWriter<SpawnOp>,
 ) where
@@ -229,10 +205,103 @@ fn spawn<'w, 's, T>(
     }
 }
 
+/// Update behavior for the op. This should be cheap, mostly updating things like params
+/// or other static data that does NOT rely on graph ordering. In other words, updates
+/// data that is safe to update prior to execution.
+pub trait OpUpdate {
+    type Param: SystemParam + 'static;
+
+    /// Update the op, i.e. to apply updates from the UI.
+    fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>);
+}
+
+fn update<'w, 's, T>(
+    mut ops_q: Query<Entity, With<OpType<T>>>,
+    param: StaticSystemParam<<T as OpUpdate>::Param>,
+) where
+    T: Op + Component + Debug + Send + Sync + 'static,
+{
+    let mut param = param.into_inner();
+    for entity in ops_q.iter_mut() {
+        T::update(entity, &mut param);
+    }
+}
+
+/// Suggests whether the op should execute this frame. Note, the op will always execute if its
+/// params change OR one of its dependencies change.
+pub trait OpShouldExecute {
+    type Param: SystemParam + 'static;
+
+    /// Should this op execute? Note, returning false does not guarantee that the op will *not*
+    /// execute, only suggesting that it does not need to.
+    fn should_execute<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>) -> bool;
+}
+
+fn should_execute<'w, 's, T>(
+    mut commands: Commands,
+    mut ops_q: Query<(Entity, &mut ParamHash), With<OpType<T>>>,
+    param: StaticSystemParam<<T as OpShouldExecute>::Param>,
+    params: Params,
+) where
+    T: Op + Component + Debug + Send + Sync + 'static,
+{
+    let mut param = param.into_inner();
+    for (entity, mut hash) in ops_q.iter_mut() {
+        // Update the hash and mark this op as execute if the parameters have changed.
+        let new_hash = params.hash(entity);
+        if hash.0 != new_hash {
+            hash.0 = new_hash;
+            commands.entity(entity).insert(Execute);
+        }
+
+        // Mark the op as execute if it suggests we should
+        if T::should_execute(entity, &mut param) {
+            commands.entity(entity).insert(Execute);
+        }
+    }
+}
+
+/// Execute this operator, with exclusive access to [World]. Ops can assume that their
+/// data dependencies have executed before them.
+pub trait OpExecute {
+
+    /// Execute the op.
+    fn execute(&mut self, entity: Entity, world: &mut World);
+}
+
+fn execute(
+    // world: &mut World,
+    // graph_state: Res<GraphState>,
+    // mut ops_q: Query<(&mut OpDynExecute), With<Execute>>
+){
+    // let sorted = petgraph::algo::toposort(&graph_state.graph, None)
+    //     .expect("There should not be a cycle");
+    // let entities = sorted.iter().map(|idx| graph_state.entity_map[idx].clone())
+    //     .collect::<Vec<Entity>>();
+    // for entity in entities {
+    //     if let Ok(mut op) = ops_q.get_mut(entity) {
+    //         op.execute(entity, world);
+    //     }
+    // }
+}
+
+/// Handler for when a new connection event occurs in the ui.
+trait OpOnConnect {
+    type Param: SystemParam + 'static;
+
+    /// Run op connection logic.
+    fn on_connect<'w>(
+        entity: Entity,
+        event: Connect,
+        fully_connected: bool,
+        param: &mut SystemParamItem<'w, '_, Self::Param>,
+    );
+}
+
 fn on_connect<T>(
     mut ev_connect: EventReader<Connect>,
     mut op_q: Query<&mut OpInputs, With<OpType<T>>>,
-    param: StaticSystemParam<T::OnConnectParam>,
+    param: StaticSystemParam<<T as OpOnConnect>::Param>,
 ) where
     T: Op + Component + ExtractComponent + Debug + Send + Sync + 'static,
 {
@@ -245,10 +314,23 @@ fn on_connect<T>(
     }
 }
 
+/// Handler for when a new disconnection event occurs in the ui.
+trait OpOnDisconnect {
+    type Param: SystemParam + 'static;
+
+    /// Run op disconnection logic.
+    fn on_disconnect<'w>(
+        entity: Entity,
+        event: Disconnect,
+        fully_connected: bool,
+        param: &mut SystemParamItem<'w, '_, Self::Param>,
+    );
+}
+
 fn on_disconnect<T>(
     mut ev_disconnect: EventReader<Disconnect>,
     mut op_q: Query<&mut OpInputs, With<OpType<T>>>,
-    param: StaticSystemParam<T::OnDisconnectParam>,
+    param: StaticSystemParam<<T as OpOnDisconnect>::Param>,
 ) where
     T: Op + Component + ExtractComponent + Debug + Send + Sync + 'static,
 {
@@ -261,5 +343,17 @@ fn on_disconnect<T>(
     }
 }
 
-#[derive(Resource, Clone, Default)]
-pub struct OpDefaultImage(pub Handle<Image>);
+/// An op.
+pub trait Op:
+    OpSpawn + OpUpdate + OpShouldExecute + OpExecute + OpOnConnect + OpOnDisconnect
+{
+    /// The number of inputs this op provides.
+    const INPUTS: usize = 0;
+    /// The number of outputs this op provides.
+    const OUTPUTS: usize = 0;
+    /// The category of this op.
+    const CATEGORY: &'static str;
+
+    /// The type of the op.
+    type OpType: Debug + Component + ExtractComponent + Send + Sync + 'static;
+}
