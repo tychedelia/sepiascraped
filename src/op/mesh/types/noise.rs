@@ -7,6 +7,7 @@ use bevy::render::view::RenderLayers;
 use rand::{Rng, SeedableRng};
 use std::f32::consts::PI;
 use std::ops::DerefMut;
+use bevy::color::palettes::css::GRAY;
 
 use crate::op::mesh::{MeshExt, MeshOpBundle, MeshOpHandle, MeshOpInputMeshes, CATEGORY};
 use crate::op::{
@@ -84,7 +85,7 @@ impl OpSpawn for MeshOpNoise {
                 mesh: MeshOpHandle(mesh.clone()),
                 pbr: PbrBundle {
                     mesh,
-                    material: materials.add(Color::GRAY),
+                    material: materials.add(Color::from(GRAY)),
                     transform: Transform::from_xyz(0.0, 0.0, 0.0)
                         .with_rotation(Quat::from_rotation_x(-PI / 4.0)),
                     ..default()
@@ -170,8 +171,8 @@ impl OpExecute for MeshOpNoise {
         let my_mesh = world.entity(entity).get::<MeshOpHandle>().unwrap().clone();
 
         let mut meshes = world.get_resource_mut::<Assets<Mesh>>().unwrap();
-        let input_mesh = meshes.get(input_mesh.0.clone()).unwrap().clone();
-        let mut mesh = meshes.get_mut(my_mesh.0.clone()).unwrap();
+        let input_mesh = meshes.get(&input_mesh.0).unwrap().clone();
+        let mut mesh = meshes.get_mut(&my_mesh.0).unwrap();
         *mesh = input_mesh.clone();
 
         let [a, b, c, d] = seed.to_le_bytes();

@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use std::marker::PhantomData;
+use bevy::color::palettes::css::{NAVY, PURPLE, SALMON, SILVER};
 
 use bevy::ecs::system::{ReadOnlySystemParam, StaticSystemParam, SystemParam, SystemParamItem};
 use bevy::prelude::*;
@@ -75,10 +76,10 @@ pub struct OpCategory(pub &'static str);
 impl OpCategory {
     pub fn to_color(&self) -> Color {
         match self.0 {
-            "Component" => Color::SILVER,
-            "Material" => Color::SALMON,
-            "Mesh" => Color::NAVY,
-            "Texture" => Color::PURPLE,
+            "Component" => Color::from(SILVER),
+            "Material" => Color::from(SALMON),
+            "Mesh" => Color::from(NAVY),
+            "Texture" => Color::from(PURPLE),
             _ => panic!("Unknown category: {}", self.0),
         }
     }

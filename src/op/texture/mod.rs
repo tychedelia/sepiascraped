@@ -135,7 +135,7 @@ fn update<'w, T: TextureOp>(
         .1;
 
     if let crate::param::ParamValue::Vec2(resolution) = resolution {
-        let image_size = images.get(image.0.clone()).unwrap().size();
+        let image_size = images.get(&image.0).unwrap().size();
         if image_size.x != resolution.x as u32 || image_size.y != resolution.y as u32 {
             let mut new_image =
                 crate::op::OpImage::new_image(resolution.x as u32, resolution.y as u32);

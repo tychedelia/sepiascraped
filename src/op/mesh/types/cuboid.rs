@@ -7,6 +7,7 @@ use bevy::render::view::RenderLayers;
 use bevy::utils::HashMap;
 use std::f32::consts::PI;
 use std::ops::DerefMut;
+use bevy::color::palettes::css::GRAY;
 
 use crate::op::mesh::{MeshOpBundle, MeshOpHandle, CATEGORY, MeshOpInputMeshes};
 use crate::op::{Op, OpExecute, OpImage, OpInputs, OpOnConnect, OpOnDisconnect, OpOutputs, OpPlugin, OpShouldExecute, OpSpawn, OpType, OpUpdate};
@@ -85,7 +86,7 @@ impl OpSpawn for MeshOpCuboid {
                 mesh: MeshOpHandle(mesh.clone()),
                 pbr: PbrBundle {
                     mesh,
-                    material: materials.add(Color::GRAY),
+                    material: materials.add(Color::from(GRAY)),
                     transform: Transform::from_xyz(0.0, 0.0, 0.0)
                         .with_rotation(Quat::from_rotation_x(-PI / 4.0)),
                     ..default()

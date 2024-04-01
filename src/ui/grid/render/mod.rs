@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use bevy::core_pipeline::core_2d::Transparent2d;
 use bevy::render::view::{ViewUniform, ViewUniformOffset, ViewUniforms};
-use bevy::utils::FloatOrd;
+use bevy::math::FloatOrd;
 use bevy::{
     ecs::{
         query::ROQueryItem,
@@ -16,8 +16,7 @@ use bevy::{
     render::{
         mesh::PrimitiveTopology,
         render_phase::{
-            AddRenderCommand, DrawFunctions, PhaseItem, RenderCommand, RenderCommandResult,
-            RenderPhase, SetItemPipeline,
+            AddRenderCommand, DrawFunctions, PhaseItem, RenderCommand, RenderCommandResult, SetItemPipeline,
         },
         render_resource::{
             BindGroup, BindGroupEntries, BindGroupLayout, BindGroupLayoutEntry, BindingType,
@@ -32,6 +31,7 @@ use bevy::{
         Extract, ExtractSchedule, Render, RenderApp, RenderSet,
     },
 };
+use bevy::render::render_phase::SortedRenderPhase;
 
 use crate::ui::grid::InfiniteGridSettings;
 
@@ -314,7 +314,7 @@ fn queue_infinite_grids(
     infinite_grids: Query<&ExtractedInfiniteGrid>,
     mut views: Query<(
         &VisibleEntities,
-        &mut RenderPhase<Transparent2d>,
+        &mut SortedRenderPhase<Transparent2d>,
         &ExtractedView,
     )>,
     msaa: Res<Msaa>,

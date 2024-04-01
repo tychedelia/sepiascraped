@@ -1,28 +1,25 @@
+use std::collections::BTreeSet;
+
 use bevy::core::FrameCount;
-use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, SystemInformationDiagnosticsPlugin};
 use bevy::prelude::*;
 use bevy::render::camera::CameraOutputMode;
-use bevy_egui::egui::util::cache::FrameCache;
-use bevy_egui::egui::TextEdit;
 use bevy_egui::{egui, EguiContexts};
 use bevy_mod_picking::DefaultPickingPlugins;
 use egui_autocomplete::AutoCompleteTextEdit;
-use iyes_perf_ui::prelude::PerfUiEntryFPS;
-use iyes_perf_ui::{PerfUiCompleteBundle, PerfUiPlugin, PerfUiRoot};
-use std::collections::BTreeSet;
+use iyes_perf_ui::entries::PerfUiCompleteBundle;
 use steel_parser::ast::IteratorExtensions;
 
 use camera::CameraControllerPlugin;
 
 use crate::index::{Index, IndexPlugin, UniqueIndex};
-use crate::op::texture::TextureOp;
 use crate::op::{OpCategory, OpTypeName};
+use crate::op::texture::TextureOp;
+use crate::OpName;
 use crate::param::{ParamName, ParamValue, ScriptedParam, ScriptedParamError};
+use crate::Sets::Ui;
 use crate::ui::event::ClickNode;
 use crate::ui::graph::{GraphPlugin, SelectedNode};
 use crate::ui::grid::InfiniteGridPlugin;
-use crate::OpName;
-use crate::Sets::Ui;
 
 mod camera;
 pub mod event;

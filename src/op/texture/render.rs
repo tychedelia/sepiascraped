@@ -73,11 +73,11 @@ where
     }
 
     fn finish(&self, app: &mut App) {
-        let Ok(render_app) = app.get_sub_app_mut(RenderApp) else {
+        let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
             return;
         };
 
-        let asset_server = render_app.world.resource_mut::<AssetServer>();
+        let asset_server = render_app.world_mut().resource_mut::<AssetServer>();
         let shader_handle = asset_server.load(T::SHADER);
         let shader_handle = TextureOpShaderHandle::<T>(shader_handle, PhantomData);
         render_app

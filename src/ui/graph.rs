@@ -349,7 +349,7 @@ fn spawn_port<T: Component>(
         port,
         Port,
         MaterialMesh2dBundle {
-            mesh: meshes.add(Mesh::from(shape::Circle::new(10.0))).into(),
+            mesh: meshes.add(Mesh::from(Circle::new(10.0))).into(),
             material: color_materials.add(Color::rgb(0.5, 0.5, 0.5)),
             transform: Transform::from_translation(translation),
             ..Default::default()

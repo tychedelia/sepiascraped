@@ -74,7 +74,7 @@ impl OpUpdate for ComponentOpWindow {
             }
         }
 
-        let image = images.get(texture.0.clone()).unwrap();
+        let image = images.get(&texture.0.clone()).unwrap();
 
         let scale_factor = window.resolution.scale_factor();
         let window_size = image.size_f32() * scale_factor;
