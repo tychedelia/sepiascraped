@@ -242,13 +242,13 @@ fn prepare_infinite_grids(
             settings_offset: settings_uniforms
                 .uniforms
                 .push(&GridDisplaySettingsUniform {
-                    x_axis_color: Vec3::from_slice(&extracted.grid.x_axis_color.as_rgba_f32()),
-                    y_axis_color: Vec3::from_slice(&extracted.grid.y_axis_color.as_rgba_f32()),
+                    x_axis_color: Vec3::from_slice(&extracted.grid.x_axis_color.linear().to_array()),
+                    y_axis_color: Vec3::from_slice(&extracted.grid.y_axis_color.linear().to_array()),
                     minor_line_color: Vec4::from_slice(
-                        &extracted.grid.minor_line_color.as_rgba_f32(),
+                        &extracted.grid.minor_line_color.linear().to_array(),
                     ),
                     major_line_color: Vec4::from_slice(
-                        &extracted.grid.major_line_color.as_rgba_f32(),
+                        &extracted.grid.major_line_color.linear().to_array(),
                     ),
                 }),
         });
@@ -261,13 +261,13 @@ fn prepare_infinite_grids(
                 offset: settings_uniforms
                     .uniforms
                     .push(&GridDisplaySettingsUniform {
-                        x_axis_color: Vec3::from_slice(&settings.x_axis_color.as_rgba_f32()),
-                        y_axis_color: Vec3::from_slice(&settings.y_axis_color.as_rgba_f32()),
+                        x_axis_color: Vec3::from_slice(&settings.x_axis_color.linear().to_array()),
+                        y_axis_color: Vec3::from_slice(&settings.y_axis_color.linear().to_array()),
                         minor_line_color: Vec4::from_slice(
-                            &settings.minor_line_color.as_rgba_f32(),
+                            &settings.minor_line_color.linear().to_array(),
                         ),
                         major_line_color: Vec4::from_slice(
-                            &settings.major_line_color.as_rgba_f32(),
+                            &settings.major_line_color.linear().to_array(),
                         ),
                     }),
             });
@@ -477,11 +477,11 @@ impl SpecializedRenderPipeline for InfiniteGridPipeline {
 }
 
 pub fn render_app_builder(app: &mut App) {
-    app.world
+    app.world_mut()
         .resource_mut::<Assets<Shader>>()
-        .get_or_insert_with(SHADER_HANDLE, || Shader::from_wgsl(PLANE_RENDER, file!()));
+        .get_or_insert_with(&SHADER_HANDLE, || Shader::from_wgsl(PLANE_RENDER, file!()));
 
-    let Ok(render_app) = app.get_sub_app_mut(RenderApp) else {
+    let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
         return;
     };
     render_app

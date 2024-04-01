@@ -1,4 +1,5 @@
 use bevy::asset::LoadState;
+use bevy::color::palettes::css::{BLACK, GRAY};
 use bevy::prelude::*;
 use bevy::render::camera::CameraOutputMode;
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
@@ -117,7 +118,7 @@ pub struct NodeMaterial {
     #[uniform(0)]
     pub selected: u32,
     #[uniform(0)]
-    pub category_color: Color,
+    pub category_color: LinearRgba,
     #[uniform(0)]
     pub disabled: u32,
     #[texture(1)]
@@ -233,7 +234,7 @@ pub fn ui(
                             .into(),
                         material: materials.add(NodeMaterial {
                             selected: 0,
-                            category_color: category.to_color(),
+                            category_color: category.to_color().linear(),
                             disabled: 0,
                             texture: (**image).clone(),
                         }),
@@ -520,7 +521,7 @@ fn draw_connection(commands: &mut Commands, start: &Vec2, end: &Vec2, entity: En
                 },
                 ..default()
             },
-            Stroke::new(Color::BLACK, 4.0),
+            Stroke::new(Color::from(BLACK), 4.0),
             Pickable::IGNORE,
         ));
     });
@@ -561,7 +562,7 @@ fn draw_refs(
                                 path: GeometryBuilder::build_as(&Line(start, end)),
                                 ..default()
                             },
-                            Stroke::new(Color::GRAY, 1.5),
+                            Stroke::new(Color::from(GRAY), 1.5),
                         ));
                     }
                 }

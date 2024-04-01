@@ -139,8 +139,8 @@ pub fn grid_setup(
                 GridDrag,
                 MaterialMesh2dBundle {
                     mesh: meshes
-                        .add(Mesh::from(shape::Quad {
-                            size: Vec2::new(window.width() + 10.0, window.height() + 10.0),
+                        .add(Mesh::from(Rectangle {
+                            half_size: Vec2::new(window.width() + 10.0, window.height() + 10.0) / 2.0,
                             ..Default::default()
                         }))
                         .into(),

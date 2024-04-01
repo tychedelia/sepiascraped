@@ -6,8 +6,8 @@ edition = "2021"
 [dependencies]
 bevy = { path = "../../bevyengine/bevy", features = ["default", "file_watcher"] }
 bevy_egui = { path = "../../mvlabat/bevy_egui" }
-egui_extras = {  version = "0.26", features = ["syntect"] }
-egui_autocomplete = "5.0.0"
+egui_extras = {  version = "0.27.1", features = ["syntect"] }
+egui_autocomplete = "6.0.0"
 petgraph = "0.6.4"
 bevy_mod_picking = { path = "../../aevyrie/bevy_mod_picking", default-features = false, features = [
     "backend_raycast",
