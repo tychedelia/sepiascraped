@@ -18,29 +18,31 @@ pub struct RenderLayerManager {
 impl Default for RenderLayerManager {
     fn default() -> Self {
         Self {
-            layers: vec![false; RenderLayers::TOTAL_LAYERS],
+            layers: vec![],
         }
     }
 }
 
 impl RenderLayerManager {
-    fn add(&mut self, layer: u8) {
-        self.layers[layer as usize] = true;
+    fn add(&mut self, layer: usize) {
+        if layer >= self.layers.len() {
+            self.layers.resize_with(layer + 1, || false);
+        }
+
+        self.layers[layer] = true;
     }
 
     fn clear(&mut self) {
         self.layers.iter_mut().for_each(|layer| *layer = false);
     }
 
-    pub fn next_open_layer(&mut self) -> u8 {
+    pub fn next_open_layer(&mut self) -> usize {
         let layer = self
             .layers
             .iter()
             .position(|layer| !*layer)
-            .map(|layer| layer as u8);
-        let Some(layer) = layer else {
-            panic!("No more layers available")
-        };
+            .map(|layer| layer)
+            .unwrap_or(self.layers.len());
 
         self.add(layer);
 
@@ -55,7 +57,7 @@ fn sync(
     render_layer_manager.clear();
     for layer in render_layers_q.iter() {
         for layer in layer.iter() {
-            render_layer_manager.add(layer);
+            render_layer_manager.add(layer.0);
         }
     }
 }

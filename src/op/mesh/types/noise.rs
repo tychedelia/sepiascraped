@@ -62,7 +62,7 @@ impl OpSpawn for MeshOpNoise {
                 },
                 ..default()
             },
-            RenderLayers::layer(new_layer),
+            RenderLayers::from_layer(new_layer),
         ));
 
         commands.spawn((
@@ -76,7 +76,7 @@ impl OpSpawn for MeshOpNoise {
                 transform: Transform::from_xyz(8.0, 16.0, 8.0),
                 ..default()
             },
-            RenderLayers::layer(new_layer),
+            RenderLayers::from_layer(new_layer),
         ));
 
         let mesh = meshes.add(Mesh::from(Circle::new(0.0001)));
@@ -100,7 +100,7 @@ impl OpSpawn for MeshOpNoise {
                 },
             },
             MeshOpInputMeshes::default(),
-            RenderLayers::layer(new_layer),
+            RenderLayers::from_layer(new_layer),
         )
     }
 

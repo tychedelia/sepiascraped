@@ -138,7 +138,7 @@ impl OpSpawn for ComponentOpWindow {
                 },
                 ..default()
             },
-            RenderLayers::layer(layer_manager.next_open_layer()),
+            RenderLayers::from_layer(layer_manager.next_open_layer()),
             OpImage::default(),
             OpInputs::default(),
             OpOutputs::default(),

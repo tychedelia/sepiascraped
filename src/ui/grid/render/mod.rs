@@ -242,13 +242,13 @@ fn prepare_infinite_grids(
             settings_offset: settings_uniforms
                 .uniforms
                 .push(&GridDisplaySettingsUniform {
-                    x_axis_color: Vec3::from_slice(&extracted.grid.x_axis_color.linear().to_array()),
-                    y_axis_color: Vec3::from_slice(&extracted.grid.y_axis_color.linear().to_array()),
+                    x_axis_color: Vec3::from_slice(&extracted.grid.x_axis_color.linear().to_f32_array()),
+                    y_axis_color: Vec3::from_slice(&extracted.grid.y_axis_color.linear().to_f32_array()),
                     minor_line_color: Vec4::from_slice(
-                        &extracted.grid.minor_line_color.linear().to_array(),
+                        &extracted.grid.minor_line_color.linear().to_f32_array(),
                     ),
                     major_line_color: Vec4::from_slice(
-                        &extracted.grid.major_line_color.linear().to_array(),
+                        &extracted.grid.major_line_color.linear().to_f32_array(),
                     ),
                 }),
         });
@@ -261,13 +261,13 @@ fn prepare_infinite_grids(
                 offset: settings_uniforms
                     .uniforms
                     .push(&GridDisplaySettingsUniform {
-                        x_axis_color: Vec3::from_slice(&settings.x_axis_color.linear().to_array()),
-                        y_axis_color: Vec3::from_slice(&settings.y_axis_color.linear().to_array()),
+                        x_axis_color: Vec3::from_slice(&settings.x_axis_color.linear().to_f32_array()),
+                        y_axis_color: Vec3::from_slice(&settings.y_axis_color.linear().to_f32_array()),
                         minor_line_color: Vec4::from_slice(
-                            &settings.minor_line_color.linear().to_array(),
+                            &settings.minor_line_color.linear().to_f32_array(),
                         ),
                         major_line_color: Vec4::from_slice(
-                            &settings.major_line_color.linear().to_array(),
+                            &settings.major_line_color.linear().to_f32_array(),
                         ),
                     }),
             });

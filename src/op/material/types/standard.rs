@@ -60,7 +60,7 @@ impl OpSpawn for MaterialOpStandard {
                 },
                 ..default()
             },
-            RenderLayers::layer(new_layer),
+            RenderLayers::from_layer(new_layer),
         ));
 
         commands.spawn((
@@ -74,7 +74,7 @@ impl OpSpawn for MaterialOpStandard {
                 transform: Transform::from_xyz(8.0, 16.0, 8.0),
                 ..default()
             },
-            RenderLayers::layer(new_layer),
+            RenderLayers::from_layer(new_layer),
         ));
 
         let material = materials.add(StandardMaterial::default());
@@ -85,7 +85,7 @@ impl OpSpawn for MaterialOpStandard {
                 material: material.clone(),
                 ..default()
             },
-            RenderLayers::layer(new_layer),
+            RenderLayers::from_layer(new_layer),
         ));
 
         (
@@ -100,7 +100,7 @@ impl OpSpawn for MaterialOpStandard {
                     count: Self::OUTPUTS,
                 },
             },
-            RenderLayers::layer(new_layer),
+            RenderLayers::from_layer(new_layer),
         )
     }
 

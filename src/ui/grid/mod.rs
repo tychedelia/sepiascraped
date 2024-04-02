@@ -46,10 +46,10 @@ pub struct InfiniteGridSettings {
 impl Default for InfiniteGridSettings {
     fn default() -> Self {
         Self {
-            x_axis_color: Color::rgb(1.0, 0.2, 0.2),
-            y_axis_color: Color::rgb(0.2, 0.2, 1.0),
-            minor_line_color: Color::rgb(0.1, 0.1, 0.1),
-            major_line_color: Color::rgb(0.25, 0.25, 0.25),
+            x_axis_color: Color::srgb(1.0, 0.2, 0.2),
+            y_axis_color: Color::srgb(0.2, 0.2, 1.0),
+            minor_line_color: Color::srgb(0.1, 0.1, 0.1),
+            major_line_color: Color::srgb(0.25, 0.25, 0.25),
         }
     }
 }

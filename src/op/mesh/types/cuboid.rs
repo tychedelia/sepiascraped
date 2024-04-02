@@ -64,7 +64,7 @@ impl OpSpawn for MeshOpCuboid {
                 },
                 ..default()
             },
-            RenderLayers::layer(new_layer),
+            RenderLayers::from_layer(new_layer),
         ));
 
         commands.spawn((
@@ -78,7 +78,7 @@ impl OpSpawn for MeshOpCuboid {
                 transform: Transform::from_xyz(8.0, 16.0, 8.0),
                 ..default()
             },
-            RenderLayers::layer(new_layer),
+            RenderLayers::from_layer(new_layer),
         ));
 
         (
@@ -101,7 +101,7 @@ impl OpSpawn for MeshOpCuboid {
                 },
             },
             MeshOpInputMeshes::default(),
-            RenderLayers::layer(new_layer),
+            RenderLayers::from_layer(new_layer),
         )
     }
 
