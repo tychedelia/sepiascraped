@@ -6,12 +6,12 @@ use bevy::render::extract_component::ExtractComponent;
 use bevy::render::render_resource::{
     Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
-use bevy::render::view::RenderLayers;
+use bevy::render::view::{CameraLayer, RenderLayers};
 use bevy::utils::HashMap;
 use std::ops::Deref;
 
 use crate::op::material::{MaterialDefaultMesh, MaterialOpBundle, MaterialOpHandle, CATEGORY};
-use crate::op::{Op, OpExecute, OpImage, OpInputs, OpOnConnect, OpOnDisconnect, OpOutputs, OpPlugin, OpShouldExecute, OpSpawn, OpType, OpUpdate};
+use crate::op::{Op, OpExecute, OpImage, OpInputs, OpOnConnect, OpOnDisconnect, OpOutputs, OpPlugin, OpRef, OpShouldExecute, OpSpawn, OpType, OpUpdate};
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 use crate::render_layers::RenderLayerManager;
 use crate::ui::event::{Connect, Disconnect};
@@ -52,6 +52,7 @@ impl OpSpawn for MaterialOpStandard {
         let new_layer = layer_manager.next_open_layer();
 
         commands.spawn((
+            OpRef(entity),
             Camera3dBundle {
                 transform: Transform::from_xyz(0.0, 1.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
                 camera: Camera {
@@ -60,10 +61,11 @@ impl OpSpawn for MaterialOpStandard {
                 },
                 ..default()
             },
-            RenderLayers::from_layer(new_layer),
+            CameraLayer::new(new_layer),
         ));
 
         commands.spawn((
+            OpRef(entity),
             PointLightBundle {
                 point_light: PointLight {
                     shadows_enabled: true,
@@ -80,6 +82,7 @@ impl OpSpawn for MaterialOpStandard {
         let material = materials.add(StandardMaterial::default());
 
         commands.spawn((
+            OpRef(entity),
             PbrBundle {
                 mesh: default_mesh.0.clone(),
                 material: material.clone(),

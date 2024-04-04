@@ -63,10 +63,16 @@ fn drop_untouched_entity(
     mut commands: Commands,
     mut index: ResMut<UniqueIndex<OpName>>,
     touched_q: Query<(Entity, &GraphRef, &OpName), Without<ScriptTouched>>,
+    op_ref_q: Query<(Entity, &OpRef), With<OpRef>>,
 ) {
     for (entity, graph_ref, op_name) in touched_q.iter() {
         commands.entity(entity).despawn_recursive();
         commands.entity(**graph_ref).despawn_recursive();
+        for (entity, op_ref) in op_ref_q.iter() {
+            if op_ref.0 == entity {
+                commands.entity(entity).despawn_recursive();
+            }
+        }
         // TODO: remove from index, this shouldn't be necessary
         index.remove(op_name);
     }

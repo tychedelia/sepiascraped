@@ -18,7 +18,7 @@ pub struct RenderLayerManager {
 impl Default for RenderLayerManager {
     fn default() -> Self {
         Self {
-            layers: vec![],
+            layers: vec![true],
         }
     }
 }
@@ -46,6 +46,7 @@ impl RenderLayerManager {
 
         self.add(layer);
 
+        info!("Handing out layer: {}", layer);
         layer
     }
 }
@@ -55,8 +56,10 @@ fn sync(
     mut render_layer_manager: ResMut<RenderLayerManager>,
 ) {
     render_layer_manager.clear();
+    render_layer_manager.add(0);
     for layer in render_layers_q.iter() {
         for layer in layer.iter() {
+            info!("Syncing layer: {:?}", layer);
             render_layer_manager.add(layer.0);
         }
     }
