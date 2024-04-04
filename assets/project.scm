@@ -5,6 +5,9 @@
 (op! 'grid "grid1")
 (op! 'mesh-noise "meshNoise")
 (op! 'standard-material "mat")
+;(op! 'camera "cam")
+;(op! 'light "light")
+(op! 'geom "geom")
 ;(op! 'window "window")
 
 (param! (op "noise1") "Resolution" (list 100 100))

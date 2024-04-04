@@ -4,13 +4,13 @@ use bevy::ecs::system::{StaticSystemParam, SystemParamItem};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::extract_component::ExtractComponent;
+use bevy::render::mesh::Indices;
 use bevy::render::render_asset::RenderAssetUsages;
 use bevy::render::render_resource::PrimitiveTopology;
 use bevy::render::view::{CameraLayer, RenderLayers};
 use bevy::utils::HashMap;
 use std::f32::consts::PI;
 use std::ops::DerefMut;
-use bevy::render::mesh::Indices;
 
 use crate::op::mesh::{MeshOpBundle, MeshOpHandle, MeshOpInputMeshes, CATEGORY};
 use crate::op::{
@@ -223,7 +223,10 @@ impl GridMeshBuilder {
     #[inline]
     pub fn new(normal: Dir3, size: Vec2) -> Self {
         Self {
-            grid: Grid { normal, ..Default::default() },
+            grid: Grid {
+                normal,
+                ..Default::default()
+            },
             half_size: size / 2.0,
         }
     }
@@ -251,7 +254,10 @@ impl GridMeshBuilder {
     #[inline]
     #[doc(alias = "facing")]
     pub fn normal(mut self, normal: Dir3) -> Self {
-        self.grid = Grid { normal, ..Default::default() };
+        self.grid = Grid {
+            normal,
+            ..Default::default()
+        };
         self
     }
 
@@ -276,7 +282,10 @@ impl GridMeshBuilder {
                 let z = (row as f32 / self.grid.rows as f32 - 0.5) * self.half_size.y;
                 let position = rotation * Vec3::new(x, 0.0, z);
                 let normal = rotation * Vec3::Y;
-                let uv = Vec2::new(column as f32 / self.grid.columns as f32, row as f32 / self.grid.rows as f32);
+                let uv = Vec2::new(
+                    column as f32 / self.grid.columns as f32,
+                    row as f32 / self.grid.rows as f32,
+                );
                 positions.push(position.to_array());
                 normals.push(normal.to_array());
                 uvs.push(uv.to_array());
@@ -303,10 +312,10 @@ impl GridMeshBuilder {
             PrimitiveTopology::TriangleList,
             RenderAssetUsages::default(),
         )
-            .with_inserted_indices(Indices::U32(indices))
-            .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
-            .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals)
-            .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
+        .with_inserted_indices(Indices::U32(indices))
+        .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
+        .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals)
+        .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
     }
 }
 

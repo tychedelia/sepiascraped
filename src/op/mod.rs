@@ -5,12 +5,14 @@ use std::marker::PhantomData;
 use bevy::ecs::system::{ReadOnlySystemParam, StaticSystemParam, SystemParam, SystemParamItem};
 use bevy::prelude::*;
 use bevy::render::extract_component::ExtractComponent;
+use bevy::render::primitives::Aabb;
 use bevy::render::render_resource::{
     Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
 use bevy::utils::AHasher;
 
 use crate::event::SpawnOp;
+use crate::op::mesh::MeshOpHandle;
 use crate::param::{validate, ParamBundle, ParamHash, Params};
 use crate::ui::event::{Connect, Disconnect};
 use crate::ui::graph::{update_graph_refs, GraphState};
@@ -35,7 +37,7 @@ where
             .add_systems(
                 Update,
                 (
-                    (spawn::<T>).in_set(Sets::Spawn),
+                    spawn::<T>.in_set(Sets::Spawn),
                     (
                         update::<T>,
                         should_execute::<T>,

@@ -19,29 +19,29 @@ use crate::ui::event::{Connect, Disconnect};
 use crate::OpName;
 
 #[derive(Default)]
-pub struct ComponentOpLightPlugin;
+pub struct ComponentOpCameraPlugin;
 
-impl Plugin for ComponentOpLightPlugin {
+impl Plugin for ComponentOpCameraPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(OpPlugin::<ComponentOpLight>::default());
+        app.add_plugins(OpPlugin::<ComponentOpCamera>::default());
     }
 }
 
 #[derive(Component, Clone, Debug)]
-pub struct LightTexture(Entity);
+pub struct CameraTexture(Entity);
 
 #[derive(Component, ExtractComponent, Clone, Default, Debug)]
-pub struct ComponentOpLight;
+pub struct ComponentOpCamera;
 
-impl OpUpdate for ComponentOpLight {
+impl OpUpdate for ComponentOpCamera {
     type Param = ();
 
     fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>) {}
 }
 
-impl OpSpawn for ComponentOpLight {
+impl OpSpawn for ComponentOpCamera {
     type Param = (SQuery<Read<OpName>>, SResMut<RenderLayerManager>);
-    type Bundle = (PointLightBundle, RenderLayers, OpImage, OpInputs, OpOutputs);
+    type Bundle = (Camera3dBundle, RenderLayers, OpImage, OpInputs, OpOutputs);
 
     fn params(bundle: &Self::Bundle) -> Vec<ParamBundle> {
         [vec![], bundle.0.transform.as_params()].concat()
@@ -51,9 +51,8 @@ impl OpSpawn for ComponentOpLight {
         entity: Entity,
         (name_q, layer_manager): &mut SystemParamItem<'w, '_, Self::Param>,
     ) -> Self::Bundle {
-        let name = name_q.get(entity).unwrap();
         (
-            PointLightBundle {
+            Camera3dBundle {
                 ..Default::default()
             },
             RenderLayers::from_layer(layer_manager.next_open_layer()),
@@ -64,7 +63,7 @@ impl OpSpawn for ComponentOpLight {
     }
 }
 
-impl OpShouldExecute for ComponentOpLight {
+impl OpShouldExecute for ComponentOpCamera {
     type Param = ();
 
     fn should_execute<'w>(
@@ -75,11 +74,11 @@ impl OpShouldExecute for ComponentOpLight {
     }
 }
 
-impl OpExecute for ComponentOpLight {
+impl OpExecute for ComponentOpCamera {
     fn execute(&self, entity: Entity, world: &mut World) {}
 }
 
-impl OpOnConnect for ComponentOpLight {
+impl OpOnConnect for ComponentOpCamera {
     type Param = ();
 
     fn on_connect<'w>(
@@ -91,7 +90,7 @@ impl OpOnConnect for ComponentOpLight {
     }
 }
 
-impl OpOnDisconnect for ComponentOpLight {
+impl OpOnDisconnect for ComponentOpCamera {
     type Param = ();
 
     fn on_disconnect<'w>(
@@ -103,10 +102,10 @@ impl OpOnDisconnect for ComponentOpLight {
     }
 }
 
-impl Op for ComponentOpLight {
+impl Op for ComponentOpCamera {
     const INPUTS: usize = 0;
     const OUTPUTS: usize = 0;
     const CATEGORY: &'static str = CATEGORY;
 
-    type OpType = OpType<ComponentOpLight>;
+    type OpType = OpType<ComponentOpCamera>;
 }

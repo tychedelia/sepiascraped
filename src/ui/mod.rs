@@ -148,7 +148,7 @@ pub fn init_params(
 ) {
     for (entity, value) in params_q.iter() {
         match value {
-            ParamValue::TextureOp(_) | ParamValue::MeshOp(_) => {
+            ParamValue::TextureOp(_) | ParamValue::MeshOp(_) | ParamValue::MaterialOp(_) => {
                 commands.entity(entity).insert(UiText(String::new()));
             }
             _ => {}
@@ -267,6 +267,35 @@ pub fn selected_node_ui(
                                             // TODO: compute this in resource
                                             let inputs = category_idx
                                                 .get(&OpCategory(crate::op::mesh::CATEGORY))
+                                                .unwrap_or(&vec![])
+                                                .iter()
+                                                .map(|e| op_name_q.get(*e).unwrap().0.clone())
+                                                .collect::<BTreeSet<_>>();
+                                            ui.add(
+                                                AutoCompleteTextEdit::new(&mut ui_text, inputs)
+                                                    .max_suggestions(5)
+                                                    .highlight_matches(true),
+                                            );
+                                        });
+                                        if !ui_text.0.is_empty() {
+                                            if let Some(entity) =
+                                                op_name_idx.get(&OpName(ui_text.0.clone()))
+                                            {
+                                                *x = Some(entity.clone());
+                                            }
+                                        }
+                                    }
+                                    ParamValue::MaterialOp(x) => {
+                                        let mut ui_text = ui_text.expect("Failed to get ui_text");
+
+                                        if let Some(entity) = x {
+                                            let name = op_name_q.get(*entity).unwrap();
+                                            *ui_text = UiText(name.0.clone());
+                                        };
+                                        ui.add_enabled_ui(!is_scripted, |ui| {
+                                            // TODO: compute this in resource
+                                            let inputs = category_idx
+                                                .get(&OpCategory(crate::op::material::CATEGORY))
                                                 .unwrap_or(&vec![])
                                                 .iter()
                                                 .map(|e| op_name_q.get(*e).unwrap().0.clone())

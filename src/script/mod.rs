@@ -22,6 +22,9 @@ use steel::SteelVal;
 use steel_derive::Steel;
 
 use crate::index::{CompositeIndex2, UniqueIndex};
+use crate::op::component::types::camera::ComponentOpCamera;
+use crate::op::component::types::geom::ComponentOpGeom;
+use crate::op::component::types::light::ComponentOpLight;
 use crate::op::component::types::window::ComponentOpWindow;
 use crate::op::material::types::standard::MaterialOpStandard;
 use crate::op::mesh::types::cuboid::MeshOpCuboid;
@@ -316,6 +319,9 @@ fn op_bang(world: &mut WorldHolder, ty: String, name: String) -> Option<EntityRe
         "plane" => world.spawn((name, OpType::<MeshOpPlane>::default())),
         "standard-material" => world.spawn((name, OpType::<MaterialOpStandard>::default())),
         "mesh-noise" => world.spawn((name, OpType::<MeshOpNoise>::default())),
+        "light" => world.spawn((name, OpType::<ComponentOpLight>::default())),
+        "camera" => world.spawn((name, OpType::<ComponentOpCamera>::default())),
+        "geom" => world.spawn((name, OpType::<ComponentOpGeom>::default())),
         _ => return None,
     };
 
@@ -524,22 +530,16 @@ fn update_param(param_value: &mut ParamValue, steel_val: SteelVal) -> Result<(),
             SteelVal::BoolV(b) => *p = b,
             _ => return Err(ScriptError::Conversion(steel_val)),
         },
-        ParamValue::TextureOp(p) => match steel_val {
-            SteelVal::Custom(mut c) => {
-                let custom = c.borrow_mut();
-                let entity = custom.as_any_ref().downcast_ref::<EntityRef>().unwrap();
-                *p = Some(entity.0.clone());
+        ParamValue::MeshOp(p) | ParamValue::MaterialOp(p) | ParamValue::TextureOp(p) => {
+            match steel_val {
+                SteelVal::Custom(mut c) => {
+                    let custom = c.borrow_mut();
+                    let entity = custom.as_any_ref().downcast_ref::<EntityRef>().unwrap();
+                    *p = Some(entity.0.clone());
+                }
+                _ => return Err(ScriptError::Conversion(steel_val)),
             }
-            _ => return Err(ScriptError::Conversion(steel_val)),
-        },
-        ParamValue::MeshOp(p) => match steel_val {
-            SteelVal::Custom(mut c) => {
-                let custom = c.borrow_mut();
-                let entity = custom.as_any_ref().downcast_ref::<EntityRef>().unwrap();
-                *p = Some(entity.0.clone());
-            }
-            _ => return Err(ScriptError::Conversion(steel_val)),
-        },
+        }
         ParamValue::Vec3(p) => match steel_val {
             SteelVal::ListV(ref v) => {
                 let mut iter = v.into_iter();
@@ -617,11 +617,8 @@ impl From<ParamValue> for SteelVal {
                 vec![x, y].into_steelval().unwrap()
             }
             ParamValue::Bool(x) => SteelVal::from(x),
-            ParamValue::TextureOp(x) => match x {
-                None => SteelVal::Void,
-                Some(x) => EntityRef(x).into_steelval().unwrap(),
-            },
-            ParamValue::MeshOp(x) => match x {
+            ParamValue::TextureOp(x) | ParamValue::MeshOp(x) | ParamValue::MaterialOp(x) => match x
+            {
                 None => SteelVal::Void,
                 Some(x) => EntityRef(x).into_steelval().unwrap(),
             },

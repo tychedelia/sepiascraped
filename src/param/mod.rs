@@ -55,6 +55,7 @@ pub enum ParamValue {
     Bool(bool),
     TextureOp(Option<Entity>),
     MeshOp(Option<Entity>),
+    MaterialOp(Option<Entity>),
 }
 
 impl ParamValue {
@@ -127,6 +128,13 @@ impl ParamValue {
             _ => panic!("Param is not a MeshOp"),
         }
     }
+
+    pub fn as_material_op(&self) -> Option<Entity> {
+        match self {
+            ParamValue::MaterialOp(v) => v.clone(),
+            _ => panic!("Param is not a MaterialOp"),
+        }
+    }
 }
 
 impl Hash for ParamValue {
@@ -160,6 +168,7 @@ impl Hash for ParamValue {
             ParamValue::Bool(v) => v.hash(state),
             ParamValue::TextureOp(v) => v.hash(state),
             ParamValue::MeshOp(v) => v.hash(state),
+            ParamValue::MaterialOp(v) => v.hash(state),
         }
     }
 }
