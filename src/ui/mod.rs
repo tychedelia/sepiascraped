@@ -19,7 +19,7 @@ use crate::engine::param::{ParamName, ParamValue, ScriptedParam, ScriptedParamEr
 use crate::engine::graph::event::ClickNode;
 use crate::ui::graph::{GraphPlugin, SelectedNode};
 use crate::ui::grid::InfiniteGridPlugin;
-use crate::OpName;
+use crate::engine::op::OpName;
 use crate::Sets::Ui;
 
 mod camera;

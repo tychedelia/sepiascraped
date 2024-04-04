@@ -17,7 +17,7 @@ use crate::engine::op::{
 use crate::engine::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 use crate::render_layers::RenderLayerManager;
 use crate::engine::graph::event::{Connect, Disconnect};
-use crate::OpName;
+use crate::engine::op::OpName;
 
 #[derive(Default)]
 pub struct ComponentOpWindowPlugin;

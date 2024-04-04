@@ -35,14 +35,14 @@ use crate::engine::op::texture::types::composite::TextureOpComposite;
 use crate::engine::op::texture::types::noise::TextureOpNoise;
 use crate::engine::op::texture::types::ramp::TextureOpRamp;
 use crate::engine::op::texture::TextureOp;
-use crate::engine::op::{OpCategory, OpRef, OpType};
+use crate::engine::op::{OpCategory, OpName, OpRef, OpType};
 use crate::engine::param::{ParamName, ParamValue, ScriptedParam, ScriptedParamError};
 use crate::engine::script::asset::{ProgramCache, Script, ScriptAssetPlugin};
 use crate::engine::script::helper::RustylineHelper;
 use crate::engine::graph::event::Connect;
-use crate::ui::graph::{ConnectedTo, UiRef};
-use crate::{OpName, Sets};
+use crate::Sets;
 use crate::engine::graph::GraphState;
+use crate::ui::graph::UiRef;
 
 mod asset;
 mod helper;
@@ -68,12 +68,12 @@ fn clear_touched(mut commands: Commands, touched_q: Query<Entity, With<ScriptTou
 fn drop_untouched_entity(
     mut commands: Commands,
     mut index: ResMut<UniqueIndex<OpName>>,
-    touched_q: Query<(Entity, &UiRef, &OpName), Without<ScriptTouched>>,
+    touched_q: Query<(Entity, &OpName), Without<ScriptTouched>>,
     op_ref_q: Query<(Entity, &OpRef), With<OpRef>>,
 ) {
-    for (entity, ui_ref, op_name) in touched_q.iter() {
+    for (entity, op_name) in touched_q.iter() {
         commands.entity(entity).despawn_recursive();
-        commands.entity(**ui_ref).despawn_recursive();
+        // commands.entity(**ui_ref).despawn_recursive();
         for (entity, op_ref) in op_ref_q.iter() {
             if op_ref.0 == entity {
                 commands.entity(entity).despawn_recursive();
@@ -310,7 +310,7 @@ fn op_bang(world: &mut WorldHolder, ty: String, name: String) -> Option<EntityRe
     }
 
     let name = OpName(name);
-    let entity = match ty.as_str() {
+    let mut entity = match ty.as_str() {
         "ramp" => world.spawn((name, OpType::<TextureOpRamp>::default())),
         "composite" => world.spawn((name, OpType::<TextureOpComposite>::default())),
         "noise" => world.spawn((name, OpType::<TextureOpNoise>::default())),
@@ -325,6 +325,8 @@ fn op_bang(world: &mut WorldHolder, ty: String, name: String) -> Option<EntityRe
         "geom" => world.spawn((name, OpType::<ComponentOpGeom>::default())),
         _ => return None,
     };
+
+    entity.insert(ScriptTouched);
 
     Some(EntityRef(entity.id()))
 }
@@ -379,7 +381,7 @@ fn param(world: &mut WorldHolder, entity: EntityRef, name: String) -> SteelVal {
     name
 }
 
-fn connect_bang(world: &mut WorldHolder, output: EntityRef, input: EntityRef) -> SteelVal {
+fn connect_bang(world: &mut WorldHolder, output: EntityRef, output_port: u8, input: EntityRef, input_port: u8) -> SteelVal {
     let mut world = unsafe { world.world_mut() };
 
     // TODO: run this as an event

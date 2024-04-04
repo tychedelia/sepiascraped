@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use iyes_perf_ui::prelude::*;
+use engine::op::OpName;
 
 use crate::engine::SepiascrapedEnginePlugin;
 use crate::index::UniqueIndexPlugin;
@@ -19,7 +20,6 @@ fn main() {
         SepiascrapedUiPlugin,
         SepiascrapedEnginePlugin,
         RenderLayerPlugin,
-        UniqueIndexPlugin::<OpName>::default(),
     ))
     .configure_sets(
         Update,
@@ -36,9 +36,6 @@ fn main() {
     // bevy_mod_debugdump::print_schedule_graph(&mut app, Update);
     app.run();
 }
-
-#[derive(Component, Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct OpName(pub String);
 
 /// The system sets for the application.
 #[derive(SystemSet, Hash, PartialEq, Eq, Clone, Debug)]

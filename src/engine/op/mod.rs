@@ -9,6 +9,7 @@ use crate::engine::op::material::MaterialPlugin;
 use crate::engine::op::mesh::MeshPlugin;
 use crate::engine::op::texture::TexturePlugin;
 use crate::engine::param::{validate, ParamBundle, ParamHash, Params};
+use crate::index::UniqueIndexPlugin;
 use crate::Sets;
 use bevy::ecs::system::{ReadOnlySystemParam, StaticSystemParam, SystemParam, SystemParamItem};
 use bevy::prelude::*;
@@ -27,7 +28,13 @@ pub struct OpsPlugin;
 
 impl Plugin for OpsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((ComponentPlugin, MaterialPlugin, MeshPlugin, TexturePlugin));
+        app.add_plugins((
+            ComponentPlugin,
+            MaterialPlugin,
+            MeshPlugin,
+            TexturePlugin,
+            UniqueIndexPlugin::<OpName>::default(),
+        ));
     }
 }
 
@@ -383,3 +390,6 @@ pub trait Op:
     /// The type of the op.
     type OpType: Debug + Component + ExtractComponent + Send + Sync + 'static;
 }
+
+#[derive(Component, Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct OpName(pub String);

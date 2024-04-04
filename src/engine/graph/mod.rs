@@ -1,15 +1,13 @@
 use crate::engine::graph::event::{Connect, Disconnect};
-use crate::engine::op::OpRef;
 use crate::render_layers::{
-    Added, Component, Deref, DerefMut, Entity, Parent, Query, ResMut, Resource, Transform, Vec2,
+    Added, Component, Deref, DerefMut, Entity, Query, ResMut, Resource, Vec2,
 };
-use crate::ui::graph;
-use crate::ui::graph::{ConnectedTo, Layout};
-use crate::{OpName, Sets};
+use crate::Sets;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use petgraph::adj::DefaultIx;
 use petgraph::graph::NodeIndex;
+use crate::engine::op::OpName;
 
 pub mod event;
 
@@ -35,7 +33,7 @@ impl Plugin for GraphPlugin {
 }
 
 #[derive(Component, Deref, DerefMut, Copy, Clone, PartialEq, Eq, Hash, Debug, Ord, PartialOrd)]
-pub struct GraphId(NodeIndex<DefaultIx>);
+pub struct GraphId(pub NodeIndex<DefaultIx>);
 
 #[derive(Component, Debug)]
 pub struct GraphNode;
@@ -51,33 +49,13 @@ pub struct GraphState {
 
 pub fn update_graph(
     mut state: ResMut<GraphState>,
-    mut connected_q: Query<&Parent, Added<ConnectedTo>>,
     mut added_q: Query<(Entity, &GraphId), Added<GraphId>>,
-    mut all_nodes_q: Query<(&OpRef, &mut Transform)>,
-    graph_id_q: Query<&GraphId>,
 ) {
     for (entity, graph_id) in added_q.iter_mut() {
         state.entity_map.insert(graph_id.0, entity);
     }
-
-    for parent in connected_q.iter_mut() {
-        state.layout = graph::layout(
-            state.graph.node_indices().map(|index| (index, Vec2::ZERO)),
-            state.graph.edge_indices().map(|index| {
-                let (a, b) = state.graph.edge_endpoints(index).unwrap();
-                (a, b)
-            }),
-        );
-
-        for (op_ref, mut transform) in all_nodes_q.iter_mut() {
-            let graph_id = graph_id_q.get(**op_ref).unwrap();
-            if let Some(pos) = state.layout.get(&graph_id.0) {
-                // transform.translation.x = pos.x;
-                // transform.translation.y = pos.y;
-            }
-        }
-    }
 }
+
 
 pub fn add_graph_ids(
     mut commands: Commands,
@@ -114,3 +92,5 @@ pub fn handle_disconnect(
         graph_state.graph.remove_edge(edge);
     }
 }
+
+pub type Layout = HashMap<NodeIndex, Vec2>;

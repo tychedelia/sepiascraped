@@ -1,10 +1,12 @@
 use bevy::asset::LoadState;
 use bevy::color::palettes::css::{BLACK, GRAY};
+use bevy::ecs::entity::Entities;
+use bevy::ecs::system::lifetimeless::{Read, SQuery, SResMut, Write};
 use bevy::prelude::*;
 use bevy::render::camera::CameraOutputMode;
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle};
-use bevy::utils::{info, HashMap};
+use bevy::utils::{HashMap, info};
 use bevy_mod_picking::prelude::*;
 use bevy_mod_picking::PickableBundle;
 use bevy_prototype_lyon::draw::Stroke;
@@ -21,13 +23,14 @@ use petgraph::stable_graph::{DefaultIx, IndexType, NodeIndex};
 use rand::{random, Rng};
 
 use crate::engine::graph::event::{ClickNode, Connect, Disconnect};
-use crate::engine::graph::{GraphId, GraphNode, GraphState};
+use crate::engine::graph::{GraphId, GraphNode, GraphState, Layout};
+use crate::engine::op::texture::render::TextureOpInputImages;
 use crate::engine::op::texture::TextureOp;
-use crate::engine::op::{OpCategory, OpDefaultImage, OpImage, OpInputs, OpOutputs, OpRef};
+use crate::engine::op::{OpCategory, OpDefaultImage, OpImage, OpInputs, OpName, OpOutputs, OpRef};
 use crate::engine::param::ParamValue;
 use crate::ui::grid::InfiniteGridSettings;
 use crate::ui::UiCamera;
-use crate::{engine::graph, OpName, Sets};
+use crate::{engine::graph, Sets};
 
 pub struct GraphPlugin;
 
@@ -35,20 +38,25 @@ impl Plugin for GraphPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(Material2dPlugin::<NodeMaterial>::default())
             .add_systems(Startup, setup)
+            .add_systems(First, despawn_nodes)
             .add_systems(
                 Update,
-                ((
-                    ui,
-                    update_camera_enabled,
-                    update_ui_refs,
-                    draw_refs,
-                    update_connections,
-                    click_node.run_if(on_event::<ClickNode>()),
-                    handle_connect.run_if(on_event::<Connect>()),
-                    handle_disconnect.run_if(on_event::<Disconnect>()),
-                )
-                    .chain()
-                    .in_set(Sets::Ui),),
+                (
+                    (update_graph).in_set(Sets::Graph),
+                    (
+                        ui,
+                        update_camera_enabled,
+                        update_ui_refs,
+                        draw_refs,
+                        update_connections,
+                        do_layout,
+                        click_node.run_if(on_event::<ClickNode>()),
+                        handle_connect.run_if(on_event::<Connect>()),
+                        handle_disconnect.run_if(on_event::<Disconnect>()),
+                    )
+                        .chain()
+                        .in_set(Sets::Ui),
+                ),
             )
             .add_systems(First, update_op_images);
     }
@@ -491,6 +499,9 @@ fn handle_connect(
     out_port_q: Query<(Entity, &OutPort)>,
     in_port_q: Query<(Entity, &InPort)>,
     mut ev_connect: EventReader<Connect>,
+    mut materials: ResMut<Assets<NodeMaterial>>,
+    op_q: Query<(&OpImage, &OpInputs, &UiRef)>,
+    material_q: Query<&Handle<NodeMaterial>>,
 ) {
     for connect in ev_connect.read() {
         let ui_ref = ui_ref_q.get(connect.output).unwrap();
@@ -510,6 +521,20 @@ fn handle_connect(
                 }
             }
         }
+
+        // let (my_image, inputs, ui_ref) = op_q.get(connect.input).unwrap();
+        // let fully_connected = inputs.is_fully_connected();
+        //
+        // if fully_connected {
+        //     if let Ok(material) = material_q.get(ui_ref.0) {
+        //         let mut material = materials.get_mut(material).unwrap();
+        //         if material.texture != my_image.0 {
+        //             material.texture = my_image.0.clone();
+        //         }
+        //     } else {
+        //         warn!("No material found for {:?}", ui_ref);
+        //     }
+        // }
     }
 }
 
@@ -627,7 +652,20 @@ fn update_connections(
     }
 }
 
-pub type Layout = HashMap<NodeIndex, Vec2>;
+pub fn update_graph(
+    mut state: ResMut<GraphState>,
+    mut connected_q: Query<&Parent, Added<ConnectedTo>>,
+) {
+   if !connected_q.is_empty() {
+        state.layout = layout(
+            state.graph.node_indices().map(|index| (index, Vec2::ZERO)),
+            state.graph.edge_indices().map(|index| {
+                let (a, b) = state.graph.edge_endpoints(index).unwrap();
+                (a, b)
+            }),
+        );
+    }
+}
 
 pub fn layout(
     nodes: impl IntoIterator<Item = (NodeIndex, Vec2)>,
@@ -672,4 +710,33 @@ pub fn layout(
     }
 
     layout
+}
+
+fn despawn_nodes(
+    mut commands: Commands,
+    mut entity_q: Query<Entity, With<UiRef>>,
+    mut all_nodes_q: Query<(Entity, &OpRef), With<NodeRoot>>,
+) {
+    // for (entity, op_ref) in all_nodes_q.iter_mut() {
+    //     if !entity_q.contains(op_ref.0) {
+    //         commands.entity(entity).despawn_recursive();
+    //     }
+    // }
+}
+
+fn do_layout(
+    mut state: Res<GraphState>,
+    mut all_nodes_q: Query<(&OpRef, &mut Transform)>,
+    graph_id_q: Query<&GraphId>,
+    keys: Res<ButtonInput<KeyCode>>,
+) {
+    if keys.just_pressed(KeyCode::Tab) && keys.just_pressed(KeyCode::ShiftLeft) {
+        for (op_ref, mut transform) in all_nodes_q.iter_mut() {
+            let graph_id = graph_id_q.get(**op_ref).unwrap();
+            if let Some(pos) = state.layout.get(&graph_id.0) {
+                transform.translation.x = pos.x;
+                transform.translation.y = pos.y;
+            }
+        }
+    }
 }

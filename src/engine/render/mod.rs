@@ -6,8 +6,9 @@ use std::hash::{BuildHasherDefault, Hash, Hasher};
 use crate::engine::op::texture::TextureOp;
 use crate::engine::param::Params;
 use crate::engine::graph::update_graph;
-use crate::{OpName, Sets};
+use crate::Sets;
 use crate::engine::graph::GraphState;
+use crate::engine::op::OpName;
 
 pub struct RenderPlugin;
 
