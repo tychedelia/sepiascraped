@@ -3,8 +3,9 @@ use std::collections::BTreeSet;
 use bevy::core::FrameCount;
 use bevy::prelude::*;
 use bevy::render::camera::CameraOutputMode;
-use bevy_egui::{egui, EguiContexts};
+use bevy_egui::{egui, EguiContexts, EguiPlugin};
 use bevy_mod_picking::DefaultPickingPlugins;
+use bevy_prototype_lyon::plugin::ShapePlugin;
 use egui_autocomplete::AutoCompleteTextEdit;
 use iyes_perf_ui::entries::PerfUiCompleteBundle;
 use steel_parser::ast::IteratorExtensions;
@@ -12,25 +13,26 @@ use steel_parser::ast::IteratorExtensions;
 use camera::CameraControllerPlugin;
 
 use crate::index::{Index, IndexPlugin, UniqueIndex};
-use crate::op::texture::TextureOp;
-use crate::op::{OpCategory, OpTypeName};
-use crate::param::{ParamName, ParamValue, ScriptedParam, ScriptedParamError};
-use crate::ui::event::ClickNode;
+use crate::engine::op::texture::TextureOp;
+use crate::engine::op::{OpCategory, OpTypeName};
+use crate::engine::param::{ParamName, ParamValue, ScriptedParam, ScriptedParamError};
+use crate::engine::graph::event::ClickNode;
 use crate::ui::graph::{GraphPlugin, SelectedNode};
 use crate::ui::grid::InfiniteGridPlugin;
 use crate::OpName;
 use crate::Sets::Ui;
 
 mod camera;
-pub mod event;
 pub mod graph;
 pub mod grid;
 
-pub struct UiPlugin;
+pub struct SepiascrapedUiPlugin;
 
-impl Plugin for UiPlugin {
+impl Plugin for SepiascrapedUiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
+            EguiPlugin,
+            ShapePlugin,
             GraphPlugin,
             CameraControllerPlugin,
             InfiniteGridPlugin,
@@ -237,7 +239,7 @@ pub fn selected_node_ui(
                                         ui.add_enabled_ui(!is_scripted, |ui| {
                                             // TODO: compute this in resource
                                             let inputs = category_idx
-                                                .get(&OpCategory(crate::op::texture::CATEGORY))
+                                                .get(&OpCategory(crate::engine::op::texture::CATEGORY))
                                                 .unwrap_or(&vec![])
                                                 .iter()
                                                 .map(|e| op_name_q.get(*e).unwrap().0.clone())
@@ -266,7 +268,7 @@ pub fn selected_node_ui(
                                         ui.add_enabled_ui(!is_scripted, |ui| {
                                             // TODO: compute this in resource
                                             let inputs = category_idx
-                                                .get(&OpCategory(crate::op::mesh::CATEGORY))
+                                                .get(&OpCategory(crate::engine::op::mesh::CATEGORY))
                                                 .unwrap_or(&vec![])
                                                 .iter()
                                                 .map(|e| op_name_q.get(*e).unwrap().0.clone())
@@ -295,7 +297,7 @@ pub fn selected_node_ui(
                                         ui.add_enabled_ui(!is_scripted, |ui| {
                                             // TODO: compute this in resource
                                             let inputs = category_idx
-                                                .get(&OpCategory(crate::op::material::CATEGORY))
+                                                .get(&OpCategory(crate::engine::op::material::CATEGORY))
                                                 .unwrap_or(&vec![])
                                                 .iter()
                                                 .map(|e| op_name_q.get(*e).unwrap().0.clone())

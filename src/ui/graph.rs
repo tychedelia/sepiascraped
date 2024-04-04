@@ -20,34 +20,32 @@ use layout::topo::placer::Placer;
 use petgraph::stable_graph::{DefaultIx, IndexType, NodeIndex};
 use rand::{random, Rng};
 
-use crate::op::texture::TextureOp;
-use crate::op::{OpCategory, OpDefaultImage, OpImage, OpInputs, OpOutputs, OpRef};
-use crate::param::ParamValue;
-use crate::ui::event::{ClickNode, Connect, Disconnect};
+use crate::engine::graph::event::{ClickNode, Connect, Disconnect};
+use crate::engine::graph::{GraphId, GraphNode, GraphState};
+use crate::engine::op::texture::TextureOp;
+use crate::engine::op::{OpCategory, OpDefaultImage, OpImage, OpInputs, OpOutputs, OpRef};
+use crate::engine::param::ParamValue;
 use crate::ui::grid::InfiniteGridSettings;
 use crate::ui::UiCamera;
-use crate::{OpName, Sets};
+use crate::{engine::graph, OpName, Sets};
 
 pub struct GraphPlugin;
 
 impl Plugin for GraphPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<GraphState>()
-            .add_event::<Connect>()
-            .add_event::<Disconnect>()
-            .add_plugins(Material2dPlugin::<NodeMaterial>::default())
+        app.add_plugins(Material2dPlugin::<NodeMaterial>::default())
             .add_systems(Startup, setup)
             .add_systems(
                 Update,
                 ((
                     ui,
                     update_camera_enabled,
-                    add_graph_ids,
-                    update_graph,
-                    update_graph_refs,
+                    update_ui_refs,
                     draw_refs,
                     update_connections,
                     click_node.run_if(on_event::<ClickNode>()),
+                    handle_connect.run_if(on_event::<Connect>()),
+                    handle_disconnect.run_if(on_event::<Disconnect>()),
                 )
                     .chain()
                     .in_set(Sets::Ui),),
@@ -61,15 +59,7 @@ impl Plugin for GraphPlugin {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[derive(Component, Deref, DerefMut, Copy, Clone, PartialEq, Eq, Hash, Debug, Ord, PartialOrd)]
-pub struct GraphId(NodeIndex<DefaultIx>);
-
-#[derive(Component, Deref, DerefMut, Copy, Clone, PartialEq, Eq, Hash, Debug, Ord, PartialOrd)]
-pub struct GraphRef(pub Entity);
-
-#[derive(Component, Debug)]
-pub struct GraphNode;
-
-type Graph = petgraph::stable_graph::StableGraph<GraphNode, (usize, usize)>;
+pub struct UiRef(pub Entity);
 
 #[derive(Component, Clone)]
 pub struct SelectedNode;
@@ -101,13 +91,6 @@ pub struct DisabledNode;
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Resources
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-#[derive(Resource, Default)]
-pub struct GraphState {
-    pub graph: Graph,
-    pub entity_map: HashMap<NodeIndex, Entity>,
-    pub layout: Layout,
-}
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Assets
@@ -164,36 +147,6 @@ fn click_node(
 }
 
 fn setup(mut state: ResMut<GraphState>) {}
-
-pub fn update_graph(
-    mut state: ResMut<GraphState>,
-    mut connected_q: Query<&Parent, Added<ConnectedTo>>,
-    mut added_q: Query<(Entity, &GraphId), Added<GraphId>>,
-    mut all_nodes_q: Query<(&OpRef, &mut Transform)>,
-    graph_id_q: Query<&GraphId>,
-) {
-    for (entity, graph_id) in added_q.iter_mut() {
-        state.entity_map.insert(graph_id.0, entity);
-    }
-
-    for parent in connected_q.iter_mut() {
-        state.layout = layout(
-            state.graph.node_indices().map(|index| (index, Vec2::ZERO)),
-            state.graph.edge_indices().map(|index| {
-                let (a, b) = state.graph.edge_endpoints(index).unwrap();
-                (a, b)
-            }),
-        );
-
-        for (graph_ref, mut transform) in all_nodes_q.iter_mut() {
-            let graph_id = graph_id_q.get(**graph_ref).unwrap();
-            if let Some(pos) = state.layout.get(&graph_id.0) {
-                // transform.translation.x = pos.x;
-                // transform.translation.y = pos.y;
-            }
-        }
-    }
-}
 
 pub fn ui(
     mut commands: Commands,
@@ -299,13 +252,13 @@ pub fn ui(
 
 fn update_camera_enabled(
     mut commands: Commands,
-    op_q: Query<(&GraphRef, &Camera), With<OpName>>,
+    op_q: Query<(&UiRef, &Camera), With<OpName>>,
     material_q: Query<&Handle<NodeMaterial>>,
     mut materials: ResMut<Assets<NodeMaterial>>,
 ) {
-    for (graph_ref, mut camera) in op_q.iter() {
+    for (ui_ref, mut camera) in op_q.iter() {
         let is_disabled = matches!(camera.output_mode, CameraOutputMode::Skip);
-        let graph_entity = graph_ref.0;
+        let graph_entity = ui_ref.0;
         let material = material_q.get(graph_entity).unwrap();
         let mut material = materials.get_mut(material).unwrap();
         if is_disabled {
@@ -318,22 +271,22 @@ fn update_camera_enabled(
     }
 }
 
-pub fn update_graph_refs(
+pub fn update_ui_refs(
     mut commands: Commands,
     mut op_ref_q: Query<(Entity, &OpRef), (With<NodeRoot>, Added<OpRef>)>,
 ) {
     for (entity, op_ref) in op_ref_q.iter_mut() {
-        commands.entity(op_ref.0).insert(GraphRef(entity));
+        commands.entity(op_ref.0).insert(UiRef(entity));
     }
 }
 
 fn update_op_images(
-    mut op_q: Query<(&GraphRef, &mut OpImage), Changed<OpImage>>,
+    mut op_q: Query<(&UiRef, &mut OpImage), Changed<OpImage>>,
     mut material_q: Query<&Handle<NodeMaterial>>,
     mut materials: ResMut<Assets<NodeMaterial>>,
 ) {
-    for (graph_ref, mut image) in op_q.iter_mut() {
-        let material = material_q.get_mut(**graph_ref).unwrap();
+    for (ui_ref, mut image) in op_q.iter_mut() {
+        let material = material_q.get_mut(**ui_ref).unwrap();
         let mut material = materials.get_mut(material).unwrap();
         material.texture = image.0.clone();
     }
@@ -429,17 +382,35 @@ fn connection_drag_end(
             &Parent,
             Has<InPort>,
             Has<OutPort>,
+            Option<&InPort>,
+            Option<&OutPort>,
         ),
         With<Connecting>,
     >,
-    port_q: Query<(Entity, &Parent, &GlobalTransform, Has<InPort>, Has<OutPort>), With<Port>>,
-    graph_ref_q: Query<&OpRef>,
-    graph_id_q: Query<&GraphId>,
-    mut graph_state: ResMut<GraphState>,
+    port_q: Query<
+        (
+            Entity,
+            &Parent,
+            &GlobalTransform,
+            Has<InPort>,
+            Has<OutPort>,
+            Option<&InPort>,
+            Option<&OutPort>,
+        ),
+        With<Port>,
+    >,
+    ui_ref_q: Query<&OpRef>,
     mut ev_connect: EventWriter<Connect>,
 ) {
-    let (from_entity, children, from_parent, is_input, is_output) =
-        me_q.get_mut(event.target()).unwrap();
+    let (
+        from_entity,
+        children,
+        from_parent,
+        is_input,
+        is_output,
+        from_maybe_in_port,
+        from_maybe_out_port,
+    ) = me_q.get_mut(event.target()).unwrap();
     assert_ne!(is_input, is_output);
 
     commands.entity(event.target()).insert(Pickable::default());
@@ -451,53 +422,113 @@ fn connection_drag_end(
         .expect("Failed to convert screen center to world coordinates");
 
     let mut closest_port = None;
-    for (entity, parent, transform, target_is_input, target_is_output) in port_q.iter() {
+    for (
+        entity,
+        parent,
+        transform,
+        target_is_input,
+        target_is_output,
+        target_maybe_in_port,
+        target_maybe_out_port,
+    ) in port_q.iter()
+    {
         if is_input && target_is_input || is_output && target_is_output {
             continue;
         }
 
         if transform.translation().xy().distance(pointer_world) < 40.0 {
-            closest_port = Some((entity, parent, transform, is_input));
+            closest_port = Some((
+                entity,
+                parent,
+                transform,
+                target_maybe_in_port,
+                target_maybe_out_port,
+            ));
         }
     }
 
-    if let Some((to_entity, to_parent, transform, is_input)) = closest_port {
+    if let Some((to_entity, to_parent, transform, to_maybe_in_port, to_maybe_out_port)) =
+        closest_port
+    {
         let start = Vec2::ZERO;
         let end = camera
             .viewport_to_world_2d(camera_transform, event.pointer_location.position)
             .expect("Failed to convert screen center to world coordinates")
             - transform.translation().xy();
 
-        let from_graph_ref = graph_ref_q.get(**from_parent).unwrap();
-        let from_graph_id = graph_id_q.get(from_graph_ref.0).unwrap();
-        let to_graph_ref = graph_ref_q.get(**to_parent).unwrap();
-        let to_graph_id = graph_id_q.get(to_graph_ref.0).unwrap();
+        let from_op_ref = ui_ref_q.get(**from_parent).unwrap();
+        let to_op_ref = ui_ref_q.get(**to_parent).unwrap();
 
         // Ensure the connection is created on the output side
         if is_output {
             draw_connection(&mut commands, &start, &end, from_entity);
-            commands.entity(from_entity).insert(ConnectedTo(to_entity));
-            graph_state
-                .graph
-                .add_edge(from_graph_id.0, to_graph_id.0, (0, 0));
             ev_connect.send(Connect {
-                output: from_graph_ref.0,
-                input: to_graph_ref.0,
+                output: from_op_ref.0,
+                input: to_op_ref.0,
+                output_port: from_maybe_out_port.unwrap().0,
+                input_port: to_maybe_in_port.unwrap().0,
             });
         } else {
             draw_connection(&mut commands, &start, &end, to_entity);
-            commands.entity(to_entity).insert(ConnectedTo(from_entity));
-            graph_state
-                .graph
-                .add_edge(to_graph_id.0, from_graph_id.0, (0, 0));
             ev_connect.send(Connect {
-                output: to_graph_ref.0,
-                input: from_graph_ref.0,
+                output: to_op_ref.0,
+                input: from_op_ref.0,
+                output_port: to_maybe_out_port.unwrap().0,
+                input_port: from_maybe_in_port.unwrap().0,
             });
         }
     } else if let Some(children) = children {
         for child in children.iter() {
             commands.entity(*child).despawn_recursive();
+        }
+    }
+}
+
+fn handle_connect(
+    mut commands: Commands,
+    ui_ref_q: Query<&UiRef>,
+    children_q: Query<&Children>,
+    out_port_q: Query<(Entity, &OutPort)>,
+    in_port_q: Query<(Entity, &InPort)>,
+    mut ev_connect: EventReader<Connect>,
+) {
+    for connect in ev_connect.read() {
+        let ui_ref = ui_ref_q.get(connect.output).unwrap();
+        let children = children_q.get(ui_ref.0).unwrap();
+        for child in children {
+            if let Ok((out_entity, out_port)) = out_port_q.get(*child) {
+                if out_port.0 == connect.output_port {
+                    let ui_ref = ui_ref_q.get(connect.input).unwrap();
+                    let children = children_q.get(ui_ref.0).unwrap();
+                    for child in children {
+                        if let Ok((in_entity, in_port)) = in_port_q.get(*child) {
+                            if in_port.0 == connect.input_port {
+                                commands.entity(out_entity).insert(ConnectedTo(in_entity));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn handle_disconnect(
+    mut commands: Commands,
+    ui_ref_q: Query<&UiRef>,
+    children_q: Query<&Children>,
+    port_q: Query<(Entity, &OutPort)>,
+    mut ev_disconnect: EventReader<Disconnect>,
+) {
+    for disconnect in ev_disconnect.read() {
+        let ui_ref = ui_ref_q.get(disconnect.output).unwrap();
+        let children = children_q.get(ui_ref.0).unwrap();
+        for child in children {
+            if let Ok((entity, out_port)) = port_q.get(*child) {
+                if out_port.0 == disconnect.output_port {
+                    commands.entity(entity).remove::<ConnectedTo>();
+                }
+            }
         }
     }
 }
@@ -530,7 +561,7 @@ fn draw_connection(commands: &mut Commands, start: &Vec2, end: &Vec2, entity: En
 fn draw_refs(
     mut commands: Commands,
     params_q: Query<(&ParamValue, &Parent)>,
-    graph_q: Query<&GraphRef>,
+    graph_q: Query<&UiRef>,
     transform_q: Query<&GlobalTransform>,
     children_q: Query<&Children, With<NodeRoot>>,
     op_ref_connection_q: Query<Entity, With<OpRefConnection>>,
@@ -539,11 +570,11 @@ fn draw_refs(
         match param_value {
             ParamValue::TextureOp(Some(entity)) | ParamValue::MeshOp(Some(entity)) => {
                 let parent = parent.get();
-                let from_graph_ref = graph_q.get(parent).unwrap();
-                let to_graph_ref = graph_q.get(*entity).unwrap();
-                let from_transform = transform_q.get(from_graph_ref.0).unwrap();
-                let to_transform = transform_q.get(to_graph_ref.0).unwrap();
-                let from_children = children_q.get(from_graph_ref.0).unwrap();
+                let from_ui_ref = graph_q.get(parent).unwrap();
+                let to_ui_ref = graph_q.get(*entity).unwrap();
+                let from_transform = transform_q.get(from_ui_ref.0).unwrap();
+                let to_transform = transform_q.get(to_ui_ref.0).unwrap();
+                let from_children = children_q.get(from_ui_ref.0).unwrap();
 
                 let start = Vec2::ZERO;
                 let end = to_transform.translation().xy() - from_transform.translation().xy();
@@ -593,17 +624,6 @@ fn update_connections(
         let end = output_global_transform.translation().xy() - transform.translation().xy();
 
         draw_connection(&mut commands, &start, &end, in_entity);
-    }
-}
-
-fn add_graph_ids(
-    mut commands: Commands,
-    mut graph: ResMut<GraphState>,
-    mut textures: Query<(Entity), (With<OpName>, Without<GraphId>)>,
-) {
-    for entity in textures.iter_mut() {
-        let node_id = graph.graph.add_node(GraphNode {});
-        commands.entity(entity).insert(GraphId(node_id));
     }
 }
 
