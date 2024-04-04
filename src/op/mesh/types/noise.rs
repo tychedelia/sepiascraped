@@ -1,16 +1,22 @@
+use bevy::color::palettes::css::GRAY;
 use bevy::ecs::system::lifetimeless::*;
 use bevy::ecs::system::{StaticSystemParam, SystemParamItem, SystemState};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::extract_component::ExtractComponent;
 use bevy::render::view::{CameraLayer, RenderLayers};
+use noise::core::perlin::perlin_3d;
+use noise::permutationtable::PermutationTable;
+use noise::{NoiseFn, Perlin};
 use rand::{Rng, SeedableRng};
 use std::f32::consts::PI;
 use std::ops::DerefMut;
-use bevy::color::palettes::css::GRAY;
 
 use crate::op::mesh::{MeshExt, MeshOpBundle, MeshOpHandle, MeshOpInputMeshes, CATEGORY};
-use crate::op::{Op, OpExecute, OpImage, OpInputs, OpOnConnect, OpOnDisconnect, OpOutputs, OpPlugin, OpRef, OpShouldExecute, OpSpawn, OpType, OpUpdate};
+use crate::op::{
+    Op, OpExecute, OpImage, OpInputs, OpOnConnect, OpOnDisconnect, OpOutputs, OpPlugin, OpRef,
+    OpShouldExecute, OpSpawn, OpType, OpUpdate,
+};
 use crate::param::{IntoParams, ParamBundle, ParamName, ParamOrder, ParamValue, Params};
 use crate::render_layers::RenderLayerManager;
 use crate::ui::event::{Connect, Disconnect};
@@ -174,20 +180,15 @@ impl OpExecute for MeshOpNoise {
         let mut mesh = meshes.get_mut(&my_mesh.0).unwrap();
         *mesh = input_mesh.clone();
 
-        let [a, b, c, d] = seed.to_le_bytes();
-        let mut rng = rand::rngs::SmallRng::from_seed([
-            a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a,
-            b, c, d,
-        ]);
+        let perlin = Perlin::new(seed);
+
         mesh.points_mut().iter_mut().for_each(|n| {
             let n = n.as_mut();
             let strength = strength.clone();
-            let x = rng.gen_range(-strength..strength);
-            let y = rng.gen_range(-strength..strength);
-            let z = rng.gen_range(-strength..strength);
-            n[0] = n[0] + x;
-            n[1] = n[1] + y;
-            n[2] = n[2] + z;
+            let noise = perlin.get([n[0] as f64, n[1] as f64, n[2] as f64]) as f32;
+            n[0] += noise * strength;
+            n[1] += noise * strength;
+            // n[2] += noise * strength;
         });
     }
 }

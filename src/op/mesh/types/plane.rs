@@ -19,18 +19,18 @@ use crate::render_layers::RenderLayerManager;
 use crate::ui::event::{Connect, Disconnect};
 
 #[derive(Default)]
-pub struct MeshOpCuboidPlugin;
+pub struct MeshOpPlanePlugin;
 
-impl Plugin for MeshOpCuboidPlugin {
+impl Plugin for MeshOpPlanePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(OpPlugin::<MeshOpCuboid>::default());
+        app.add_plugins(OpPlugin::<MeshOpPlane>::default());
     }
 }
 
 #[derive(Component, ExtractComponent, Clone, Default, Debug)]
-pub struct MeshOpCuboid;
+pub struct MeshOpPlane;
 
-impl OpSpawn for MeshOpCuboid {
+impl OpSpawn for MeshOpPlane {
     type Param = (
         SCommands,
         SResMut<Assets<Mesh>>,
@@ -52,7 +52,7 @@ impl OpSpawn for MeshOpCuboid {
             Self::Param,
         >,
     ) -> Self::Bundle {
-        let mesh = meshes.add(Mesh::from(Cuboid::default()));
+        let mesh = meshes.add(Mesh::from(Plane3d::default()));
         let image = OpImage::new_image(512, 512);
         let image = images.add(image);
 
@@ -111,7 +111,7 @@ impl OpSpawn for MeshOpCuboid {
     }
 }
 
-impl OpUpdate for MeshOpCuboid {
+impl OpUpdate for MeshOpPlane {
     type Param = (SQuery<Write<Transform>>, Params<'static, 'static>);
 
     fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>) {
@@ -135,7 +135,7 @@ impl OpUpdate for MeshOpCuboid {
     }
 }
 
-impl OpShouldExecute for MeshOpCuboid {
+impl OpShouldExecute for MeshOpPlane {
     type Param = ();
 
     fn should_execute<'w>(
@@ -146,11 +146,11 @@ impl OpShouldExecute for MeshOpCuboid {
     }
 }
 
-impl OpExecute for MeshOpCuboid {
+impl OpExecute for MeshOpPlane {
     fn execute(&self, entity: Entity, world: &mut World) {}
 }
 
-impl OpOnConnect for MeshOpCuboid {
+impl OpOnConnect for MeshOpPlane {
     type Param = ();
 
     fn on_connect<'w>(
@@ -162,7 +162,7 @@ impl OpOnConnect for MeshOpCuboid {
     }
 }
 
-impl OpOnDisconnect for MeshOpCuboid {
+impl OpOnDisconnect for MeshOpPlane {
     type Param = ();
 
     fn on_disconnect<'w>(
@@ -174,9 +174,9 @@ impl OpOnDisconnect for MeshOpCuboid {
     }
 }
 
-impl Op for MeshOpCuboid {
+impl Op for MeshOpPlane {
     const INPUTS: usize = 0;
     const OUTPUTS: usize = 1;
     const CATEGORY: &'static str = CATEGORY;
-    type OpType = OpType<MeshOpCuboid>;
+    type OpType = OpType<MeshOpPlane>;
 }

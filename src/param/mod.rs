@@ -15,8 +15,7 @@ pub struct ParamPlugin;
 
 impl Plugin for ParamPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(Update, validate.in_set(Sets::Params))
+        app.add_systems(Update, validate.in_set(Sets::Params))
             .add_plugins(CompositeIndex2Plugin::<OpRef, ParamName>::new());
     }
 }
@@ -140,24 +139,24 @@ impl Hash for ParamValue {
             ParamValue::Vec2(v) => {
                 v.x.to_bits().hash(state);
                 v.y.to_bits().hash(state);
-            },
+            }
             ParamValue::Vec3(v) => {
                 v.x.to_bits().hash(state);
                 v.y.to_bits().hash(state);
                 v.z.to_bits().hash(state);
-            },
+            }
             ParamValue::Quat(v) => {
                 v.x.to_bits().hash(state);
                 v.y.to_bits().hash(state);
                 v.z.to_bits().hash(state);
                 v.w.to_bits().hash(state);
-            },
+            }
             ParamValue::Color(v) => {
                 v.x.to_bits().hash(state);
                 v.y.to_bits().hash(state);
                 v.z.to_bits().hash(state);
                 v.w.to_bits().hash(state);
-            },
+            }
             ParamValue::Bool(v) => v.hash(state),
             ParamValue::TextureOp(v) => v.hash(state),
             ParamValue::MeshOp(v) => v.hash(state),
@@ -213,7 +212,8 @@ pub struct Params<'w, 's> {
 impl<'w, 's> Params<'w, 's> {
     // Get the hash of all the parameters for an entity
     pub fn hash(&self, entity: Entity) -> u64 {
-        self.parent_q.get(entity)
+        self.parent_q
+            .get(entity)
             .iter()
             .flat_map(|c| c.iter().map(|e| self.params_q.get(*e)))
             .filter_map(|p| p.ok())
@@ -225,7 +225,8 @@ impl<'w, 's> Params<'w, 's> {
     }
 
     pub fn get_all(&self, entity: Entity) -> Vec<&ParamValue> {
-        self.parent_q.get(entity)
+        self.parent_q
+            .get(entity)
             .iter()
             .flat_map(|c| c.iter().map(|e| self.params_q.get(*e)))
             .filter_map(|p| p.ok())

@@ -152,7 +152,8 @@ pub fn prepare_texture_op_bind_group<T>(
     images: Res<RenderAssets<Image>>,
     render_device: Res<RenderDevice>,
 ) where
-    T: TextureOp + Component + ExtractComponent + Clone + Debug + Send + Sync + 'static {
+    T: TextureOp + Component + ExtractComponent + Clone + Debug + Send + Sync + 'static,
+{
     for (entity, view, op_images, inputs, uniform_index) in views.iter() {
         if !inputs.is_fully_connected() {
             continue;

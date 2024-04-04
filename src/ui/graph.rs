@@ -39,18 +39,18 @@ impl Plugin for GraphPlugin {
             .add_systems(Startup, setup)
             .add_systems(
                 Update,
-                (
-                    (
-                        ui,
-                        update_camera_enabled,
-                        add_graph_ids,
-                        update_graph, update_graph_refs,
-                        draw_refs,
-                        update_connections,
-                        click_node.run_if(on_event::<ClickNode>()),
-                    ).chain()
-                        .in_set(Sets::Ui),
-                ),
+                ((
+                    ui,
+                    update_camera_enabled,
+                    add_graph_ids,
+                    update_graph,
+                    update_graph_refs,
+                    draw_refs,
+                    update_connections,
+                    click_node.run_if(on_event::<ClickNode>()),
+                )
+                    .chain()
+                    .in_set(Sets::Ui),),
             )
             .add_systems(First, update_op_images);
     }

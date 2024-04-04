@@ -11,7 +11,10 @@ use bevy::utils::HashMap;
 use std::ops::Deref;
 
 use crate::op::material::{MaterialDefaultMesh, MaterialOpBundle, MaterialOpHandle, CATEGORY};
-use crate::op::{Op, OpExecute, OpImage, OpInputs, OpOnConnect, OpOnDisconnect, OpOutputs, OpPlugin, OpRef, OpShouldExecute, OpSpawn, OpType, OpUpdate};
+use crate::op::{
+    Op, OpExecute, OpImage, OpInputs, OpOnConnect, OpOnDisconnect, OpOutputs, OpPlugin, OpRef,
+    OpShouldExecute, OpSpawn, OpType, OpUpdate,
+};
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 use crate::render_layers::RenderLayerManager;
 use crate::ui::event::{Connect, Disconnect};
@@ -150,27 +153,39 @@ impl OpUpdate for MaterialOpStandard {
 impl OpShouldExecute for MaterialOpStandard {
     type Param = ();
 
-    fn should_execute<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>) -> bool {
+    fn should_execute<'w>(
+        entity: Entity,
+        param: &mut SystemParamItem<'w, '_, Self::Param>,
+    ) -> bool {
         true
     }
 }
 
 impl OpExecute for MaterialOpStandard {
-    fn execute(&self, entity: Entity, world: &mut World) {
-    }
+    fn execute(&self, entity: Entity, world: &mut World) {}
 }
 
 impl OpOnConnect for MaterialOpStandard {
     type Param = ();
 
-    fn on_connect<'w>(entity: Entity, event: Connect, fully_connected: bool, param: &mut SystemParamItem<'w, '_, Self::Param>) {
+    fn on_connect<'w>(
+        entity: Entity,
+        event: Connect,
+        fully_connected: bool,
+        param: &mut SystemParamItem<'w, '_, Self::Param>,
+    ) {
     }
 }
 
 impl OpOnDisconnect for MaterialOpStandard {
     type Param = ();
 
-    fn on_disconnect<'w>(entity: Entity, event: Disconnect, fully_connected: bool, param: &mut SystemParamItem<'w, '_, Self::Param>) {
+    fn on_disconnect<'w>(
+        entity: Entity,
+        event: Disconnect,
+        fully_connected: bool,
+        param: &mut SystemParamItem<'w, '_, Self::Param>,
+    ) {
     }
 }
 

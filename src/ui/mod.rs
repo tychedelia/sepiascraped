@@ -12,14 +12,14 @@ use steel_parser::ast::IteratorExtensions;
 use camera::CameraControllerPlugin;
 
 use crate::index::{Index, IndexPlugin, UniqueIndex};
-use crate::op::{OpCategory, OpTypeName};
 use crate::op::texture::TextureOp;
-use crate::OpName;
+use crate::op::{OpCategory, OpTypeName};
 use crate::param::{ParamName, ParamValue, ScriptedParam, ScriptedParamError};
-use crate::Sets::Ui;
 use crate::ui::event::ClickNode;
 use crate::ui::graph::{GraphPlugin, SelectedNode};
 use crate::ui::grid::InfiniteGridPlugin;
+use crate::OpName;
+use crate::Sets::Ui;
 
 mod camera;
 pub mod event;

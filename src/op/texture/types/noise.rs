@@ -4,8 +4,14 @@ use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::render_resource::ShaderType;
 
 use crate::op::texture::render::TextureOpRenderPlugin;
-use crate::op::texture::{CATEGORY, create_bundle, DefaultTextureBundle, DefaultTextureOnConnectParam, DefaultTextureSpawnParam, DefaultTextureUpdateParam, on_connect, params, TextureOp, update};
-use crate::op::{Op, OpExecute, OpInputs, OpOnConnect, OpOnDisconnect, OpPlugin, OpShouldExecute, OpSpawn, OpType, OpUpdate};
+use crate::op::texture::{
+    create_bundle, on_connect, params, update, DefaultTextureBundle, DefaultTextureOnConnectParam,
+    DefaultTextureSpawnParam, DefaultTextureUpdateParam, TextureOp, CATEGORY,
+};
+use crate::op::{
+    Op, OpExecute, OpInputs, OpOnConnect, OpOnDisconnect, OpPlugin, OpShouldExecute, OpSpawn,
+    OpType, OpUpdate,
+};
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 use crate::ui::event::{Connect, Disconnect};
 
@@ -41,7 +47,10 @@ impl OpSpawn for TextureOpNoise {
         params::<Self>(bundle)
     }
 
-    fn create_bundle<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>) -> Self::Bundle {
+    fn create_bundle<'w>(
+        entity: Entity,
+        param: &mut SystemParamItem<'w, '_, Self::Param>,
+    ) -> Self::Bundle {
         create_bundle::<Self>(entity, param)
     }
 }
@@ -57,20 +66,27 @@ impl OpUpdate for TextureOpNoise {
 impl OpShouldExecute for TextureOpNoise {
     type Param = ();
 
-    fn should_execute<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>) -> bool {
+    fn should_execute<'w>(
+        entity: Entity,
+        param: &mut SystemParamItem<'w, '_, Self::Param>,
+    ) -> bool {
         false
     }
 }
 
 impl OpExecute for TextureOpNoise {
-    fn execute(&self, entity: Entity, world: &mut World) {
-    }
+    fn execute(&self, entity: Entity, world: &mut World) {}
 }
 
 impl OpOnConnect for TextureOpNoise {
     type Param = DefaultTextureOnConnectParam;
 
-    fn on_connect<'w>(entity: Entity, event: Connect, fully_connected: bool, param: &mut SystemParamItem<'w, '_, Self::Param>) {
+    fn on_connect<'w>(
+        entity: Entity,
+        event: Connect,
+        fully_connected: bool,
+        param: &mut SystemParamItem<'w, '_, Self::Param>,
+    ) {
         on_connect(entity, event, fully_connected, param)
     }
 }
@@ -78,7 +94,12 @@ impl OpOnConnect for TextureOpNoise {
 impl OpOnDisconnect for TextureOpNoise {
     type Param = ();
 
-    fn on_disconnect<'w>(entity: Entity, event: Disconnect, fully_connected: bool, param: &mut SystemParamItem<'w, '_, Self::Param>) {
+    fn on_disconnect<'w>(
+        entity: Entity,
+        event: Disconnect,
+        fully_connected: bool,
+        param: &mut SystemParamItem<'w, '_, Self::Param>,
+    ) {
     }
 }
 

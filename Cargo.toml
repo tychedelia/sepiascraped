@@ -29,3 +29,4 @@ rustyline = { version = "14", features = ["derive"] }
 colored = "2.1.0"
 rand = {  version = "0.8.5", features = ["small_rng"] }
 iyes_perf_ui = { path = "../../IyesGames/iyes_perf_ui" }
+noise = "0.9"

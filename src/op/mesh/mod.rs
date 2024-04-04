@@ -1,6 +1,9 @@
 use std::fmt::Debug;
 
 use crate::op::mesh::types::cuboid::MeshOpCuboidPlugin;
+use crate::op::mesh::types::grid::MeshOpGridPlugin;
+use crate::op::mesh::types::noise::MeshOpNoisePlugin;
+use crate::op::mesh::types::plane::MeshOpPlanePlugin;
 use crate::op::{Op, OpImage, OpInputs, OpOutputs};
 use bevy::prelude::*;
 use bevy::render::extract_component::ExtractComponent;
@@ -9,7 +12,6 @@ use bevy::render::primitives::Aabb;
 use bevy::render::render_resource::encase::internal::WriteInto;
 use bevy::render::render_resource::ShaderType;
 use bevy::render::view::RenderLayers;
-use crate::op::mesh::types::noise::MeshOpNoisePlugin;
 
 use crate::op::texture::TextureOp;
 
@@ -21,8 +23,12 @@ pub struct MeshPlugin;
 
 impl Plugin for MeshPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_plugins((MeshOpCuboidPlugin, MeshOpNoisePlugin));
+        app.add_plugins((
+            MeshOpCuboidPlugin,
+            MeshOpNoisePlugin,
+            MeshOpPlanePlugin,
+            MeshOpGridPlugin,
+        ));
     }
 }
 

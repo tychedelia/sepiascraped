@@ -17,9 +17,7 @@ pub struct RenderLayerManager {
 
 impl Default for RenderLayerManager {
     fn default() -> Self {
-        Self {
-            layers: vec![true],
-        }
+        Self { layers: vec![true] }
     }
 }
 

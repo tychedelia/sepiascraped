@@ -47,7 +47,15 @@ fn main() {
     .add_event::<SpawnOp>()
     .configure_sets(
         Update,
-        (Sets::Ui, Sets::Script, Sets::Spawn, Sets::Graph, Sets::Params, Sets::Execute).chain(),
+        (
+            Sets::Ui,
+            Sets::Script,
+            Sets::Spawn,
+            Sets::Graph,
+            Sets::Params,
+            Sets::Execute,
+        )
+            .chain(),
     )
     .add_systems(Startup, setup);
     bevy_mod_debugdump::print_schedule_graph(&mut app, Update);
@@ -57,8 +65,7 @@ fn main() {
 #[derive(Component, Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct OpName(pub String);
 
-fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
-}
+fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {}
 
 /// The system sets for the application.
 #[derive(SystemSet, Hash, PartialEq, Eq, Clone, Debug)]

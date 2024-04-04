@@ -1,19 +1,18 @@
-use std::hash::{BuildHasherDefault, Hash, Hasher};
 use bevy::prelude::*;
 use bevy::render::camera::CameraOutputMode;
 use bevy::utils::AHasher;
+use std::hash::{BuildHasherDefault, Hash, Hasher};
 
 use crate::op::texture::TextureOp;
-use crate::{OpName, Sets};
-use crate::param::{Params};
+use crate::param::Params;
 use crate::ui::graph::{update_graph, GraphState};
+use crate::{OpName, Sets};
 
 pub struct RenderPlugin;
 
 impl Plugin for RenderPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(Update, (order_cameras).in_set(Sets::Params));
+        app.add_systems(Update, (order_cameras).in_set(Sets::Params));
     }
 }
 

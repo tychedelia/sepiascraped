@@ -1,8 +1,9 @@
 use std::borrow::Cow;
 
 use bevy::core_pipeline::core_2d::Transparent2d;
-use bevy::render::view::{ViewUniform, ViewUniformOffset, ViewUniforms};
 use bevy::math::FloatOrd;
+use bevy::render::render_phase::SortedRenderPhase;
+use bevy::render::view::{ViewUniform, ViewUniformOffset, ViewUniforms};
 use bevy::{
     ecs::{
         query::ROQueryItem,
@@ -16,7 +17,8 @@ use bevy::{
     render::{
         mesh::PrimitiveTopology,
         render_phase::{
-            AddRenderCommand, DrawFunctions, PhaseItem, RenderCommand, RenderCommandResult, SetItemPipeline,
+            AddRenderCommand, DrawFunctions, PhaseItem, RenderCommand, RenderCommandResult,
+            SetItemPipeline,
         },
         render_resource::{
             BindGroup, BindGroupEntries, BindGroupLayout, BindGroupLayoutEntry, BindingType,
@@ -31,7 +33,6 @@ use bevy::{
         Extract, ExtractSchedule, Render, RenderApp, RenderSet,
     },
 };
-use bevy::render::render_phase::SortedRenderPhase;
 
 use crate::ui::grid::InfiniteGridSettings;
 
@@ -242,8 +243,12 @@ fn prepare_infinite_grids(
             settings_offset: settings_uniforms
                 .uniforms
                 .push(&GridDisplaySettingsUniform {
-                    x_axis_color: Vec3::from_slice(&extracted.grid.x_axis_color.linear().to_f32_array()),
-                    y_axis_color: Vec3::from_slice(&extracted.grid.y_axis_color.linear().to_f32_array()),
+                    x_axis_color: Vec3::from_slice(
+                        &extracted.grid.x_axis_color.linear().to_f32_array(),
+                    ),
+                    y_axis_color: Vec3::from_slice(
+                        &extracted.grid.y_axis_color.linear().to_f32_array(),
+                    ),
                     minor_line_color: Vec4::from_slice(
                         &extracted.grid.minor_line_color.linear().to_f32_array(),
                     ),
@@ -261,8 +266,12 @@ fn prepare_infinite_grids(
                 offset: settings_uniforms
                     .uniforms
                     .push(&GridDisplaySettingsUniform {
-                        x_axis_color: Vec3::from_slice(&settings.x_axis_color.linear().to_f32_array()),
-                        y_axis_color: Vec3::from_slice(&settings.y_axis_color.linear().to_f32_array()),
+                        x_axis_color: Vec3::from_slice(
+                            &settings.x_axis_color.linear().to_f32_array(),
+                        ),
+                        y_axis_color: Vec3::from_slice(
+                            &settings.y_axis_color.linear().to_f32_array(),
+                        ),
                         minor_line_color: Vec4::from_slice(
                             &settings.minor_line_color.linear().to_f32_array(),
                         ),

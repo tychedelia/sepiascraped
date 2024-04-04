@@ -7,13 +7,13 @@ use bevy::app::AppExit;
 use bevy::asset::AssetContainer;
 use bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell;
 use bevy::prelude::*;
-use bevy::utils::{HashMap, warn};
+use bevy::utils::{warn, HashMap};
 use colored::Colorize;
 use rand::Rng;
-use rustyline::{DefaultEditor, Editor};
 use rustyline::error::ReadlineError;
 use rustyline::highlight::MatchingBracketHighlighter;
 use rustyline::validate::MatchingBracketValidator;
+use rustyline::{DefaultEditor, Editor};
 use steel::gc::unsafe_erased_pointers::CustomReference;
 use steel::rvals::{CustomType, IntoSteelVal};
 use steel::steel_vm::engine::Engine;
@@ -22,21 +22,23 @@ use steel::SteelVal;
 use steel_derive::Steel;
 
 use crate::index::{CompositeIndex2, UniqueIndex};
-use crate::op::{OpCategory, OpRef, OpType};
 use crate::op::component::types::window::ComponentOpWindow;
 use crate::op::material::types::standard::MaterialOpStandard;
 use crate::op::mesh::types::cuboid::MeshOpCuboid;
+use crate::op::mesh::types::grid::MeshOpGrid;
 use crate::op::mesh::types::noise::MeshOpNoise;
-use crate::op::texture::TextureOp;
+use crate::op::mesh::types::plane::MeshOpPlane;
 use crate::op::texture::types::composite::TextureOpComposite;
 use crate::op::texture::types::noise::TextureOpNoise;
 use crate::op::texture::types::ramp::TextureOpRamp;
-use crate::{OpName, Sets};
+use crate::op::texture::TextureOp;
+use crate::op::{OpCategory, OpRef, OpType};
 use crate::param::{ParamName, ParamValue, ScriptedParam, ScriptedParamError};
 use crate::script::asset::{ProgramCache, Script, ScriptAssetPlugin};
 use crate::script::helper::RustylineHelper;
 use crate::ui::event::Connect;
 use crate::ui::graph::{ConnectedTo, GraphRef, GraphState};
+use crate::{OpName, Sets};
 
 mod asset;
 mod helper;
@@ -310,6 +312,8 @@ fn op_bang(world: &mut WorldHolder, ty: String, name: String) -> Option<EntityRe
         "noise" => world.spawn((name, OpType::<TextureOpNoise>::default())),
         "window" => world.spawn((name, OpType::<ComponentOpWindow>::default())),
         "cuboid" => world.spawn((name, OpType::<MeshOpCuboid>::default())),
+        "grid" => world.spawn((name, OpType::<MeshOpGrid>::default())),
+        "plane" => world.spawn((name, OpType::<MeshOpPlane>::default())),
         "standard-material" => world.spawn((name, OpType::<MaterialOpStandard>::default())),
         "mesh-noise" => world.spawn((name, OpType::<MeshOpNoise>::default())),
         _ => return None,

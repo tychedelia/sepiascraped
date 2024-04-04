@@ -101,7 +101,7 @@ pub struct TextureOpBundle {
     outputs: OpOutputs,
 }
 
-type DefaultTextureUpdateParam<T: TextureOp> =(
+type DefaultTextureUpdateParam<T: TextureOp> = (
     SQuery<(Read<Children>, Write<OpImage>, Write<T::Uniform>)>,
     SQuery<(Read<ParamName>, Read<ParamValue>)>,
     SResMut<Assets<Image>>,
@@ -109,11 +109,7 @@ type DefaultTextureUpdateParam<T: TextureOp> =(
 
 fn update<'w, T: TextureOp>(
     entity: Entity,
-    param: &mut bevy::ecs::system::SystemParamItem<
-        'w,
-        '_,
-        DefaultTextureUpdateParam<T>,
-    >,
+    param: &mut bevy::ecs::system::SystemParamItem<'w, '_, DefaultTextureUpdateParam<T>>,
 ) {
     let (self_q, params_q, ref mut images) = param;
 
@@ -150,7 +146,7 @@ type DefaultTextureBundle<T: TextureOp> = (TextureOpBundle, TextureOpInputImages
 
 fn create_bundle<'w, T: TextureOp>(
     entity: Entity,
-    (mut images): &mut bevy::ecs::system::SystemParamItem<'w, '_, DefaultTextureSpawnParam<>>,
+    (mut images): &mut bevy::ecs::system::SystemParamItem<'w, '_, DefaultTextureSpawnParam>,
 ) -> DefaultTextureBundle<T> {
     let image = images.add(crate::op::OpImage::new_image(512, 512));
     (
@@ -190,7 +186,7 @@ fn params<T: TextureOp>(bundle: &DefaultTextureBundle<T>) -> Vec<ParamBundle> {
     [common_params, <T as TextureOp>::params()].concat()
 }
 
-type DefaultTextureOnConnectParam =  (
+type DefaultTextureOnConnectParam = (
     lifetimeless::SCommands,
     SResMut<Assets<crate::ui::graph::NodeMaterial>>,
     SQuery<(
@@ -204,11 +200,7 @@ fn on_connect<'w>(
     entity: Entity,
     event: crate::ui::event::Connect,
     fully_connected: bool,
-    param: &mut bevy::ecs::system::SystemParamItem<
-        'w,
-        '_,
-        DefaultTextureOnConnectParam,
-    >,
+    param: &mut bevy::ecs::system::SystemParamItem<'w, '_, DefaultTextureOnConnectParam>,
 ) {
     let (ref mut commands, ref mut materials, ref mut op_q, ref mut material_q) = param;
     let (new_image, _, _) = op_q.get(event.output).unwrap();

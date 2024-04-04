@@ -9,13 +9,15 @@ use bevy::window::WindowRef;
 
 use crate::index::CompositeIndex2;
 use crate::op::component::CATEGORY;
-use crate::op::{OpExecute, OpImage, OpOnConnect, OpOnDisconnect, OpShouldExecute, OpSpawn, OpUpdate};
 use crate::op::OpRef;
 use crate::op::{Op, OpInputs, OpOutputs, OpPlugin, OpType};
+use crate::op::{
+    OpExecute, OpImage, OpOnConnect, OpOnDisconnect, OpShouldExecute, OpSpawn, OpUpdate,
+};
 use crate::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 use crate::render_layers::RenderLayerManager;
-use crate::OpName;
 use crate::ui::event::{Connect, Disconnect};
+use crate::OpName;
 
 #[derive(Default)]
 pub struct ComponentOpWindowPlugin;
@@ -149,27 +151,39 @@ impl OpSpawn for ComponentOpWindow {
 impl OpShouldExecute for ComponentOpWindow {
     type Param = ();
 
-    fn should_execute<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>) -> bool {
+    fn should_execute<'w>(
+        entity: Entity,
+        param: &mut SystemParamItem<'w, '_, Self::Param>,
+    ) -> bool {
         true
     }
 }
 
 impl OpExecute for ComponentOpWindow {
-    fn execute(&self, entity: Entity, world: &mut World) {
-    }
+    fn execute(&self, entity: Entity, world: &mut World) {}
 }
 
 impl OpOnConnect for ComponentOpWindow {
     type Param = ();
 
-    fn on_connect<'w>(entity: Entity, event: Connect, fully_connected: bool, param: &mut SystemParamItem<'w, '_, Self::Param>) {
+    fn on_connect<'w>(
+        entity: Entity,
+        event: Connect,
+        fully_connected: bool,
+        param: &mut SystemParamItem<'w, '_, Self::Param>,
+    ) {
     }
 }
 
 impl OpOnDisconnect for ComponentOpWindow {
     type Param = ();
 
-    fn on_disconnect<'w>(entity: Entity, event: Disconnect, fully_connected: bool, param: &mut SystemParamItem<'w, '_, Self::Param>) {
+    fn on_disconnect<'w>(
+        entity: Entity,
+        event: Disconnect,
+        fully_connected: bool,
+        param: &mut SystemParamItem<'w, '_, Self::Param>,
+    ) {
     }
 }
 

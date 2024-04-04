@@ -1,6 +1,6 @@
+use bevy::color::palettes::css::{NAVY, PURPLE, SALMON, SILVER};
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use bevy::color::palettes::css::{NAVY, PURPLE, SALMON, SILVER};
 
 use bevy::ecs::system::{ReadOnlySystemParam, StaticSystemParam, SystemParam, SystemParamItem};
 use bevy::prelude::*;
@@ -13,7 +13,7 @@ use bevy::utils::AHasher;
 use crate::event::SpawnOp;
 use crate::param::{validate, ParamBundle, ParamHash, Params};
 use crate::ui::event::{Connect, Disconnect};
-use crate::ui::graph::{GraphState, update_graph_refs};
+use crate::ui::graph::{update_graph_refs, GraphState};
 use crate::Sets;
 
 pub mod component;
@@ -35,8 +35,7 @@ where
             .add_systems(
                 Update,
                 (
-                    (spawn::<T>
-                    ).in_set(Sets::Spawn),
+                    (spawn::<T>).in_set(Sets::Spawn),
                     (
                         update::<T>,
                         should_execute::<T>,

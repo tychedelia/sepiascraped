@@ -4,10 +4,13 @@ use bevy::ecs::system::{StaticSystemParam, SystemParamItem};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::extract_component::ExtractComponent;
+use bevy::render::render_asset::RenderAssetUsages;
+use bevy::render::render_resource::PrimitiveTopology;
 use bevy::render::view::{CameraLayer, RenderLayers};
 use bevy::utils::HashMap;
 use std::f32::consts::PI;
 use std::ops::DerefMut;
+use bevy::render::mesh::Indices;
 
 use crate::op::mesh::{MeshOpBundle, MeshOpHandle, MeshOpInputMeshes, CATEGORY};
 use crate::op::{
@@ -19,18 +22,18 @@ use crate::render_layers::RenderLayerManager;
 use crate::ui::event::{Connect, Disconnect};
 
 #[derive(Default)]
-pub struct MeshOpCuboidPlugin;
+pub struct MeshOpGridPlugin;
 
-impl Plugin for MeshOpCuboidPlugin {
+impl Plugin for MeshOpGridPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(OpPlugin::<MeshOpCuboid>::default());
+        app.add_plugins(OpPlugin::<MeshOpGrid>::default());
     }
 }
 
 #[derive(Component, ExtractComponent, Clone, Default, Debug)]
-pub struct MeshOpCuboid;
+pub struct MeshOpGrid;
 
-impl OpSpawn for MeshOpCuboid {
+impl OpSpawn for MeshOpGrid {
     type Param = (
         SCommands,
         SResMut<Assets<Mesh>>,
@@ -52,7 +55,7 @@ impl OpSpawn for MeshOpCuboid {
             Self::Param,
         >,
     ) -> Self::Bundle {
-        let mesh = meshes.add(Mesh::from(Cuboid::default()));
+        let mesh = meshes.add(Mesh::from(Grid::default()));
         let image = OpImage::new_image(512, 512);
         let image = images.add(image);
 
@@ -111,7 +114,7 @@ impl OpSpawn for MeshOpCuboid {
     }
 }
 
-impl OpUpdate for MeshOpCuboid {
+impl OpUpdate for MeshOpGrid {
     type Param = (SQuery<Write<Transform>>, Params<'static, 'static>);
 
     fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>) {
@@ -135,7 +138,7 @@ impl OpUpdate for MeshOpCuboid {
     }
 }
 
-impl OpShouldExecute for MeshOpCuboid {
+impl OpShouldExecute for MeshOpGrid {
     type Param = ();
 
     fn should_execute<'w>(
@@ -146,11 +149,11 @@ impl OpShouldExecute for MeshOpCuboid {
     }
 }
 
-impl OpExecute for MeshOpCuboid {
+impl OpExecute for MeshOpGrid {
     fn execute(&self, entity: Entity, world: &mut World) {}
 }
 
-impl OpOnConnect for MeshOpCuboid {
+impl OpOnConnect for MeshOpGrid {
     type Param = ();
 
     fn on_connect<'w>(
@@ -162,7 +165,7 @@ impl OpOnConnect for MeshOpCuboid {
     }
 }
 
-impl OpOnDisconnect for MeshOpCuboid {
+impl OpOnDisconnect for MeshOpGrid {
     type Param = ();
 
     fn on_disconnect<'w>(
@@ -174,9 +177,158 @@ impl OpOnDisconnect for MeshOpCuboid {
     }
 }
 
-impl Op for MeshOpCuboid {
+impl Op for MeshOpGrid {
     const INPUTS: usize = 0;
     const OUTPUTS: usize = 1;
     const CATEGORY: &'static str = CATEGORY;
-    type OpType = OpType<MeshOpCuboid>;
+    type OpType = OpType<MeshOpGrid>;
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Grid {
+    rows: usize,
+    columns: usize,
+    normal: Dir3,
+}
+
+impl Default for Grid {
+    fn default() -> Self {
+        Self {
+            rows: 10,
+            columns: 10,
+            normal: Dir3::Y,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct GridMeshBuilder {
+    /// The [`Grid`] shape.
+    pub grid: Grid,
+    /// Half the size of the grid mesh.
+    pub half_size: Vec2,
+}
+
+impl Default for GridMeshBuilder {
+    fn default() -> Self {
+        Self {
+            grid: Grid::default(),
+            half_size: Vec2::ONE,
+        }
+    }
+}
+
+impl GridMeshBuilder {
+    /// Creates a new [`GridMeshBuilder`] from a given normal and size.
+    #[inline]
+    pub fn new(normal: Dir3, size: Vec2) -> Self {
+        Self {
+            grid: Grid { normal, ..Default::default() },
+            half_size: size / 2.0,
+        }
+    }
+
+    /// Creates a new [`GridMeshBuilder`] from the given size, with the normal pointing upwards.
+    #[inline]
+    pub fn from_size(size: Vec2) -> Self {
+        Self {
+            half_size: size / 2.0,
+            ..Default::default()
+        }
+    }
+
+    /// Creates a new [`GridMeshBuilder`] from the given length, with the normal pointing upwards,
+    /// and the resulting [`GridMeshBuilder`] being a square.
+    #[inline]
+    pub fn from_length(length: f32) -> Self {
+        Self {
+            half_size: Vec2::splat(length) / 2.0,
+            ..Default::default()
+        }
+    }
+
+    /// Sets the normal of the grid, aka the direction the grid is facing.
+    #[inline]
+    #[doc(alias = "facing")]
+    pub fn normal(mut self, normal: Dir3) -> Self {
+        self.grid = Grid { normal, ..Default::default() };
+        self
+    }
+
+    /// Sets the size of the grid mesh.
+    #[inline]
+    pub fn size(mut self, width: f32, height: f32) -> Self {
+        self.half_size = Vec2::new(width, height) / 2.0;
+        self
+    }
+
+    /// Builds a [`Mesh`] based on the configuration in `self`.
+    pub fn build(&self) -> Mesh {
+        let rotation = Quat::from_rotation_arc(Vec3::Y, *self.grid.normal);
+        let mut positions = Vec::new();
+        let mut normals = Vec::new();
+        let mut uvs = Vec::new();
+        let mut indices = Vec::new();
+
+        for row in 0..self.grid.rows {
+            for column in 0..self.grid.columns {
+                let x = (column as f32 / self.grid.columns as f32 - 0.5) * self.half_size.x;
+                let z = (row as f32 / self.grid.rows as f32 - 0.5) * self.half_size.y;
+                let position = rotation * Vec3::new(x, 0.0, z);
+                let normal = rotation * Vec3::Y;
+                let uv = Vec2::new(column as f32 / self.grid.columns as f32, row as f32 / self.grid.rows as f32);
+                positions.push(position.to_array());
+                normals.push(normal.to_array());
+                uvs.push(uv.to_array());
+            }
+        }
+
+        // Write the indices
+        for row in 0..self.grid.rows - 1 {
+            for column in 0..self.grid.columns - 1 {
+                let i = row * self.grid.columns + column;
+                let j = i + 1;
+                let k = i + self.grid.columns;
+                let l = k + 1;
+                indices.push(i as u32);
+                indices.push(j as u32);
+                indices.push(k as u32);
+                indices.push(k as u32);
+                indices.push(j as u32);
+                indices.push(l as u32);
+            }
+        }
+
+        Mesh::new(
+            PrimitiveTopology::TriangleList,
+            RenderAssetUsages::default(),
+        )
+            .with_inserted_indices(Indices::U32(indices))
+            .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
+            .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals)
+            .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
+    }
+}
+
+impl Meshable for Grid {
+    type Output = GridMeshBuilder;
+
+    fn mesh(&self) -> Self::Output {
+        GridMeshBuilder {
+            grid: *self,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<Grid> for Mesh {
+    fn from(grid: Grid) -> Self {
+        grid.mesh().build()
+    }
+}
+
+impl From<GridMeshBuilder> for Mesh {
+    fn from(grid: GridMeshBuilder) -> Self {
+        grid.build()
+    }
 }
