@@ -245,13 +245,18 @@ pub fn ui(
                             ..Default::default()
                         }
                     );
+                    let spacing = 40.0;
                     for i in 0..input_config.count {
-                        let offset = -(size.x / 8.0);
-                        spawn_port(&mut meshes, &mut color_materials, parent, InPort(i as u8), Vec3::new(offset, 0.0, -0.002));
+                        let offset_x = -(size.x / 8.0);
+                        let total_height = spacing * ((input_config.count - 1) as f32);
+                        let offset_y = i as f32 * spacing - total_height / 2.0;
+                        spawn_port(&mut meshes, &mut color_materials, parent, InPort(i as u8), Vec3::new(offset_x, offset_y as f32, -0.002));
                     }
                     for i in 0..output_config.count {
-                        let offset = (size.x/ 8.0);
-                        spawn_port(&mut meshes, &mut color_materials, parent, OutPort(i as u8), Vec3::new(offset, 0.0, -0.002));
+                        let offset_x = (size.x / 8.0);
+                        let total_height = spacing * ((output_config.count - 1) as f32);
+                        let offset_y = i as f32 * spacing - total_height / 2.0;
+                        spawn_port(&mut meshes, &mut color_materials, parent, OutPort(i as u8), Vec3::new(offset_x, offset_y, -0.002));
                     }
                 });
         });
@@ -717,11 +722,11 @@ fn despawn_nodes(
     mut entity_q: Query<Entity, With<UiRef>>,
     mut all_nodes_q: Query<(Entity, &OpRef), With<NodeRoot>>,
 ) {
-    // for (entity, op_ref) in all_nodes_q.iter_mut() {
-    //     if !entity_q.contains(op_ref.0) {
-    //         commands.entity(entity).despawn_recursive();
-    //     }
-    // }
+    for (entity, op_ref) in all_nodes_q.iter_mut() {
+        if !entity_q.contains(op_ref.0) {
+            commands.entity(entity).despawn_recursive();
+        }
+    }
 }
 
 fn do_layout(
@@ -730,7 +735,7 @@ fn do_layout(
     graph_id_q: Query<&GraphId>,
     keys: Res<ButtonInput<KeyCode>>,
 ) {
-    if keys.just_pressed(KeyCode::Tab) && keys.just_pressed(KeyCode::ShiftLeft) {
+    if keys.just_pressed(KeyCode::KeyL) {
         for (op_ref, mut transform) in all_nodes_q.iter_mut() {
             let graph_id = graph_id_q.get(**op_ref).unwrap();
             if let Some(pos) = state.layout.get(&graph_id.0) {

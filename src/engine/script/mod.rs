@@ -203,8 +203,8 @@ fn setup(world: &mut World) {
                             (when entity
                                 (-param! *world* entity name val)))
                         ; connect two ops
-                        (define (connect! output input)
-                            (-connect! *world* output input))
+                        (define (connect! output output-port input input-port)
+                            (-connect! *world* output output-port input input-port))
                     "#,
                     )
                     .unwrap();
@@ -383,19 +383,17 @@ fn param(world: &mut WorldHolder, entity: EntityRef, name: String) -> SteelVal {
 
 fn connect_bang(world: &mut WorldHolder, output: EntityRef, output_port: u8, input: EntityRef, input_port: u8) -> SteelVal {
     let mut world = unsafe { world.world_mut() };
+    let output = output.0;
+    let input = input.0;
+    world.send_event(
+        Connect {
+            output,
+            input,
+            output_port,
+            input_port,
+        }
+    );
 
-    // TODO: run this as an event
-    // let mut graph_state = world.get_resource_mut::<GraphState>().unwrap();
-
-    // world.entity_mut(*output).insert(ConnectedTo(*input));
-    // graph_state
-    //     .graph
-    //     .add_edge(to_graph_id.0, from_graph_id.0, (0, 0));
-    // ev_connect.send(Connect {
-    //     output: to_ui_ref.0,
-    //     input: from_ui_ref.0,
-    // });
-    //
     SteelVal::Void
 }
 
