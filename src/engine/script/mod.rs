@@ -42,7 +42,6 @@ use crate::engine::script::helper::RustylineHelper;
 use crate::engine::graph::event::Connect;
 use crate::Sets;
 use crate::engine::graph::GraphState;
-use crate::ui::graph::UiRef;
 
 mod asset;
 mod helper;

@@ -188,12 +188,10 @@ fn params<T: TextureOp>(bundle: &DefaultTextureBundle<T>) -> Vec<ParamBundle> {
 
 type DefaultTextureOnConnectParam = (
     lifetimeless::SCommands,
-    SResMut<Assets<crate::ui::graph::NodeMaterial>>,
     SQuery<(
         Read<OpImage>,
         Write<TextureOpInputImages>,
     )>,
-    SQuery<Read<Handle<crate::ui::graph::NodeMaterial>>>,
 );
 fn on_connect<'w>(
     entity: Entity,
@@ -201,7 +199,7 @@ fn on_connect<'w>(
     fully_connected: bool,
     param: &mut bevy::ecs::system::SystemParamItem<'w, '_, DefaultTextureOnConnectParam>,
 ) {
-    let (ref mut commands, ref mut materials, ref mut op_q, ref mut material_q) = param;
+    let (ref mut commands, ref mut op_q) = param;
     let (new_image, _) = op_q.get(event.output).unwrap();
     let new_image = new_image.0.clone();
     let (_, mut my_images) = op_q.get_mut(entity).unwrap();

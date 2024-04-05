@@ -1,10 +1,14 @@
 use bevy::prelude::*;
+use bevy::render::camera::RenderTarget;
+use bevy::render::view::RenderLayers;
+use bevy::window::WindowRef;
 use iyes_perf_ui::prelude::*;
 use engine::op::OpName;
+use crate::engine::op::{OpImage, OpInputs, OpOutputs};
 
 use crate::engine::SepiascrapedEnginePlugin;
 use crate::index::UniqueIndexPlugin;
-use crate::render_layers::RenderLayerPlugin;
+use crate::render_layers::{RenderLayerManager, RenderLayerPlugin};
 use crate::ui::SepiascrapedUiPlugin;
 
 mod index;
@@ -21,7 +25,8 @@ fn main() {
         SepiascrapedEnginePlugin,
         RenderLayerPlugin,
     ))
-    .configure_sets(
+        // .add_systems(Startup, startup)
+        .configure_sets(
         Update,
         (
             Sets::Ui,
@@ -53,3 +58,25 @@ enum Sets {
     /// Execute ops
     Execute,
 }
+
+fn startup(
+    mut commands: Commands, mut layer_manager: ResMut<RenderLayerManager>
+) {
+        let window=  commands.spawn(Window {
+            title: "foo".to_string(),
+            ..default()
+        }).id();
+        commands.spawn((
+            Camera2dBundle {
+                camera: Camera {
+                    target: RenderTarget::Window(WindowRef::Entity(window)),
+                    ..default()
+                },
+                ..default()
+            },
+            RenderLayers::from_layer(layer_manager.next_open_layer()),
+            OpImage::default(),
+            OpInputs::default(),
+            OpOutputs::default(),
+        ));
+    }

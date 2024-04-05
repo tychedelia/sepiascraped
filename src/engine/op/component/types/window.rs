@@ -4,20 +4,20 @@ use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::extract_component::ExtractComponent;
-use bevy::render::view::RenderLayers;
+use bevy::render::view::{CameraLayer, RenderLayers};
 use bevy::window::WindowRef;
 
-use crate::index::CompositeIndex2;
+use crate::engine::graph::event::{Connect, Disconnect};
 use crate::engine::op::component::CATEGORY;
+use crate::engine::op::OpName;
 use crate::engine::op::OpRef;
 use crate::engine::op::{Op, OpInputs, OpOutputs, OpPlugin, OpType};
 use crate::engine::op::{
     OpExecute, OpImage, OpOnConnect, OpOnDisconnect, OpShouldExecute, OpSpawn, OpUpdate,
 };
 use crate::engine::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
+use crate::index::CompositeIndex2;
 use crate::render_layers::RenderLayerManager;
-use crate::engine::graph::event::{Connect, Disconnect};
-use crate::engine::op::OpName;
 
 #[derive(Default)]
 pub struct ComponentOpWindowPlugin;
@@ -46,7 +46,6 @@ impl OpUpdate for ComponentOpWindow {
 
     fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>) {
         let (commands, self_q, texture_q, param_q, param_index, images) = param;
-
         let (mut window, curr_window_texture) = self_q.get_mut(entity).unwrap();
 
         let param_entity = param_index.get(&(OpRef(entity), ParamName("Texture".to_string())));
@@ -96,10 +95,9 @@ impl OpUpdate for ComponentOpWindow {
 }
 
 impl OpSpawn for ComponentOpWindow {
-    type Param = (SQuery<Read<OpName>>, SResMut<RenderLayerManager>);
+    type Param = (SCommands, SQuery<Read<OpName>>, SResMut<RenderLayerManager>);
     type Bundle = (
         Window,
-        Camera2dBundle,
         RenderLayers,
         OpImage,
         OpInputs,
@@ -125,14 +123,23 @@ impl OpSpawn for ComponentOpWindow {
 
     fn create_bundle<'w>(
         entity: Entity,
-        (name_q, layer_manager): &mut SystemParamItem<'w, '_, Self::Param>,
+        (commands, name_q, layer_manager): &mut SystemParamItem<'w, '_, Self::Param>,
     ) -> Self::Bundle {
         let name = name_q.get(entity).unwrap();
-        (
-            Window {
-                title: name.0.clone(),
-                ..default()
-            },
+        let next_layer = layer_manager.next_open_layer();
+        // let window = commands
+        //     .spawn((
+        //         OpRef(entity),
+        //         RenderLayers::from_layer(next_layer),
+        //         Window {
+        //             title: name.0.clone(),
+        //             ..default()
+        //         },
+        //     ))
+        //     .id();
+
+        commands.spawn((
+            OpRef(entity),
             Camera2dBundle {
                 camera: Camera {
                     target: RenderTarget::Window(WindowRef::Entity(entity)),
@@ -140,7 +147,15 @@ impl OpSpawn for ComponentOpWindow {
                 },
                 ..default()
             },
-            RenderLayers::from_layer(layer_manager.next_open_layer()),
+            CameraLayer::new(next_layer),
+        ));
+
+        (
+            Window {
+                title: name.0.clone(),
+                ..default()
+            },
+            RenderLayers::from_layer(next_layer),
             OpImage::default(),
             OpInputs::default(),
             OpOutputs::default(),

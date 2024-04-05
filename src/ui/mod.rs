@@ -46,7 +46,7 @@ impl Plugin for SepiascrapedUiPlugin {
         .add_systems(Startup, ui_setup)
         .add_systems(
             Update,
-            (toggle_camera, init_params, ui, selected_node_ui).in_set(Ui),
+            (init_params, ui, selected_node_ui).in_set(Ui),
         )
         .init_resource::<UiState>()
         .insert_resource(AmbientLight {
@@ -95,23 +95,6 @@ pub fn ui_setup(mut commands: Commands) {
         },
         camera::CameraController::default(),
     ));
-}
-
-fn toggle_camera(
-    keys: Res<ButtonInput<KeyCode>>,
-    mut selected_q: Query<(&mut Camera), With<SelectedNode>>,
-) {
-    if keys.just_pressed(KeyCode::KeyC) {
-        let (mut camera) = selected_q.single_mut();
-        match camera.output_mode {
-            CameraOutputMode::Skip => {
-                camera.output_mode = CameraOutputMode::default();
-            }
-            CameraOutputMode::Write { .. } => {
-                camera.output_mode = CameraOutputMode::Skip;
-            }
-        }
-    }
 }
 
 pub fn ui(
