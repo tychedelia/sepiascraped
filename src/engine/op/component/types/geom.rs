@@ -8,6 +8,7 @@ use bevy::render::extract_component::ExtractComponent;
 use bevy::render::view::{CameraLayer, RenderLayers};
 use std::f32::consts::PI;
 use std::ops::DerefMut;
+use bevy::utils::hashbrown::HashMap;
 
 use crate::index::CompositeIndex2;
 use crate::engine::op::component::CATEGORY;
@@ -61,7 +62,7 @@ impl OpUpdate for ComponentOpGeom {
 
         let my_inputs = inputs_q.get(entity).unwrap();
         if my_inputs.is_fully_connected() {
-            let input = my_inputs.connections[0];
+            let input = my_inputs.connections[&0];
             let input_transform = transform_q.get(input).unwrap().clone();
             let mut our_transform = transform_q.get_mut(entity).unwrap();
             *our_transform = input_transform;
@@ -126,10 +127,7 @@ impl OpSpawn for ComponentOpGeom {
         (
             RenderLayers::from_layer(new_layer),
             OpImage(image),
-            OpInputs {
-                count: Self::INPUTS,
-                connections: vec![],
-            },
+            OpInputs::new(Self::INPUTS),
             OpOutputs::default(),
         )
     }

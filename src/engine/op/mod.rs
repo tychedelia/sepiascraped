@@ -17,6 +17,7 @@ use bevy::render::extract_component::ExtractComponent;
 use bevy::render::render_resource::{
     Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
+use bevy::utils::HashMap;
 
 pub mod component;
 pub mod material;
@@ -34,7 +35,8 @@ impl Plugin for OpsPlugin {
             MeshPlugin,
             TexturePlugin,
             UniqueIndexPlugin::<OpName>::default(),
-        ));
+        ))
+            .add_systems(Last, ensure_despawn);
     }
 }
 
@@ -49,6 +51,10 @@ where
 {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, apply_deferred.after(spawn::<T>))
+            .insert_resource(AmbientLight {
+                color: Color::WHITE,
+                brightness: 0.05,
+            })
             .add_systems(
                 Update,
                 (
@@ -120,10 +126,17 @@ impl OpCategory {
 #[derive(Component, ExtractComponent, Clone, Default, Debug)]
 pub struct OpInputs {
     pub count: usize,
-    pub connections: Vec<Entity>,
+    pub connections: HashMap<u8, Entity>,
 }
 
 impl OpInputs {
+    fn new(count: usize) -> Self {
+        Self {
+            count,
+            connections: HashMap::new(),
+        }
+    }
+
     pub fn is_fully_connected(&self) -> bool {
         self.count == 0 || self.connections.len() == self.count
     }
@@ -341,7 +354,7 @@ fn on_connect<T>(
     let mut param = param.into_inner();
     for ev in ev_connect.read() {
         if let Ok(mut input) = op_q.get_mut(ev.input) {
-            input.connections.push(ev.output);
+            input.connections.insert(ev.input_port, ev.output);
             T::on_connect(ev.input, *ev, input.is_fully_connected(), &mut param);
         }
     }
@@ -370,7 +383,7 @@ fn on_disconnect<T>(
     let mut param = param.into_inner();
     for ev in ev_disconnect.read() {
         if let Ok(mut input) = op_q.get_mut(ev.input) {
-            input.connections.retain(|e| e != &ev.output);
+            input.connections.retain(|k, e| e != &ev.output);
             T::on_disconnect(ev.input, *ev, input.is_fully_connected(), &mut param);
         }
     }
@@ -393,3 +406,18 @@ pub trait Op:
 
 #[derive(Component, Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct OpName(pub String);
+
+fn ensure_despawn(
+    mut commands: Commands,
+    mut removed: RemovedComponents<OpName>,
+    op_refs: Query<&OpRef>,
+) {
+    for entity in removed.read() {
+        for op_ref in op_refs.iter() {
+            if op_ref.0 == entity {
+                warn!("Op {} was removed but not despawned", entity);
+                commands.entity(entity).despawn_recursive();
+            }
+        }
+    }
+}

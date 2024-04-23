@@ -98,10 +98,7 @@ impl OpSpawn for MaterialOpStandard {
             MaterialOpBundle {
                 material: MaterialOpHandle(material),
                 image: OpImage(image),
-                inputs: OpInputs {
-                    count: Self::INPUTS,
-                    connections: Vec::new(),
-                },
+                inputs: OpInputs::new(Self::INPUTS),
                 outputs: OpOutputs {
                     count: Self::OUTPUTS,
                 },

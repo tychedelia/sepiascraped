@@ -163,10 +163,7 @@ fn create_bundle<'w, T: TextureOp>(
                 ..default()
             },
             image: OpImage(image.clone()),
-            inputs: OpInputs {
-                count: T::INPUTS,
-                connections: Vec::new(),
-            },
+            inputs: OpInputs::new(T::INPUTS),
             outputs: crate::engine::op::OpOutputs { count: T::OUTPUTS },
         },
         TextureOpInputImages::default(),

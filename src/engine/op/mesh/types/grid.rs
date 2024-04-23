@@ -100,10 +100,7 @@ impl OpSpawn for MeshOpGrid {
                     ..default()
                 },
                 image: OpImage(image),
-                inputs: OpInputs {
-                    count: Self::INPUTS,
-                    connections: Vec::new(),
-                },
+                inputs: OpInputs::new(Self::INPUTS),
                 outputs: OpOutputs {
                     count: Self::OUTPUTS,
                 },

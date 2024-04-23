@@ -1,0 +1,7 @@
+[target.x86_64-pc-windows-msvc]
+linker = "/usr/local/bin/lld"
+rustflags = [
+    "-Lnative=/Users/char/.xwin/crt/lib/x86_64",
+    "-Lnative=/Users/char/.xwin/sdk/lib/um/x86_64",
+    "-Lnative=/Users/char/.xwin/sdk/lib/ucrt/x86_64"
+]

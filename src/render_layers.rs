@@ -50,7 +50,7 @@ impl RenderLayerManager {
 }
 
 fn sync(
-    render_layers_q: Query<&RenderLayers, With<Camera>>,
+    render_layers_q: Query<&RenderLayers>,
     mut render_layer_manager: ResMut<RenderLayerManager>,
 ) {
     render_layer_manager.clear();

@@ -127,17 +127,6 @@ impl OpSpawn for ComponentOpWindow {
     ) -> Self::Bundle {
         let name = name_q.get(entity).unwrap();
         let next_layer = layer_manager.next_open_layer();
-        // let window = commands
-        //     .spawn((
-        //         OpRef(entity),
-        //         RenderLayers::from_layer(next_layer),
-        //         Window {
-        //             title: name.0.clone(),
-        //             ..default()
-        //         },
-        //     ))
-        //     .id();
-
         commands.spawn((
             OpRef(entity),
             Camera2dBundle {

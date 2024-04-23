@@ -11,6 +11,8 @@ use noise::{NoiseFn, Perlin};
 use rand::{Rng, SeedableRng};
 use std::f32::consts::PI;
 use std::ops::DerefMut;
+use bevy::pbr::light_consts::lux::AMBIENT_DAYLIGHT;
+use bevy_egui::egui::ahash::HashMap;
 
 use crate::engine::op::mesh::{MeshExt, MeshOpBundle, MeshOpHandle, MeshOpInputMeshes, CATEGORY};
 use crate::engine::op::{
@@ -96,10 +98,7 @@ impl OpSpawn for MeshOpNoise {
                     ..default()
                 },
                 image: OpImage(image),
-                inputs: OpInputs {
-                    count: Self::INPUTS,
-                    connections: Vec::new(),
-                },
+                inputs: OpInputs::new(Self::INPUTS),
                 outputs: OpOutputs {
                     count: Self::OUTPUTS,
                 },
@@ -171,7 +170,7 @@ impl OpExecute for MeshOpNoise {
         if !inputs.is_fully_connected() {
             return;
         }
-        let input = inputs.connections[0];
+        let input = inputs.connections[&0];
         let input_mesh = world.entity(input).get::<MeshOpHandle>().unwrap().clone();
         let my_mesh = world.entity(entity).get::<MeshOpHandle>().unwrap().clone();
 

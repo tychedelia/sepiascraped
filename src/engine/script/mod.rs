@@ -595,6 +595,38 @@ fn update_param(param_value: &mut ParamValue, steel_val: SteelVal) -> Result<(),
                     _ => return Err(ScriptError::Conversion(steel_val)),
                 }
             }
+            SteelVal::VectorV(ref v) => {
+                let mut iter = v.iter();
+                let x = iter.next().unwrap();
+                let y = iter.next().unwrap();
+                let z = iter.next().unwrap();
+                let w = iter.next().unwrap();
+                match (x, y, z, w) {
+                    (
+                        SteelVal::NumV(x),
+                        SteelVal::NumV(y),
+                        SteelVal::NumV(z),
+                        SteelVal::NumV(w),
+                    ) => {
+                        p.x = *x as f32;
+                        p.y = *y as f32;
+                        p.z = *z as f32;
+                        p.w = *w as f32;
+                    }
+                    (
+                        SteelVal::IntV(x),
+                        SteelVal::IntV(y),
+                        SteelVal::IntV(z),
+                        SteelVal::IntV(w),
+                    ) => {
+                        p.x = *x as f32;
+                        p.y = *y as f32;
+                        p.z = *z as f32;
+                        p.w = *w as f32;
+                    }
+                    _ => return Err(ScriptError::Conversion(steel_val)),
+                }
+            }
             _ => return Err(ScriptError::Conversion(steel_val)),
         },
     }
