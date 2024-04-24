@@ -101,8 +101,8 @@ pub struct TextureOpBundle {
     outputs: OpOutputs,
 }
 
-type DefaultTextureUpdateParam<T: TextureOp> = (
-    SQuery<(Read<Children>, Write<OpImage>, Write<T::Uniform>)>,
+type DefaultTextureUpdateParam<T> = (
+    SQuery<(Read<Children>, Write<OpImage>, Write<<T as TextureOp>::Uniform>)>,
     SQuery<(Read<ParamName>, Read<ParamValue>)>,
     SResMut<Assets<Image>>,
 );
@@ -142,7 +142,7 @@ fn update<'w, T: TextureOp>(
 }
 
 type DefaultTextureSpawnParam = (SResMut<Assets<Image>>);
-type DefaultTextureBundle<T: TextureOp> = (TextureOpBundle, TextureOpInputImages, T::Uniform);
+type DefaultTextureBundle<T> = (TextureOpBundle, TextureOpInputImages, <T as TextureOp>::Uniform);
 
 fn create_bundle<'w, T: TextureOp>(
     entity: Entity,
@@ -164,7 +164,7 @@ fn create_bundle<'w, T: TextureOp>(
             },
             image: OpImage(image.clone()),
             inputs: OpInputs::new(T::INPUTS),
-            outputs: crate::engine::op::OpOutputs { count: T::OUTPUTS },
+            outputs: OpOutputs { count: T::OUTPUTS },
         },
         TextureOpInputImages::default(),
         T::Uniform::default(),

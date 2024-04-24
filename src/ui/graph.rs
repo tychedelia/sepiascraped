@@ -75,6 +75,9 @@ pub struct SelectedNode;
 #[derive(Component)]
 pub struct Port;
 
+#[derive(Component, Eq, PartialEq)]
+pub struct PortCategory(pub &'static str);
+
 #[derive(Component)]
 pub struct InPort(u8);
 
@@ -250,13 +253,13 @@ pub fn ui(
                         let offset_x = -(size.x / 8.0);
                         let total_height = spacing * ((input_config.count - 1) as f32);
                         let offset_y = i as f32 * spacing - total_height / 2.0;
-                        spawn_port(&mut meshes, &mut color_materials, parent, InPort(i as u8), Vec3::new(offset_x, offset_y as f32, -0.002));
+                        spawn_port(&mut meshes, &mut color_materials, parent, InPort(i as u8), PortCategory(category.0), Vec3::new(offset_x, offset_y as f32, -0.002));
                     }
                     for i in 0..output_config.count {
                         let offset_x = (size.x / 8.0);
                         let total_height = spacing * ((output_config.count - 1) as f32);
                         let offset_y = i as f32 * spacing - total_height / 2.0;
-                        spawn_port(&mut meshes, &mut color_materials, parent, OutPort(i as u8), Vec3::new(offset_x, offset_y, -0.002));
+                        spawn_port(&mut meshes, &mut color_materials, parent, OutPort(i as u8), PortCategory(category.0), Vec3::new(offset_x, offset_y, -0.002));
                     }
                 });
         });
@@ -310,11 +313,13 @@ fn spawn_port<T: Component>(
     color_materials: &mut ResMut<Assets<ColorMaterial>>,
     parent: &mut ChildBuilder,
     port: T,
+    category: PortCategory,
     translation: Vec3,
 ) {
     parent.spawn((
         port,
         Port,
+        category,
         MaterialMesh2dBundle {
             mesh: meshes.add(Mesh::from(Circle::new(10.0))).into(),
             material: color_materials.add(Color::rgb(0.5, 0.5, 0.5)),
@@ -336,15 +341,16 @@ fn connection_drag(
         (
             &GlobalTransform,
             Option<&Children>,
+            &PortCategory,
             Has<InPort>,
             Has<OutPort>,
         ),
         With<Connecting>,
     >,
-    port_q: Query<(Entity, &GlobalTransform, Has<InPort>, Has<OutPort>), With<Port>>,
+    port_q: Query<(Entity, &GlobalTransform, &PortCategory, Has<InPort>, Has<OutPort>), With<Port>>,
 ) {
     // TODO: this event sholdn't fire
-    if let Ok((transform, children, is_input, is_output)) = me_q.get_mut(event.target()) {
+    if let Ok((transform, children, category, is_input, is_output)) = me_q.get_mut(event.target()) {
         assert_ne!(is_input, is_output);
 
         if let Some(children) = children {
@@ -363,8 +369,11 @@ fn connection_drag(
 
         // Snap to
         let mut closest_port = None;
-        for (entity, transform, target_is_input, target_is_output) in port_q.iter() {
+        for (entity, transform, target_category, target_is_input, target_is_output) in port_q.iter() {
             if is_input && target_is_input || is_output && target_is_output {
+                continue;
+            }
+            if target_category != category {
                 continue;
             }
 
@@ -393,6 +402,7 @@ fn connection_drag_end(
             Entity,
             Option<&Children>,
             &Parent,
+            &PortCategory,
             Has<InPort>,
             Has<OutPort>,
             Option<&InPort>,
@@ -405,6 +415,7 @@ fn connection_drag_end(
             Entity,
             &Parent,
             &GlobalTransform,
+            &PortCategory,
             Has<InPort>,
             Has<OutPort>,
             Option<&InPort>,
@@ -419,6 +430,7 @@ fn connection_drag_end(
         from_entity,
         children,
         from_parent,
+        category,
         is_input,
         is_output,
         from_maybe_in_port,
@@ -439,6 +451,7 @@ fn connection_drag_end(
         entity,
         parent,
         transform,
+        target_category,
         target_is_input,
         target_is_output,
         target_maybe_in_port,
@@ -446,6 +459,9 @@ fn connection_drag_end(
     ) in port_q.iter()
     {
         if is_input && target_is_input || is_output && target_is_output {
+            continue;
+        }
+        if target_category != category {
             continue;
         }
 

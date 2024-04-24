@@ -88,7 +88,7 @@ where
     T: Debug + Sync + Send + 'static,
 {
     pub fn name() -> &'static str {
-        std::any::type_name::<T>().split("::").nth(4).unwrap()
+        std::any::type_name::<T>().split("::").nth(5).unwrap()
     }
 }
 
