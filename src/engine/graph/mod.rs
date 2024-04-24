@@ -1,4 +1,5 @@
 use crate::engine::graph::event::{Connect, Disconnect};
+use crate::engine::op::{OpInputs, OpName};
 use crate::render_layers::{
     Added, Component, Deref, DerefMut, Entity, Query, ResMut, Resource, Vec2,
 };
@@ -7,7 +8,6 @@ use bevy::prelude::*;
 use bevy::utils::HashMap;
 use petgraph::adj::DefaultIx;
 use petgraph::graph::NodeIndex;
-use crate::engine::op::OpName;
 
 pub mod event;
 
@@ -55,7 +55,6 @@ pub fn update_graph(
         state.entity_map.insert(graph_id.0, entity);
     }
 }
-
 
 pub fn add_graph_ids(
     mut commands: Commands,

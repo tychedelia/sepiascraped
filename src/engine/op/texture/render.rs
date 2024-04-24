@@ -160,7 +160,7 @@ pub fn prepare_texture_op_bind_group<T>(
         }
 
         let mut gpu_images = vec![];
-        for image in op_images.iter() {
+        for (_, image) in op_images.iter() {
             if let Some(image) = images.get(image) {
                 gpu_images.push(image);
             }
@@ -247,7 +247,7 @@ impl SpecializedRenderPipeline for TextureOpPipeline {
 }
 
 #[derive(Component, ExtractComponent, Deref, DerefMut, Clone, Debug, Default)]
-pub struct TextureOpInputImages(pub Vec<Handle<Image>>);
+pub struct TextureOpInputImages(pub HashMap<Entity, Handle<Image>>);
 
 #[derive(Component, Debug)]
 pub struct TextureOpPipelineId(pub CachedRenderPipelineId);

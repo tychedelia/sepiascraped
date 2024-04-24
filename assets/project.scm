@@ -1,4 +1,5 @@
 (define my-ramp (op! 'ramp "myRamp"))
+(op! 'ramp "myRamp2")
 (define noise-1 (op! 'noise "noise1"))
 (op! 'composite "composite")
 ;(connect! (op "noise1") 0 (op "composite") 0)

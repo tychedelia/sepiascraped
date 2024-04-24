@@ -36,7 +36,7 @@ impl Plugin for OpsPlugin {
             TexturePlugin,
             UniqueIndexPlugin::<OpName>::default(),
         ))
-            .add_systems(Last, ensure_despawn);
+        .add_systems(Last, ensure_despawn);
     }
 }
 
@@ -126,7 +126,7 @@ impl OpCategory {
 #[derive(Component, ExtractComponent, Clone, Default, Debug)]
 pub struct OpInputs {
     pub count: usize,
-    pub connections: HashMap<u8, Entity>,
+    pub connections: HashMap<u8, (Entity, u8)>,
 }
 
 impl OpInputs {
@@ -347,6 +347,7 @@ trait OpOnConnect {
 fn on_connect<T>(
     mut ev_connect: EventReader<Connect>,
     mut op_q: Query<&mut OpInputs, With<OpType<T>>>,
+    mut ev_disconnect: EventWriter<Disconnect>,
     param: StaticSystemParam<<T as OpOnConnect>::Param>,
 ) where
     T: Op + Component + ExtractComponent + Debug + Send + Sync + 'static,
@@ -354,7 +355,18 @@ fn on_connect<T>(
     let mut param = param.into_inner();
     for ev in ev_connect.read() {
         if let Ok(mut input) = op_q.get_mut(ev.input) {
-            input.connections.insert(ev.input_port, ev.output);
+            if let Some((prev, prev_port)) = input.connections.get(&ev.input_port) {
+                ev_disconnect.send(Disconnect {
+                    output: *prev,
+                    input: ev.input,
+                    output_port: *prev_port,
+                    input_port: ev.input_port,
+                });
+            }
+
+            input
+                .connections
+                .insert(ev.input_port, (ev.output, ev.output_port));
             T::on_connect(ev.input, *ev, input.is_fully_connected(), &mut param);
         }
     }
@@ -383,7 +395,7 @@ fn on_disconnect<T>(
     let mut param = param.into_inner();
     for ev in ev_disconnect.read() {
         if let Ok(mut input) = op_q.get_mut(ev.input) {
-            input.connections.retain(|k, e| e != &ev.output);
+            input.connections.retain(|k, (e, _)| e != &ev.output);
             T::on_disconnect(ev.input, *ev, input.is_fully_connected(), &mut param);
         }
     }

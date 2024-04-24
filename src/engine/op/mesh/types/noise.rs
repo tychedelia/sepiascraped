@@ -1,19 +1,20 @@
 use bevy::color::palettes::css::GRAY;
 use bevy::ecs::system::lifetimeless::*;
 use bevy::ecs::system::{StaticSystemParam, SystemParamItem, SystemState};
+use bevy::pbr::light_consts::lux::AMBIENT_DAYLIGHT;
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::extract_component::ExtractComponent;
 use bevy::render::view::{CameraLayer, RenderLayers};
+use bevy_egui::egui::ahash::HashMap;
 use noise::core::perlin::perlin_3d;
 use noise::permutationtable::PermutationTable;
 use noise::{NoiseFn, Perlin};
 use rand::{Rng, SeedableRng};
 use std::f32::consts::PI;
 use std::ops::DerefMut;
-use bevy::pbr::light_consts::lux::AMBIENT_DAYLIGHT;
-use bevy_egui::egui::ahash::HashMap;
 
+use crate::engine::graph::event::{Connect, Disconnect};
 use crate::engine::op::mesh::{MeshExt, MeshOpBundle, MeshOpHandle, MeshOpInputMeshes, CATEGORY};
 use crate::engine::op::{
     Op, OpExecute, OpImage, OpInputs, OpOnConnect, OpOnDisconnect, OpOutputs, OpPlugin, OpRef,
@@ -21,7 +22,6 @@ use crate::engine::op::{
 };
 use crate::engine::param::{IntoParams, ParamBundle, ParamName, ParamOrder, ParamValue, Params};
 use crate::render_layers::RenderLayerManager;
-use crate::engine::graph::event::{Connect, Disconnect};
 
 #[derive(Default)]
 pub struct MeshOpNoisePlugin;
@@ -170,7 +170,7 @@ impl OpExecute for MeshOpNoise {
         if !inputs.is_fully_connected() {
             return;
         }
-        let input = inputs.connections[&0];
+        let (input, _) = inputs.connections[&0];
         let input_mesh = world.entity(input).get::<MeshOpHandle>().unwrap().clone();
         let my_mesh = world.entity(entity).get::<MeshOpHandle>().unwrap().clone();
 

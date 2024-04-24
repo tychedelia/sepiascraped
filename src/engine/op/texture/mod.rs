@@ -2,8 +2,8 @@ use std::fmt::Debug;
 use std::ops::Deref;
 
 use bevy::ecs::query::QueryData;
-use bevy::ecs::system::lifetimeless;
 use bevy::ecs::system::lifetimeless::{Read, SQuery, Write};
+use bevy::ecs::system::{lifetimeless, SystemParamItem};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
@@ -102,14 +102,18 @@ pub struct TextureOpBundle {
 }
 
 type DefaultTextureUpdateParam<T> = (
-    SQuery<(Read<Children>, Write<OpImage>, Write<<T as TextureOp>::Uniform>)>,
+    SQuery<(
+        Read<Children>,
+        Write<OpImage>,
+        Write<<T as TextureOp>::Uniform>,
+    )>,
     SQuery<(Read<ParamName>, Read<ParamValue>)>,
     SResMut<Assets<Image>>,
 );
 
 fn update<'w, T: TextureOp>(
     entity: Entity,
-    param: &mut bevy::ecs::system::SystemParamItem<'w, '_, DefaultTextureUpdateParam<T>>,
+    param: &mut SystemParamItem<'w, '_, DefaultTextureUpdateParam<T>>,
 ) {
     let (self_q, params_q, ref mut images) = param;
 
@@ -142,11 +146,15 @@ fn update<'w, T: TextureOp>(
 }
 
 type DefaultTextureSpawnParam = (SResMut<Assets<Image>>);
-type DefaultTextureBundle<T> = (TextureOpBundle, TextureOpInputImages, <T as TextureOp>::Uniform);
+type DefaultTextureBundle<T> = (
+    TextureOpBundle,
+    TextureOpInputImages,
+    <T as TextureOp>::Uniform,
+);
 
 fn create_bundle<'w, T: TextureOp>(
     entity: Entity,
-    (mut images): &mut bevy::ecs::system::SystemParamItem<'w, '_, DefaultTextureSpawnParam>,
+    (mut images): &mut SystemParamItem<'w, '_, DefaultTextureSpawnParam>,
 ) -> DefaultTextureBundle<T> {
     let image = images.add(crate::engine::op::OpImage::new_image(512, 512));
     (
@@ -185,22 +193,41 @@ fn params<T: TextureOp>(bundle: &DefaultTextureBundle<T>) -> Vec<ParamBundle> {
 
 type DefaultTextureOnConnectParam = (
     lifetimeless::SCommands,
-    SQuery<(
-        Read<OpImage>,
-        Write<TextureOpInputImages>,
-    )>,
+    SQuery<(Read<OpImage>, Write<TextureOpInputImages>)>,
 );
+
+type DefaultTextureOnDisconnectParam = (
+    lifetimeless::SCommands,
+    SResMut<Assets<Image>>,
+    SQuery<(Write<OpImage>, Write<TextureOpInputImages>)>,
+);
+
 fn on_connect<'w>(
     entity: Entity,
     event: crate::engine::graph::event::Connect,
     fully_connected: bool,
-    param: &mut bevy::ecs::system::SystemParamItem<'w, '_, DefaultTextureOnConnectParam>,
+    param: &mut SystemParamItem<'w, '_, DefaultTextureOnConnectParam>,
 ) {
     let (ref mut commands, ref mut op_q) = param;
     let (new_image, _) = op_q.get(event.output).unwrap();
     let new_image = new_image.0.clone();
     let (_, mut my_images) = op_q.get_mut(entity).unwrap();
-    my_images.push(new_image);
+    my_images.insert(event.output, new_image);
+}
+
+fn on_disconnect<'w>(
+    entity: Entity,
+    event: crate::engine::graph::event::Disconnect,
+    fully_connected: bool,
+    param: &mut SystemParamItem<'w, '_, DefaultTextureOnDisconnectParam>,
+) {
+    let (ref mut commands, ref mut images,  ref mut op_q) = param;
+    let (my_image, mut my_images) = op_q.get_mut(entity).unwrap();
+    my_images.remove(&event.output);
+    if !fully_connected {
+        let mut my_image = images.get_mut(&my_image.0).unwrap();
+        *my_image = OpImage::new_image(my_image.width(), my_image.height());
+    }
 }
 
 pub fn update_op_cameras(mut op_q: Query<(&mut Camera, &mut OpImage), Changed<OpImage>>) {

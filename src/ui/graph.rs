@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use bevy::render::camera::CameraOutputMode;
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle};
-use bevy::utils::{HashMap, info};
+use bevy::utils::{info, HashMap};
 use bevy_mod_picking::prelude::*;
 use bevy_mod_picking::PickableBundle;
 use bevy_prototype_lyon::draw::Stroke;
@@ -347,7 +347,16 @@ fn connection_drag(
         ),
         With<Connecting>,
     >,
-    port_q: Query<(Entity, &GlobalTransform, &PortCategory, Has<InPort>, Has<OutPort>), With<Port>>,
+    port_q: Query<
+        (
+            Entity,
+            &GlobalTransform,
+            &PortCategory,
+            Has<InPort>,
+            Has<OutPort>,
+        ),
+        With<Port>,
+    >,
 ) {
     // TODO: this event sholdn't fire
     if let Ok((transform, children, category, is_input, is_output)) = me_q.get_mut(event.target()) {
@@ -369,7 +378,8 @@ fn connection_drag(
 
         // Snap to
         let mut closest_port = None;
-        for (entity, transform, target_category, target_is_input, target_is_output) in port_q.iter() {
+        for (entity, transform, target_category, target_is_input, target_is_output) in port_q.iter()
+        {
             if is_input && target_is_input || is_output && target_is_output {
                 continue;
             }
@@ -542,20 +552,6 @@ fn handle_connect(
                 }
             }
         }
-
-        // let (my_image, inputs, ui_ref) = op_q.get(connect.input).unwrap();
-        // let fully_connected = inputs.is_fully_connected();
-        //
-        // if fully_connected {
-        //     if let Ok(material) = material_q.get(ui_ref.0) {
-        //         let mut material = materials.get_mut(material).unwrap();
-        //         if material.texture != my_image.0 {
-        //             material.texture = my_image.0.clone();
-        //         }
-        //     } else {
-        //         warn!("No material found for {:?}", ui_ref);
-        //     }
-        // }
     }
 }
 
@@ -677,7 +673,7 @@ pub fn update_graph(
     mut state: ResMut<GraphState>,
     mut connected_q: Query<&Parent, Added<ConnectedTo>>,
 ) {
-   if !connected_q.is_empty() {
+    if !connected_q.is_empty() {
         state.layout = layout(
             state.graph.node_indices().map(|index| (index, Vec2::ZERO)),
             state.graph.edge_indices().map(|index| {
