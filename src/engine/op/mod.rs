@@ -247,6 +247,7 @@ pub trait OpUpdate {
     fn update<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>);
 }
 
+
 fn update<'w, 's, T>(
     mut ops_q: Query<Entity, With<OpType<T>>>,
     param: StaticSystemParam<<T as OpUpdate>::Param>,

@@ -6,7 +6,7 @@ use bevy::render::extract_component::ExtractComponent;
 use bevy::render::render_resource::{
     Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
-use bevy::render::view::{CameraLayer, RenderLayers};
+use bevy::render::view::{RenderLayers};
 use bevy::utils::HashMap;
 use std::ops::Deref;
 
@@ -64,7 +64,7 @@ impl OpSpawn for MaterialOpStandard {
                 },
                 ..default()
             },
-            CameraLayer::new(new_layer),
+            RenderLayers::from_layers(&[new_layer]),
         ));
 
         commands.spawn((
@@ -79,7 +79,7 @@ impl OpSpawn for MaterialOpStandard {
                 transform: Transform::from_xyz(8.0, 16.0, 8.0),
                 ..default()
             },
-            RenderLayers::from_layer(new_layer),
+            RenderLayers::from_layers(&[new_layer]),
         ));
 
         let material = materials.add(StandardMaterial::default());
@@ -91,7 +91,7 @@ impl OpSpawn for MaterialOpStandard {
                 material: material.clone(),
                 ..default()
             },
-            RenderLayers::from_layer(new_layer),
+            RenderLayers::from_layers(&[new_layer]),
         ));
 
         (
@@ -103,7 +103,7 @@ impl OpSpawn for MaterialOpStandard {
                     count: Self::OUTPUTS,
                 },
             },
-            RenderLayers::from_layer(new_layer),
+            RenderLayers::from_layers(&[new_layer]),
         )
     }
 

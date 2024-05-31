@@ -364,11 +364,11 @@ dependencies = [
  "bevy_time",
  "bevy_transform",
  "bevy_utils",
+ "blake3",
  "fixedbitset 0.5.7",
  "petgraph",
  "ron",
  "serde",
- "sha1_smol",
  "thiserror",
  "thread_local",
  "uuid",
@@ -381,6 +381,7 @@ dependencies = [
  "bevy_derive",
  "bevy_ecs",
  "bevy_reflect",
+ "bevy_state",
  "bevy_tasks",
  "bevy_utils",
  "console_error_panic_hook",
@@ -458,7 +459,7 @@ dependencies = [
  "encase",
  "serde",
  "thiserror",
- "wgpu",
+ "wgpu-types",
 ]
 
 [[package]]
@@ -492,6 +493,8 @@ dependencies = [
  "nonmax",
  "radsort",
  "serde",
+ "smallvec",
+ "thiserror",
 ]
 
 [[package]]
@@ -520,6 +523,7 @@ dependencies = [
 name = "bevy_ecs"
 version = "0.14.0-dev"
 dependencies = [
+ "arrayvec 0.7.4",
  "bevy_ecs_macros",
  "bevy_ptr",
  "bevy_reflect",
@@ -530,7 +534,6 @@ dependencies = [
  "fixedbitset 0.5.7",
  "nonmax",
  "petgraph",
- "rustc-hash",
  "serde",
  "thiserror",
 ]
@@ -621,6 +624,7 @@ dependencies = [
  "bevy_reflect",
  "bevy_render",
  "bevy_sprite",
+ "bevy_time",
  "bevy_transform",
  "bevy_utils",
  "bytemuck",
@@ -718,6 +722,7 @@ dependencies = [
  "bevy_render",
  "bevy_scene",
  "bevy_sprite",
+ "bevy_state",
  "bevy_tasks",
  "bevy_text",
  "bevy_time",
@@ -747,7 +752,6 @@ version = "0.14.0-dev"
 dependencies = [
  "proc-macro2",
  "quote",
- "rustc-hash",
  "syn 2.0.60",
  "toml_edit 0.22.12",
 ]
@@ -756,9 +760,10 @@ dependencies = [
 name = "bevy_math"
 version = "0.14.0-dev"
 dependencies = [
+ "bevy_reflect",
  "glam",
  "rand",
- "serde",
+ "smallvec",
  "thiserror",
 ]
 
@@ -831,15 +836,13 @@ dependencies = [
  "bevy_transform",
  "bevy_utils",
  "bevy_window",
- "bincode",
  "bitflags 2.5.0",
  "bytemuck",
  "fixedbitset 0.5.7",
  "nonmax",
  "radsort",
- "range-alloc",
- "serde",
  "smallvec",
+ "static_assertions",
 ]
 
 [[package]]
@@ -980,7 +983,6 @@ version = "0.14.0-dev"
 name = "bevy_reflect"
 version = "0.14.0-dev"
 dependencies = [
- "bevy_math",
  "bevy_ptr",
  "bevy_reflect_derive",
  "bevy_utils",
@@ -1047,7 +1049,6 @@ dependencies = [
  "serde",
  "smallvec",
  "thiserror",
- "thread_local",
  "wasm-bindgen",
  "web-sys",
  "wgpu",
@@ -1106,12 +1107,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_state"
+version = "0.14.0-dev"
+dependencies = [
+ "bevy_ecs",
+ "bevy_reflect",
+ "bevy_state_macros",
+ "bevy_utils",
+]
+
+[[package]]
+name = "bevy_state_macros"
+version = "0.14.0-dev"
+dependencies = [
+ "bevy_macro_utils",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.60",
+]
+
+[[package]]
 name = "bevy_tasks"
 version = "0.14.0-dev"
 dependencies = [
  "async-channel",
  "async-executor",
- "async-task",
  "concurrent-queue",
  "futures-lite",
  "wasm-bindgen-futures",
@@ -1219,7 +1239,6 @@ dependencies = [
  "bevy_a11y",
  "bevy_app",
  "bevy_ecs",
- "bevy_input",
  "bevy_math",
  "bevy_reflect",
  "bevy_utils",
@@ -1239,11 +1258,13 @@ dependencies = [
  "bevy_ecs",
  "bevy_hierarchy",
  "bevy_input",
+ "bevy_log",
  "bevy_math",
  "bevy_reflect",
  "bevy_tasks",
  "bevy_utils",
  "bevy_window",
+ "cfg-if",
  "crossbeam-channel",
  "raw-window-handle 0.6.1",
  "wasm-bindgen",
@@ -2054,9 +2075,9 @@ dependencies = [
 
 [[package]]
 name = "encase"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95ed933078d2e659745df651f4c180511cd582e5b9414ff896e7d50d207e3103"
+checksum = "5a9299a95fa5671ddf29ecc22b00e121843a65cb9ff24911e394b4ae556baf36"
 dependencies = [
  "const_panic",
  "encase_derive",
@@ -2066,18 +2087,18 @@ dependencies = [
 
 [[package]]
 name = "encase_derive"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4ce1449c7d19eba6cc0abd231150ad81620a8dce29601d7f8d236e5d431d72a"
+checksum = "07e09decb3beb1fe2db6940f598957b2e1f7df6206a804d438ff6cb2a9cddc10"
 dependencies = [
  "encase_derive_impl",
 ]
 
 [[package]]
 name = "encase_derive_impl"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92959a9e8d13eaa13b8ae8c7b583c3bf1669ca7a8e7708a088d12587ba86effc"
+checksum = "fd31dbbd9743684d339f907a87fe212cb7b51d75b9e8e74181fe363199ee9b47"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2518,11 +2539,12 @@ dependencies = [
 
 [[package]]
 name = "glam"
-version = "0.25.0"
+version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "151665d9be52f9bb40fc7966565d39666f2d1e69233571b71b87791c7e0528b3"
+checksum = "9e05e7e6723e3455f4818c7b26e855439f7546cf617ef669d1adedb8669e5cb9"
 dependencies = [
  "bytemuck",
+ "rand",
  "serde",
 ]
 
@@ -2710,9 +2732,9 @@ dependencies = [
 
 [[package]]
 name = "grid"
-version = "0.10.0"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eec1c01eb1de97451ee0d60de7d81cf1e72aabefb021616027f3d1c3ec1c723c"
+checksum = "d196ffc1627db18a531359249b2bf8416178d84b729f3cebeb278f285fb9b58c"
 
 [[package]]
 name = "guillotiere"
@@ -2774,9 +2796,9 @@ checksum = "d231dfb89cfffdbc30e7fc41579ed6066ad03abda9e567ccafae602b97ec5024"
 
 [[package]]
 name = "hexasphere"
-version = "10.0.0"
+version = "12.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f33ddb7f7143d9e703c072e88b98cd8b9719f174137a671429351bd2ee43c02a"
+checksum = "edd6b038160f086b0a7496edae34169ae22f328793cbe2b627a5a3d8373748ec"
 dependencies = [
  "constgebra",
  "glam",
@@ -4399,12 +4421,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sha1_smol"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae1a47186c03a32177042e55dbc5fd5aee900b8e0069a8d70fba96a9375cd012"
-
-[[package]]
 name = "sharded-slab"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4679,13 +4695,14 @@ dependencies = [
 
 [[package]]
 name = "taffy"
-version = "0.3.19"
+version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1315457ccd9c3def787a18fae91914e623e4dcff019b64ce39f5268ded53d3d"
+checksum = "9ec17858c2d465b2f734b798b920818a974faf0babb15d7fef81818a4b2d16f1"
 dependencies = [
  "arrayvec 0.7.4",
  "grid",
  "num-traits",
+ "serde",
  "slotmap",
 ]
 

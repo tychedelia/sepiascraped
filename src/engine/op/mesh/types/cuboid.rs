@@ -4,7 +4,7 @@ use bevy::ecs::system::{StaticSystemParam, SystemParamItem};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::extract_component::ExtractComponent;
-use bevy::render::view::{CameraLayer, RenderLayers};
+use bevy::render::view::{ RenderLayers};
 use bevy::utils::HashMap;
 use std::f32::consts::PI;
 use std::ops::DerefMut;
@@ -68,7 +68,7 @@ impl OpSpawn for MeshOpCuboid {
                 },
                 ..default()
             },
-            CameraLayer::new(new_layer),
+            RenderLayers::from_layers(&[new_layer]),
         ));
 
         commands.spawn((
@@ -83,7 +83,7 @@ impl OpSpawn for MeshOpCuboid {
                 transform: Transform::from_xyz(8.0, 16.0, 8.0),
                 ..default()
             },
-            RenderLayers::from_layer(new_layer),
+            RenderLayers::from_layers(&[new_layer]),
         ));
 
         (
@@ -103,7 +103,7 @@ impl OpSpawn for MeshOpCuboid {
                 },
             },
             MeshOpInputMeshes::default(),
-            RenderLayers::from_layer(new_layer),
+            RenderLayers::from_layers(&[new_layer]),
         )
     }
 }

@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 use bevy::render::primitives::Aabb;
-use bevy::render::view::NoFrustumCulling;
+use bevy::render::view::{check_visibility, NoFrustumCulling, VisibilitySystems};
 use bevy::render::view::VisibleEntities;
-use bevy::sprite::{MaterialMesh2dBundle, Mesh2dHandle};
+use bevy::sprite::{MaterialMesh2dBundle, Mesh2dHandle, WithMesh2d, WithSprite};
 use bevy::window::PrimaryWindow;
 use bevy_mod_picking::events::{Drag, DragEnd, DragStart, Pointer};
 use bevy_mod_picking::picking_core::Pickable;
@@ -20,7 +20,11 @@ impl Plugin for InfiniteGridPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(PreviousScale { scale: 1.0 })
             .add_systems(Startup, grid_setup)
-            .add_systems(Update, resize_grid_drag_mesh.in_set(Ui));
+            .add_systems(Update, resize_grid_drag_mesh.in_set(Ui))
+            .add_systems(PostUpdate, (
+                check_visibility::<With<InfiniteGridSettings>>,
+            )
+                .in_set(VisibilitySystems::CheckVisibility));
     }
 
     fn finish(&self, app: &mut App) {
@@ -128,8 +132,8 @@ pub fn grid_setup(
         .spawn(InfiniteGridBundle {
             settings: InfiniteGridSettings {
                 // shadow_color: None,
-                x_axis_color: Color::rgb(1.0, 0.2, 0.2),
-                y_axis_color: Color::rgb(0.2, 0.2, 1.0),
+                x_axis_color: Color::srgb(1.0, 0.2, 0.2),
+                y_axis_color: Color::srgb(0.2, 0.2, 1.0),
                 ..default()
             },
             ..default()
@@ -145,7 +149,7 @@ pub fn grid_setup(
                             ..Default::default()
                         }))
                         .into(),
-                    material: materials.add(Color::rgba(0.0, 0.0, 0.0, 0.0)),
+                    material: materials.add(Color::NONE),
                     ..Default::default()
                 },
                 PickableBundle::default(), // <- Makes the mesh pickable.

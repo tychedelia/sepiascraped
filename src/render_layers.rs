@@ -57,7 +57,7 @@ fn sync(
     render_layer_manager.add(0);
     for layer in render_layers_q.iter() {
         for layer in layer.iter() {
-            render_layer_manager.add(layer.0);
+            render_layer_manager.add(layer.into());
         }
     }
 }

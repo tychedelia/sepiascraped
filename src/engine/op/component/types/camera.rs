@@ -55,7 +55,7 @@ impl OpSpawn for ComponentOpCamera {
             Camera3dBundle {
                 ..Default::default()
             },
-            RenderLayers::from_layer(layer_manager.next_open_layer()),
+            RenderLayers::from_layers(&[layer_manager.next_open_layer()]),
             OpImage::default(),
             OpInputs::default(),
             OpOutputs::default(),

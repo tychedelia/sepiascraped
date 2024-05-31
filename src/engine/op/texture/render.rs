@@ -149,7 +149,7 @@ pub fn prepare_texture_op_bind_group<T>(
         With<<T as Op>::OpType>,
     >,
     shader_handle: Res<TextureOpShaderHandle<T>>,
-    images: Res<RenderAssets<Image>>,
+    images: Res<RenderAssets<GpuImage>>,
     render_device: Res<RenderDevice>,
 ) where
     T: TextureOp + Component + ExtractComponent + Clone + Debug + Send + Sync + 'static,

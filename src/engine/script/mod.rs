@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::num::NonZeroU8;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use std::sync::mpsc::{Receiver, TryRecvError};
@@ -225,7 +226,7 @@ pub fn update(world: &mut World) {
             Err(err) => {
                 if err != TryRecvError::Empty {
                     error!("Error: {:?}", err);
-                    world.send_event(AppExit);
+                    world.send_event(AppExit::Success);
                     return;
                 } else {
                     None

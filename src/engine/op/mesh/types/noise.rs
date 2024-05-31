@@ -5,7 +5,7 @@ use bevy::pbr::light_consts::lux::AMBIENT_DAYLIGHT;
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::extract_component::ExtractComponent;
-use bevy::render::view::{CameraLayer, RenderLayers};
+use bevy::render::view::{ RenderLayers};
 use bevy_egui::egui::ahash::HashMap;
 use noise::core::perlin::perlin_3d;
 use noise::permutationtable::PermutationTable;
@@ -68,7 +68,7 @@ impl OpSpawn for MeshOpNoise {
                 },
                 ..default()
             },
-            CameraLayer::new(new_layer),
+            RenderLayers::from_layers(&[new_layer]),
         ));
 
         commands.spawn((
@@ -83,7 +83,7 @@ impl OpSpawn for MeshOpNoise {
                 transform: Transform::from_xyz(8.0, 16.0, 8.0),
                 ..default()
             },
-            RenderLayers::from_layer(new_layer),
+            RenderLayers::from_layers(&[new_layer]),
         ));
 
         let mesh = meshes.add(Mesh::from(Circle::new(0.0001)));
@@ -104,7 +104,7 @@ impl OpSpawn for MeshOpNoise {
                 },
             },
             MeshOpInputMeshes::default(),
-            RenderLayers::from_layer(new_layer),
+            RenderLayers::from_layers(&[new_layer]),
         )
     }
 

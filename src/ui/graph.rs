@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use bevy::render::camera::CameraOutputMode;
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle};
+use bevy::transform::TransformSystem::TransformPropagate;
 use bevy::utils::{info, HashMap};
 use bevy_mod_picking::prelude::*;
 use bevy_mod_picking::PickableBundle;
@@ -38,7 +39,7 @@ impl Plugin for GraphPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(Material2dPlugin::<NodeMaterial>::default())
             .add_systems(Startup, setup)
-            .add_systems(First, despawn_nodes)
+            .add_systems(First, (ensure_despawn_nodes, update_op_images))
             .add_systems(
                 Update,
                 (
@@ -48,7 +49,6 @@ impl Plugin for GraphPlugin {
                         update_camera_enabled,
                         update_ui_refs,
                         draw_refs,
-                        update_connections,
                         do_layout,
                         click_node.run_if(on_event::<ClickNode>()),
                         handle_connect.run_if(on_event::<Connect>()),
@@ -58,7 +58,13 @@ impl Plugin for GraphPlugin {
                         .in_set(Sets::Ui),
                 ),
             )
-            .add_systems(First, update_op_images);
+            .add_systems(
+                PostUpdate,
+                (
+                    update_connections,
+                )
+                    .in_set(TransformPropagate),
+            );
     }
 }
 
@@ -71,6 +77,9 @@ pub struct UiRef(pub Entity);
 
 #[derive(Component, Clone)]
 pub struct SelectedNode;
+
+#[derive(Component)]
+pub struct ConnectionWire;
 
 #[derive(Component)]
 pub struct Port;
@@ -362,11 +371,23 @@ fn connection_drag(
     if let Ok((transform, children, category, is_input, is_output)) = me_q.get_mut(event.target()) {
         assert_ne!(is_input, is_output);
 
-        if let Some(children) = children {
-            for child in children.iter() {
-                commands.entity(*child).despawn_recursive();
-            }
-        }
+        let connection_wire = match children {
+            None => commands.entity(event.target).with_children(|parent| {
+                parent.spawn((
+                    ConnectionWire,
+                    ShapeBundle {
+                        spatial: SpatialBundle {
+                            transform: Transform::from_translation(Vec3::new(0.0, 0.0, -5.03)),
+                            ..default()
+                        },
+                        ..default()
+                    },
+                    Stroke::new(Color::from(BLACK), 4.0),
+                    Pickable::IGNORE,
+                ));
+            }).id(),
+            Some(children) => *children.first().unwrap()
+        };
 
         let (camera, camera_transform) = camera_q.single();
         let start = Vec2::ZERO;
@@ -399,7 +420,7 @@ fn connection_drag(
         end -= transform.translation().xy();
 
         let entity = event.target();
-        draw_connection(&mut commands, &start, &end, entity);
+        draw_connection(&mut commands, &start, &end, connection_wire);
     }
 }
 
@@ -508,17 +529,13 @@ fn connection_drag_end(
                 input_port: to_maybe_in_port.unwrap().0,
             });
         } else {
-            draw_connection(&mut commands, &start, &end, to_entity);
+            draw_connection(&mut commands, &end, &start, to_entity);
             ev_connect.send(Connect {
                 output: to_op_ref.0,
                 input: from_op_ref.0,
                 output_port: to_maybe_out_port.unwrap().0,
                 input_port: from_maybe_in_port.unwrap().0,
             });
-        }
-    } else if let Some(children) = children {
-        for child in children.iter() {
-            commands.entity(*child).despawn_recursive();
         }
     }
 }
@@ -576,28 +593,15 @@ fn handle_disconnect(
 }
 
 fn draw_connection(commands: &mut Commands, start: &Vec2, end: &Vec2, entity: Entity) {
-    commands.entity(entity).with_children(|parent| {
-        let control_scale = ((end.x - start.x) / 2.0).max(30.0);
-        let src_control = *start + Vec2::X * control_scale;
-        let dst_control = *end - Vec2::X * control_scale;
+    let control_scale = ((end.x - start.x) / 2.0).max(30.0);
+    let src_control = *start + Vec2::X * control_scale;
+    let dst_control = *end - Vec2::X * control_scale;
 
-        let mut path_builder = PathBuilder::new();
-        path_builder.move_to(*start);
-        path_builder.cubic_bezier_to(src_control, dst_control, *end);
-        let path = path_builder.build();
-        parent.spawn((
-            ShapeBundle {
-                path,
-                spatial: SpatialBundle {
-                    transform: Transform::from_translation(Vec3::new(0.0, 0.0, -5.03)),
-                    ..default()
-                },
-                ..default()
-            },
-            Stroke::new(Color::from(BLACK), 4.0),
-            Pickable::IGNORE,
-        ));
-    });
+    let mut path_builder = PathBuilder::new();
+    path_builder.move_to(*start);
+    path_builder.cubic_bezier_to(src_control, dst_control, *end);
+    let path = path_builder.build();
+    commands.entity(entity).insert(path);
 }
 
 fn draw_refs(
@@ -645,18 +649,22 @@ fn draw_refs(
     }
 }
 
-fn update_connections(
+fn despawn_connections(
     mut commands: Commands,
     port_children_q: Query<&Children, (With<Port>, Without<Connecting>)>,
-    out_port_q: Query<(Entity, &GlobalTransform, &ConnectedTo), With<OutPort>>,
-    in_port_q: Query<(Entity, &GlobalTransform, &Transform), With<InPort>>,
 ) {
     for children in port_children_q.iter() {
         for child in children.iter() {
             commands.entity(*child).despawn_recursive();
         }
     }
+}
 
+fn update_connections(
+    mut commands: Commands,
+    out_port_q: Query<(Entity, &GlobalTransform, &ConnectedTo), With<OutPort>>,
+    in_port_q: Query<(Entity, &GlobalTransform, &Transform), With<InPort>>,
+) {
     // Connect inputs to outputs
     for (in_entity, transform, in_connected_to) in out_port_q.iter() {
         let (out_entity, output_global_transform, output_transform) =
@@ -729,7 +737,7 @@ pub fn layout(
     layout
 }
 
-fn despawn_nodes(
+fn ensure_despawn_nodes(
     mut commands: Commands,
     mut entity_q: Query<Entity, With<UiRef>>,
     mut all_nodes_q: Query<(Entity, &OpRef), With<NodeRoot>>,

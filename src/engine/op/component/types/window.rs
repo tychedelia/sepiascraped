@@ -4,7 +4,8 @@ use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::extract_component::ExtractComponent;
-use bevy::render::view::{CameraLayer, RenderLayers};
+use bevy::render::RenderSet::Render;
+use bevy::render::view::{RenderLayers};
 use bevy::window::WindowRef;
 
 use crate::engine::graph::event::{Connect, Disconnect};
@@ -136,7 +137,7 @@ impl OpSpawn for ComponentOpWindow {
                 },
                 ..default()
             },
-            CameraLayer::new(next_layer),
+RenderLayers::from_layers(&[next_layer]),
         ));
 
         (
@@ -144,7 +145,7 @@ impl OpSpawn for ComponentOpWindow {
                 title: name.0.clone(),
                 ..default()
             },
-            RenderLayers::from_layer(next_layer),
+            RenderLayers::from_layers(&[next_layer]),
             OpImage::default(),
             OpInputs::default(),
             OpOutputs::default(),

@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use bevy::core_pipeline::core_2d::Transparent2d;
 use bevy::math::FloatOrd;
-use bevy::render::render_phase::SortedRenderPhase;
+use bevy::render::render_phase::{PhaseItemExtraIndex, SortedRenderPhase, ViewSortedRenderPhases};
 use bevy::render::view::{ViewUniform, ViewUniformOffset, ViewUniforms};
 use bevy::{
     ecs::{
@@ -320,10 +320,11 @@ fn queue_infinite_grids(
     transparent_draw_functions: Res<DrawFunctions<Transparent2d>>,
     pipeline: Res<InfiniteGridPipeline>,
     mut pipelines: ResMut<SpecializedRenderPipelines<InfiniteGridPipeline>>,
-    infinite_grids: Query<&ExtractedInfiniteGrid>,
+    infinite_grids: Query<(Entity, &ExtractedInfiniteGrid)>,
+    mut transparent_render_phases: ResMut<ViewSortedRenderPhases<Transparent2d>>,
     mut views: Query<(
+        Entity,
         &VisibleEntities,
-        &mut SortedRenderPhase<Transparent2d>,
         &ExtractedView,
     )>,
     msaa: Res<Msaa>,
@@ -333,7 +334,11 @@ fn queue_infinite_grids(
         .get_id::<DrawInfiniteGrid>()
         .unwrap();
 
-    for (entities, mut phase, view) in views.iter_mut() {
+    for (view_entity, entities, view) in views.iter_mut() {
+        let Some(transparent_phase) = transparent_render_phases.get_mut(&view_entity) else {
+            continue;
+        };
+
         let mesh_key = MeshPipelineKey::from_hdr(view.hdr);
         let base_pipeline = pipelines.specialize(
             &pipeline_cache,
@@ -344,19 +349,21 @@ fn queue_infinite_grids(
             },
         );
 
-        for &entity in &entities.entities {
-            if infinite_grids
-                .get(entity)
-                .map(|grid| plane_check(&grid.transform, view.transform.translation()))
-                .unwrap_or(false)
+        for entity in entities.entities.iter().flat_map(|x| x.1.iter()) {
+            if let Some(infinite_grid) = infinite_grids
+                .get(*entity)
+                .iter()
+                .filter(|(_, grid)| plane_check(&grid.transform, view.transform.translation()))
+                .map(|(_, grid)| grid)
+                .next()
             {
-                phase.items.push(Transparent2d {
-                    sort_key: FloatOrd(0.0),
+                transparent_phase.add(Transparent2d {
+                    sort_key: FloatOrd(infinite_grid.transform.translation().z),
                     pipeline: base_pipeline,
-                    entity,
+                    entity: *entity,
                     draw_function: draw_function_id,
                     batch_range: 0..1,
-                    dynamic_offset: None,
+                    extra_index: PhaseItemExtraIndex::NONE,
                 });
             }
         }

@@ -5,7 +5,7 @@ use bevy::ecs::query::QueryData;
 use bevy::ecs::system::lifetimeless::{Read, SQuery, Write};
 use bevy::ecs::system::{lifetimeless, SystemParamItem};
 use bevy::prelude::*;
-use bevy::render::camera::RenderTarget;
+use bevy::render::camera::{CameraRenderGraph, RenderTarget};
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::render_resource::encase::internal::WriteInto;
 use bevy::render::render_resource::{
@@ -156,11 +156,12 @@ fn create_bundle<'w, T: TextureOp>(
     entity: Entity,
     (mut images): &mut SystemParamItem<'w, '_, DefaultTextureSpawnParam>,
 ) -> DefaultTextureBundle<T> {
-    let image = images.add(crate::engine::op::OpImage::new_image(512, 512));
+    let image = images.add(OpImage::new_image(512, 512));
+
     (
         TextureOpBundle {
             camera: Camera3dBundle {
-                camera_render_graph: bevy::render::camera::CameraRenderGraph::new(
+                camera_render_graph: CameraRenderGraph::new(
                     render::TextureOpSubGraph,
                 ),
                 camera: Camera {
