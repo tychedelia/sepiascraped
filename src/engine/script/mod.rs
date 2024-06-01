@@ -8,7 +8,7 @@ use bevy::app::AppExit;
 use bevy::asset::AssetContainer;
 use bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell;
 use bevy::prelude::*;
-use bevy::utils::{HashMap, warn};
+use bevy::utils::{warn, HashMap};
 use colored::Colorize;
 use rand::Rng;
 use rustyline::error::ReadlineError;
@@ -22,7 +22,8 @@ use steel::steel_vm::register_fn::RegisterFn;
 use steel::SteelVal;
 use steel_derive::Steel;
 
-use crate::index::{CompositeIndex2, UniqueIndex};
+use crate::engine::graph::event::Connect;
+use crate::engine::graph::GraphState;
 use crate::engine::op::component::types::camera::ComponentOpCamera;
 use crate::engine::op::component::types::geom::ComponentOpGeom;
 use crate::engine::op::component::types::light::ComponentOpLight;
@@ -40,9 +41,8 @@ use crate::engine::op::{OpCategory, OpName, OpRef, OpType};
 use crate::engine::param::{ParamName, ParamValue, ScriptedParam, ScriptedParamError};
 use crate::engine::script::asset::{ProgramCache, Script, ScriptAssetPlugin};
 use crate::engine::script::helper::RustylineHelper;
-use crate::engine::graph::event::Connect;
+use crate::index::{CompositeIndex2, UniqueIndex};
 use crate::Sets;
-use crate::engine::graph::GraphState;
 
 mod asset;
 mod helper;
@@ -381,18 +381,22 @@ fn param(world: &mut WorldHolder, entity: EntityRef, name: String) -> SteelVal {
     name
 }
 
-fn connect_bang(world: &mut WorldHolder, output: EntityRef, output_port: u8, input: EntityRef, input_port: u8) -> SteelVal {
+fn connect_bang(
+    world: &mut WorldHolder,
+    output: EntityRef,
+    output_port: u8,
+    input: EntityRef,
+    input_port: u8,
+) -> SteelVal {
     let mut world = unsafe { world.world_mut() };
     let output = output.0;
     let input = input.0;
-    world.send_event(
-        Connect {
-            output,
-            input,
-            output_port,
-            input_port,
-        }
-    );
+    world.send_event(Connect {
+        output,
+        input,
+        output_port,
+        input_port,
+    });
 
     SteelVal::Void
 }

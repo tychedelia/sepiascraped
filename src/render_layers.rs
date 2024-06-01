@@ -43,8 +43,6 @@ impl RenderLayerManager {
             .unwrap_or(self.layers.len());
 
         self.add(layer);
-
-        info!("Handing out layer: {}", layer);
         layer
     }
 }

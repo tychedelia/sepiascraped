@@ -3,11 +3,18 @@ use bevy::prelude::*;
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::render_resource::ShaderType;
 
-use crate::engine::op::texture::render::TextureOpRenderPlugin;
-use crate::engine::op::texture::{create_bundle, on_connect, on_disconnect, params, update, DefaultTextureBundle, DefaultTextureOnConnectParam, DefaultTextureSpawnParam, DefaultTextureUpdateParam, TextureOp, CATEGORY, DefaultTextureOnDisconnectParam};
-use crate::engine::op::{Op, OpExecute, OpOnConnect, OpOnDisconnect, OpPlugin, OpShouldExecute, OpSpawn, OpType, OpUpdate};
-use crate::engine::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 use crate::engine::graph::event::{Connect, Disconnect};
+use crate::engine::op::texture::render::TextureOpRenderPlugin;
+use crate::engine::op::texture::{
+    create_bundle, on_connect, on_disconnect, params, update, DefaultTextureBundle,
+    DefaultTextureOnConnectParam, DefaultTextureOnDisconnectParam, DefaultTextureSpawnParam,
+    DefaultTextureUpdateParam, TextureOp, CATEGORY,
+};
+use crate::engine::op::{
+    Op, OpExecute, OpOnConnect, OpOnDisconnect, OpPlugin, OpShouldExecute, OpSpawn, OpType,
+    OpUpdate,
+};
+use crate::engine::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 
 #[derive(Default)]
 pub struct TextureOpCompositePlugin;

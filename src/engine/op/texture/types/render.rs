@@ -1,10 +1,13 @@
-use bevy::ecs::system::SystemParamItem;
+use crate::engine::graph::event::{Connect, Disconnect};
 use crate::engine::op::texture::types::composite::TextureOpComposite;
-use crate::engine::op::{Op, OpExecute, OpOnConnect, OpOnDisconnect, OpPlugin, OpShouldExecute, OpSpawn, OpType, OpUpdate};
+use crate::engine::op::{
+    Op, OpExecute, OpOnConnect, OpOnDisconnect, OpPlugin, OpShouldExecute, OpSpawn, OpType,
+    OpUpdate,
+};
+use crate::engine::param::ParamBundle;
+use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
 use bevy::render::extract_component::ExtractComponent;
-use crate::engine::graph::event::{Connect, Disconnect};
-use crate::engine::param::ParamBundle;
 
 pub struct TextureOpRenderPlugin;
 
@@ -25,7 +28,10 @@ impl OpSpawn for TextureOpRender {
         todo!()
     }
 
-    fn create_bundle<'w>(entity: Entity, param: &mut SystemParamItem<'w, '_, Self::Param>) -> Self::Bundle {
+    fn create_bundle<'w>(
+        entity: Entity,
+        param: &mut SystemParamItem<'w, '_, Self::Param>,
+    ) -> Self::Bundle {
         todo!()
     }
 }
@@ -38,7 +44,9 @@ impl OpUpdate for TextureOpRender {
     }
 }
 
-impl OpShouldExecute for TextureOpRender { type Param = (); }
+impl OpShouldExecute for TextureOpRender {
+    type Param = ();
+}
 
 impl OpExecute for TextureOpRender {
     fn execute(&self, entity: Entity, world: &mut World) {
@@ -49,7 +57,12 @@ impl OpExecute for TextureOpRender {
 impl OpOnConnect for TextureOpRender {
     type Param = ();
 
-    fn on_connect<'w>(entity: Entity, event: Connect, fully_connected: bool, param: &mut SystemParamItem<'w, '_, Self::Param>) {
+    fn on_connect<'w>(
+        entity: Entity,
+        event: Connect,
+        fully_connected: bool,
+        param: &mut SystemParamItem<'w, '_, Self::Param>,
+    ) {
         todo!()
     }
 }
@@ -57,7 +70,12 @@ impl OpOnConnect for TextureOpRender {
 impl OpOnDisconnect for TextureOpRender {
     type Param = ();
 
-    fn on_disconnect<'w>(entity: Entity, event: Disconnect, fully_connected: bool, param: &mut SystemParamItem<'w, '_, Self::Param>) {
+    fn on_disconnect<'w>(
+        entity: Entity,
+        event: Disconnect,
+        fully_connected: bool,
+        param: &mut SystemParamItem<'w, '_, Self::Param>,
+    ) {
         todo!()
     }
 }

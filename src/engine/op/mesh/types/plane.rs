@@ -4,11 +4,12 @@ use bevy::ecs::system::{StaticSystemParam, SystemParamItem};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::extract_component::ExtractComponent;
-use bevy::render::view::{ RenderLayers};
+use bevy::render::view::RenderLayers;
 use bevy::utils::HashMap;
 use std::f32::consts::PI;
 use std::ops::DerefMut;
 
+use crate::engine::graph::event::{Connect, Disconnect};
 use crate::engine::op::mesh::{MeshOpBundle, MeshOpHandle, MeshOpInputMeshes, CATEGORY};
 use crate::engine::op::{
     Op, OpExecute, OpImage, OpInputs, OpOnConnect, OpOnDisconnect, OpOutputs, OpPlugin, OpRef,
@@ -16,7 +17,6 @@ use crate::engine::op::{
 };
 use crate::engine::param::{IntoParams, ParamBundle, ParamValue, Params};
 use crate::render_layers::RenderLayerManager;
-use crate::engine::graph::event::{Connect, Disconnect};
 
 #[derive(Default)]
 pub struct MeshOpPlanePlugin;

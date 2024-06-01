@@ -43,12 +43,11 @@ impl Plugin for GraphPlugin {
             .add_systems(
                 Update,
                 (
-                    (update_graph).in_set(Sets::Graph),
+                    update_graph.in_set(Sets::Graph),
                     (
                         ui,
                         update_camera_enabled,
                         update_ui_refs,
-                        draw_refs,
                         do_layout,
                         click_node.run_if(on_event::<ClickNode>()),
                         handle_connect.run_if(on_event::<Connect>()),
@@ -58,13 +57,7 @@ impl Plugin for GraphPlugin {
                         .in_set(Sets::Ui),
                 ),
             )
-            .add_systems(
-                PostUpdate,
-                (
-                    update_connections,
-                )
-                    .in_set(TransformPropagate),
-            );
+            .add_systems(PostUpdate, (update_connections, draw_refs).after(TransformPropagate));
     }
 }
 
@@ -331,7 +324,7 @@ fn spawn_port<T: Component>(
         category,
         MaterialMesh2dBundle {
             mesh: meshes.add(Mesh::from(Circle::new(10.0))).into(),
-            material: color_materials.add(Color::rgb(0.5, 0.5, 0.5)),
+            material: color_materials.add(Color::srgb(0.5, 0.5, 0.5)),
             transform: Transform::from_translation(translation),
             ..Default::default()
         },
@@ -356,37 +349,37 @@ fn connection_drag(
         ),
         With<Connecting>,
     >,
-    port_q: Query<
-        (
-            Entity,
-            &GlobalTransform,
-            &PortCategory,
-            Has<InPort>,
-            Has<OutPort>,
-        ),
-        With<Port>,
-    >,
+    port_q: Query<(&GlobalTransform, &PortCategory, Has<InPort>, Has<OutPort>), With<Port>>,
 ) {
-    // TODO: this event sholdn't fire
     if let Ok((transform, children, category, is_input, is_output)) = me_q.get_mut(event.target()) {
         assert_ne!(is_input, is_output);
 
-        let connection_wire = match children {
-            None => commands.entity(event.target).with_children(|parent| {
-                parent.spawn((
-                    ConnectionWire,
-                    ShapeBundle {
-                        spatial: SpatialBundle {
-                            transform: Transform::from_translation(Vec3::new(0.0, 0.0, -5.03)),
-                            ..default()
-                        },
-                        ..default()
-                    },
-                    Stroke::new(Color::from(BLACK), 4.0),
-                    Pickable::IGNORE,
-                ));
-            }).id(),
-            Some(children) => *children.first().unwrap()
+        let mut connection_wire = None;
+        match children {
+            None => {
+                commands.entity(event.target).with_children(|parent| {
+                    connection_wire = Some(
+                        parent
+                            .spawn((
+                                ConnectionWire,
+                                ShapeBundle {
+                                    spatial: SpatialBundle {
+                                        transform: Transform::from_translation(Vec3::new(
+                                            0.0, 0.0, -5.03,
+                                        )),
+                                        ..default()
+                                    },
+                                    ..default()
+                                },
+                                Pickable::IGNORE,
+                            ))
+                            .id(),
+                    );
+                });
+            }
+            Some(children) => {
+                connection_wire = Some(*children.first().unwrap());
+            }
         };
 
         let (camera, camera_transform) = camera_q.single();
@@ -399,8 +392,7 @@ fn connection_drag(
 
         // Snap to
         let mut closest_port = None;
-        for (entity, transform, target_category, target_is_input, target_is_output) in port_q.iter()
-        {
+        for (transform, target_category, target_is_input, target_is_output) in port_q.iter() {
             if is_input && target_is_input || is_output && target_is_output {
                 continue;
             }
@@ -409,18 +401,22 @@ fn connection_drag(
             }
 
             if transform.translation().xy().distance(pointer_world) < 40.0 {
-                closest_port = Some((entity, transform, is_input));
+                closest_port = Some(transform);
             }
         }
 
-        if let Some((to_entity, transform, is_input)) = closest_port {
+        if let Some(transform) = closest_port {
             end = transform.translation().xy();
         }
 
         end -= transform.translation().xy();
 
-        let entity = event.target();
-        draw_connection(&mut commands, &start, &end, connection_wire);
+        draw_connection(
+            &mut commands,
+            &start,
+            &end,
+            connection_wire.expect("No connection wire"),
+        );
     }
 }
 
@@ -431,7 +427,6 @@ fn connection_drag_end(
     mut me_q: Query<
         (
             Entity,
-            Option<&Children>,
             &Parent,
             &PortCategory,
             Has<InPort>,
@@ -455,11 +450,11 @@ fn connection_drag_end(
         With<Port>,
     >,
     ui_ref_q: Query<&OpRef>,
+    connection_wire_q: Query<(Entity, &Parent), With<ConnectionWire>>,
     mut ev_connect: EventWriter<Connect>,
 ) {
     let (
         from_entity,
-        children,
         from_parent,
         category,
         is_input,
@@ -520,8 +515,13 @@ fn connection_drag_end(
         let to_op_ref = ui_ref_q.get(**to_parent).unwrap();
 
         // Ensure the connection is created on the output side
+        let connection_wire = connection_wire_q
+            .iter()
+            .find(|(_, parent)| parent.get() == from_entity)
+            .map(|(entity, _)| entity)
+            .expect("No connection wire");
         if is_output {
-            draw_connection(&mut commands, &start, &end, from_entity);
+            draw_connection(&mut commands, &start, &end, connection_wire);
             ev_connect.send(Connect {
                 output: from_op_ref.0,
                 input: to_op_ref.0,
@@ -529,7 +529,7 @@ fn connection_drag_end(
                 input_port: to_maybe_in_port.unwrap().0,
             });
         } else {
-            draw_connection(&mut commands, &end, &start, to_entity);
+            draw_connection(&mut commands, &end, &start, connection_wire);
             ev_connect.send(Connect {
                 output: to_op_ref.0,
                 input: from_op_ref.0,
@@ -547,9 +547,6 @@ fn handle_connect(
     out_port_q: Query<(Entity, &OutPort)>,
     in_port_q: Query<(Entity, &InPort)>,
     mut ev_connect: EventReader<Connect>,
-    mut materials: ResMut<Assets<NodeMaterial>>,
-    op_q: Query<(&OpImage, &OpInputs, &UiRef)>,
-    material_q: Query<&Handle<NodeMaterial>>,
 ) {
     for connect in ev_connect.read() {
         let ui_ref = ui_ref_q.get(connect.output).unwrap();
@@ -601,7 +598,9 @@ fn draw_connection(commands: &mut Commands, start: &Vec2, end: &Vec2, entity: En
     path_builder.move_to(*start);
     path_builder.cubic_bezier_to(src_control, dst_control, *end);
     let path = path_builder.build();
-    commands.entity(entity).insert(path);
+    commands
+        .entity(entity)
+        .insert((path, Stroke::new(Color::from(BLACK), 4.0)));
 }
 
 fn draw_refs(
@@ -662,18 +661,16 @@ fn despawn_connections(
 
 fn update_connections(
     mut commands: Commands,
-    out_port_q: Query<(Entity, &GlobalTransform, &ConnectedTo), With<OutPort>>,
-    in_port_q: Query<(Entity, &GlobalTransform, &Transform), With<InPort>>,
+    out_port_q: Query<(Entity, &GlobalTransform, &ConnectedTo, &Children), With<OutPort>>,
+    in_port_q: Query<(&GlobalTransform), With<InPort>>,
 ) {
-    // Connect inputs to outputs
-    for (in_entity, transform, in_connected_to) in out_port_q.iter() {
-        let (out_entity, output_global_transform, output_transform) =
-            in_port_q.get(in_connected_to.0).unwrap();
-
+    // Connect outputs to  inputs
+    for (out_entity, out_transform, out_connected_to, children) in out_port_q.iter() {
+        let (in_transform) = in_port_q.get(out_connected_to.0).unwrap();
         let start = Vec2::ZERO;
-        let end = output_global_transform.translation().xy() - transform.translation().xy();
-
-        draw_connection(&mut commands, &start, &end, in_entity);
+        let end = in_transform.translation().xy() - out_transform.translation().xy();
+        let connection_wire = children.first().unwrap();
+        draw_connection(&mut commands, &start, &end, *connection_wire);
     }
 }
 

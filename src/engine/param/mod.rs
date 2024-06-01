@@ -6,9 +6,9 @@ use std::ops::DerefMut;
 use bevy::prelude::*;
 use bevy::utils::AHasher;
 
-use crate::index::{CompositeIndex2, CompositeIndex2Plugin};
 use crate::engine::op::{OpCategory, OpRef};
 use crate::engine::script::update;
+use crate::index::{CompositeIndex2, CompositeIndex2Plugin};
 use crate::Sets;
 
 pub struct ParamPlugin;

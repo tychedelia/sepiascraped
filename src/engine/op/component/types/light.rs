@@ -6,17 +6,17 @@ use bevy::render::camera::RenderTarget;
 use bevy::render::extract_component::ExtractComponent;
 use bevy::render::view::RenderLayers;
 
-use crate::index::CompositeIndex2;
+use crate::engine::graph::event::{Connect, Disconnect};
 use crate::engine::op::component::CATEGORY;
+use crate::engine::op::OpName;
 use crate::engine::op::OpRef;
 use crate::engine::op::{Op, OpInputs, OpOutputs, OpPlugin, OpType};
 use crate::engine::op::{
     OpExecute, OpImage, OpOnConnect, OpOnDisconnect, OpShouldExecute, OpSpawn, OpUpdate,
 };
 use crate::engine::param::{IntoParams, ParamBundle, ParamName, ParamOrder, ParamValue};
+use crate::index::CompositeIndex2;
 use crate::render_layers::RenderLayerManager;
-use crate::engine::graph::event::{Connect, Disconnect};
-use crate::engine::op::OpName;
 
 #[derive(Default)]
 pub struct ComponentOpLightPlugin;

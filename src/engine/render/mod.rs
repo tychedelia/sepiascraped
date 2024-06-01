@@ -3,12 +3,12 @@ use bevy::render::camera::CameraOutputMode;
 use bevy::utils::AHasher;
 use std::hash::{BuildHasherDefault, Hash, Hasher};
 
-use crate::engine::op::texture::TextureOp;
-use crate::engine::param::Params;
 use crate::engine::graph::update_graph;
-use crate::Sets;
 use crate::engine::graph::GraphState;
+use crate::engine::op::texture::TextureOp;
 use crate::engine::op::OpName;
+use crate::engine::param::Params;
+use crate::Sets;
 
 pub struct RenderPlugin;
 

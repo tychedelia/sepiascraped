@@ -5,7 +5,7 @@ use bevy::pbr::light_consts::lux::AMBIENT_DAYLIGHT;
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::extract_component::ExtractComponent;
-use bevy::render::view::{ RenderLayers};
+use bevy::render::view::RenderLayers;
 use bevy_egui::egui::ahash::HashMap;
 use noise::core::perlin::perlin_3d;
 use noise::permutationtable::PermutationTable;

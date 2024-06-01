@@ -322,11 +322,7 @@ fn queue_infinite_grids(
     mut pipelines: ResMut<SpecializedRenderPipelines<InfiniteGridPipeline>>,
     infinite_grids: Query<(Entity, &ExtractedInfiniteGrid)>,
     mut transparent_render_phases: ResMut<ViewSortedRenderPhases<Transparent2d>>,
-    mut views: Query<(
-        Entity,
-        &VisibleEntities,
-        &ExtractedView,
-    )>,
+    mut views: Query<(Entity, &VisibleEntities, &ExtractedView)>,
     msaa: Res<Msaa>,
 ) {
     let draw_function_id = transparent_draw_functions

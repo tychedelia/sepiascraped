@@ -4,8 +4,8 @@ use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::extract_component::ExtractComponent;
+use bevy::render::view::RenderLayers;
 use bevy::render::RenderSet::Render;
-use bevy::render::view::{RenderLayers};
 use bevy::window::WindowRef;
 
 use crate::engine::graph::event::{Connect, Disconnect};
@@ -97,13 +97,7 @@ impl OpUpdate for ComponentOpWindow {
 
 impl OpSpawn for ComponentOpWindow {
     type Param = (SCommands, SQuery<Read<OpName>>, SResMut<RenderLayerManager>);
-    type Bundle = (
-        Window,
-        RenderLayers,
-        OpImage,
-        OpInputs,
-        OpOutputs,
-    );
+    type Bundle = (Window, RenderLayers, OpImage, OpInputs, OpOutputs);
 
     fn params(bundle: &Self::Bundle) -> Vec<ParamBundle> {
         vec![
@@ -137,7 +131,7 @@ impl OpSpawn for ComponentOpWindow {
                 },
                 ..default()
             },
-RenderLayers::from_layers(&[next_layer]),
+            RenderLayers::from_layers(&[next_layer]),
         ));
 
         (

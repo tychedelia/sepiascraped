@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 
+pub mod graph;
 pub mod op;
 pub mod param;
 pub mod render;
 pub mod script;
-pub mod graph;
 
 pub struct SepiascrapedEnginePlugin;
 

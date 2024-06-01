@@ -6,18 +6,20 @@ use bevy::render::extract_component::ExtractComponent;
 use bevy::render::render_resource::{
     Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
-use bevy::render::view::{RenderLayers};
+use bevy::render::view::RenderLayers;
 use bevy::utils::HashMap;
 use std::ops::Deref;
 
-use crate::engine::op::material::{MaterialDefaultMesh, MaterialOpBundle, MaterialOpHandle, CATEGORY};
+use crate::engine::graph::event::{Connect, Disconnect};
+use crate::engine::op::material::{
+    MaterialDefaultMesh, MaterialOpBundle, MaterialOpHandle, CATEGORY,
+};
 use crate::engine::op::{
     Op, OpExecute, OpImage, OpInputs, OpOnConnect, OpOnDisconnect, OpOutputs, OpPlugin, OpRef,
     OpShouldExecute, OpSpawn, OpType, OpUpdate,
 };
 use crate::engine::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
 use crate::render_layers::RenderLayerManager;
-use crate::engine::graph::event::{Connect, Disconnect};
 
 #[derive(Default)]
 pub struct MaterialOpStandardPlugin;

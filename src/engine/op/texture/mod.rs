@@ -161,9 +161,7 @@ fn create_bundle<'w, T: TextureOp>(
     (
         TextureOpBundle {
             camera: Camera3dBundle {
-                camera_render_graph: CameraRenderGraph::new(
-                    render::TextureOpSubGraph,
-                ),
+                camera_render_graph: CameraRenderGraph::new(render::TextureOpSubGraph),
                 camera: Camera {
                     order: 3,
                     target: image.clone().into(),
@@ -222,7 +220,7 @@ fn on_disconnect<'w>(
     fully_connected: bool,
     param: &mut SystemParamItem<'w, '_, DefaultTextureOnDisconnectParam>,
 ) {
-    let (ref mut commands, ref mut images,  ref mut op_q) = param;
+    let (ref mut commands, ref mut images, ref mut op_q) = param;
     let (my_image, mut my_images) = op_q.get_mut(entity).unwrap();
     my_images.remove(&event.output);
     if !fully_connected {

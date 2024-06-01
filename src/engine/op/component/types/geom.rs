@@ -5,7 +5,7 @@ use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::extract_component::ExtractComponent;
-use bevy::render::view::{RenderLayers};
+use bevy::render::view::RenderLayers;
 use bevy::utils::hashbrown::HashMap;
 use std::f32::consts::PI;
 use std::ops::DerefMut;

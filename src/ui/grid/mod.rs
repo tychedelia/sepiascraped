@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::render::primitives::Aabb;
-use bevy::render::view::{check_visibility, NoFrustumCulling, VisibilitySystems};
 use bevy::render::view::VisibleEntities;
+use bevy::render::view::{check_visibility, NoFrustumCulling, VisibilitySystems};
 use bevy::sprite::{MaterialMesh2dBundle, Mesh2dHandle, WithMesh2d, WithSprite};
 use bevy::window::PrimaryWindow;
 use bevy_mod_picking::events::{Drag, DragEnd, DragStart, Pointer};
@@ -21,10 +21,11 @@ impl Plugin for InfiniteGridPlugin {
         app.insert_resource(PreviousScale { scale: 1.0 })
             .add_systems(Startup, grid_setup)
             .add_systems(Update, resize_grid_drag_mesh.in_set(Ui))
-            .add_systems(PostUpdate, (
-                check_visibility::<With<InfiniteGridSettings>>,
-            )
-                .in_set(VisibilitySystems::CheckVisibility));
+            .add_systems(
+                PostUpdate,
+                (check_visibility::<With<InfiniteGridSettings>>,)
+                    .in_set(VisibilitySystems::CheckVisibility),
+            );
     }
 
     fn finish(&self, app: &mut App) {

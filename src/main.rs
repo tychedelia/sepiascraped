@@ -1,20 +1,20 @@
+use crate::engine::op::{OpImage, OpInputs, OpOutputs};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::view::RenderLayers;
 use bevy::window::WindowRef;
-use iyes_perf_ui::prelude::*;
 use engine::op::OpName;
-use crate::engine::op::{OpImage, OpInputs, OpOutputs};
+use iyes_perf_ui::prelude::*;
 
 use crate::engine::SepiascrapedEnginePlugin;
 use crate::index::UniqueIndexPlugin;
 use crate::render_layers::{RenderLayerManager, RenderLayerPlugin};
 use crate::ui::SepiascrapedUiPlugin;
 
+mod engine;
 mod index;
 mod render_layers;
 mod ui;
-mod engine;
 
 fn main() {
     let mut app = App::new();
@@ -25,8 +25,8 @@ fn main() {
         SepiascrapedEnginePlugin,
         RenderLayerPlugin,
     ))
-        // .add_systems(Startup, startup)
-        .configure_sets(
+    // .add_systems(Startup, startup)
+    .configure_sets(
         Update,
         (
             Sets::Ui,
@@ -59,24 +59,24 @@ enum Sets {
     Execute,
 }
 
-fn startup(
-    mut commands: Commands, mut layer_manager: ResMut<RenderLayerManager>
-) {
-        let window=  commands.spawn(Window {
+fn startup(mut commands: Commands, mut layer_manager: ResMut<RenderLayerManager>) {
+    let window = commands
+        .spawn(Window {
             title: "foo".to_string(),
             ..default()
-        }).id();
-        commands.spawn((
-            Camera2dBundle {
-                camera: Camera {
-                    target: RenderTarget::Window(WindowRef::Entity(window)),
-                    ..default()
-                },
+        })
+        .id();
+    commands.spawn((
+        Camera2dBundle {
+            camera: Camera {
+                target: RenderTarget::Window(WindowRef::Entity(window)),
                 ..default()
             },
-            RenderLayers::from_layers(&[layer_manager.next_open_layer()]),
-            OpImage::default(),
-            OpInputs::default(),
-            OpOutputs::default(),
-        ));
-    }
+            ..default()
+        },
+        RenderLayers::from_layers(&[layer_manager.next_open_layer()]),
+        OpImage::default(),
+        OpInputs::default(),
+        OpOutputs::default(),
+    ));
+}

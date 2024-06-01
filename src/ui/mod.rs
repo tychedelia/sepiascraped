@@ -12,14 +12,14 @@ use steel_parser::ast::IteratorExtensions;
 
 use camera::CameraControllerPlugin;
 
-use crate::index::{Index, IndexPlugin, UniqueIndex};
+use crate::engine::graph::event::ClickNode;
 use crate::engine::op::texture::TextureOp;
+use crate::engine::op::OpName;
 use crate::engine::op::{OpCategory, OpTypeName};
 use crate::engine::param::{ParamName, ParamValue, ScriptedParam, ScriptedParamError};
-use crate::engine::graph::event::ClickNode;
+use crate::index::{Index, IndexPlugin, UniqueIndex};
 use crate::ui::graph::{GraphPlugin, SelectedNode};
 use crate::ui::grid::InfiniteGridPlugin;
-use crate::engine::op::OpName;
 use crate::Sets::Ui;
 
 mod camera;
@@ -44,10 +44,7 @@ impl Plugin for SepiascrapedUiPlugin {
         ))
         .add_event::<ClickNode>()
         .add_systems(Startup, ui_setup)
-        .add_systems(
-            Update,
-            (init_params, ui, selected_node_ui).in_set(Ui),
-        )
+        .add_systems(Update, (init_params, ui, selected_node_ui).in_set(Ui))
         .init_resource::<UiState>()
         .insert_resource(AmbientLight {
             color: Color::WHITE,
@@ -222,7 +219,9 @@ pub fn selected_node_ui(
                                         ui.add_enabled_ui(!is_scripted, |ui| {
                                             // TODO: compute this in resource
                                             let inputs = category_idx
-                                                .get(&OpCategory(crate::engine::op::texture::CATEGORY))
+                                                .get(&OpCategory(
+                                                    crate::engine::op::texture::CATEGORY,
+                                                ))
                                                 .unwrap_or(&vec![])
                                                 .iter()
                                                 .map(|e| op_name_q.get(*e).unwrap().0.clone())
@@ -280,7 +279,9 @@ pub fn selected_node_ui(
                                         ui.add_enabled_ui(!is_scripted, |ui| {
                                             // TODO: compute this in resource
                                             let inputs = category_idx
-                                                .get(&OpCategory(crate::engine::op::material::CATEGORY))
+                                                .get(&OpCategory(
+                                                    crate::engine::op::material::CATEGORY,
+                                                ))
                                                 .unwrap_or(&vec![])
                                                 .iter()
                                                 .map(|e| op_name_q.get(*e).unwrap().0.clone())

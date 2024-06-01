@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use bevy::render::extract_component::{ExtractComponent, ExtractComponentPlugin};
 use bevy::render::render_resource::ShaderType;
 
+use crate::engine::graph::event::{Connect, Disconnect};
 use crate::engine::op::texture::render::TextureOpRenderPlugin;
 use crate::engine::op::texture::{
     create_bundle, on_connect, params, update, DefaultTextureBundle, DefaultTextureOnConnectParam,
@@ -13,7 +14,6 @@ use crate::engine::op::{
     OpType, OpUpdate,
 };
 use crate::engine::param::{ParamBundle, ParamName, ParamOrder, ParamValue};
-use crate::engine::graph::event::{Connect, Disconnect};
 
 #[derive(Default)]
 pub struct TextureOpNoisePlugin;
