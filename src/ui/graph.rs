@@ -57,7 +57,10 @@ impl Plugin for GraphPlugin {
                         .in_set(Sets::Ui),
                 ),
             )
-            .add_systems(PostUpdate, (update_connections, draw_refs).after(TransformPropagate));
+            .add_systems(
+                PostUpdate,
+                (draw_connections, draw_refs).after(TransformPropagate),
+            );
     }
 }
 
@@ -90,7 +93,10 @@ pub struct OutPort(u8);
 pub struct Connecting;
 
 #[derive(Component)]
-pub struct ConnectedTo(Entity);
+pub struct ConnectedTo {
+    entity: Entity,
+    port: u8,
+}
 
 #[derive(Component, Debug)]
 pub struct NodeRoot;
@@ -416,6 +422,7 @@ fn connection_drag(
             &start,
             &end,
             connection_wire.expect("No connection wire"),
+            is_output,
         );
     }
 }
@@ -431,8 +438,10 @@ fn connection_drag_end(
             &PortCategory,
             Has<InPort>,
             Has<OutPort>,
+            Has<ConnectedTo>,
             Option<&InPort>,
             Option<&OutPort>,
+            Option<&ConnectedTo>,
         ),
         With<Connecting>,
     >,
@@ -446,12 +455,14 @@ fn connection_drag_end(
             Has<OutPort>,
             Option<&InPort>,
             Option<&OutPort>,
+            Option<&ConnectedTo>,
         ),
         With<Port>,
     >,
     ui_ref_q: Query<&OpRef>,
     connection_wire_q: Query<(Entity, &Parent), With<ConnectionWire>>,
     mut ev_connect: EventWriter<Connect>,
+    mut ev_disconnect: EventWriter<Disconnect>,
 ) {
     let (
         from_entity,
@@ -459,8 +470,10 @@ fn connection_drag_end(
         category,
         is_input,
         is_output,
+        is_connected,
         from_maybe_in_port,
         from_maybe_out_port,
+        from_maybe_connected_to,
     ) = me_q.get_mut(event.target()).unwrap();
     assert_ne!(is_input, is_output);
 
@@ -482,6 +495,7 @@ fn connection_drag_end(
         target_is_output,
         target_maybe_in_port,
         target_maybe_out_port,
+        target_maybe_connected_to,
     ) in port_q.iter()
     {
         if is_input && target_is_input || is_output && target_is_output {
@@ -498,12 +512,19 @@ fn connection_drag_end(
                 transform,
                 target_maybe_in_port,
                 target_maybe_out_port,
+                target_maybe_connected_to,
             ));
         }
     }
 
-    if let Some((to_entity, to_parent, transform, to_maybe_in_port, to_maybe_out_port)) =
-        closest_port
+    if let Some((
+        to_entity,
+        to_parent,
+        transform,
+        to_maybe_in_port,
+        to_maybe_out_port,
+        to_maybe_connected_to,
+    )) = closest_port
     {
         let start = Vec2::ZERO;
         let end = camera
@@ -521,7 +542,22 @@ fn connection_drag_end(
             .map(|(entity, _)| entity)
             .expect("No connection wire");
         if is_output {
-            draw_connection(&mut commands, &start, &end, connection_wire);
+            // Disconnect existing connection
+            if let Some(connected_to) = from_maybe_connected_to {
+                // If we are connecting to the same entity, do nothing
+                if connected_to.entity == to_entity {
+                    return;
+                }
+
+                ev_disconnect.send(Disconnect {
+                    output: from_op_ref.0,
+                    input: connected_to.entity,
+                    output_port: from_maybe_out_port.unwrap().0,
+                    input_port: connected_to.port,
+                });
+            }
+
+            draw_connection(&mut commands, &start, &end, connection_wire, is_output);
             ev_connect.send(Connect {
                 output: from_op_ref.0,
                 input: to_op_ref.0,
@@ -529,13 +565,33 @@ fn connection_drag_end(
                 input_port: to_maybe_in_port.unwrap().0,
             });
         } else {
-            draw_connection(&mut commands, &end, &start, connection_wire);
+            // Disconnect existing connection
+            if let Some(connected_to) = to_maybe_connected_to {
+                // If we are connecting to the same entity, do nothing
+                if connected_to.entity == from_entity {
+                    // Remove the connection wire
+                    commands.entity(event.target()).despawn_descendants();
+                    return;
+                }
+
+                ev_disconnect.send(Disconnect {
+                    output: to_op_ref.0,
+                    input: connected_to.entity,
+                    output_port: to_maybe_out_port.unwrap().0,
+                    input_port: connected_to.port,
+                });
+            }
+            draw_connection(&mut commands, &end, &start, connection_wire, is_output);
             ev_connect.send(Connect {
                 output: to_op_ref.0,
                 input: from_op_ref.0,
                 output_port: to_maybe_out_port.unwrap().0,
                 input_port: from_maybe_in_port.unwrap().0,
             });
+        }
+    } else {
+        if !is_connected {
+            commands.entity(event.target()).despawn_descendants();
         }
     }
 }
@@ -559,7 +615,10 @@ fn handle_connect(
                     for child in children {
                         if let Ok((in_entity, in_port)) = in_port_q.get(*child) {
                             if in_port.0 == connect.input_port {
-                                commands.entity(out_entity).insert(ConnectedTo(in_entity));
+                                commands.entity(out_entity).insert(ConnectedTo {
+                                    entity: in_entity,
+                                    port: in_port.0,
+                                });
                             }
                         }
                     }
@@ -582,21 +641,40 @@ fn handle_disconnect(
         for child in children {
             if let Ok((entity, out_port)) = port_q.get(*child) {
                 if out_port.0 == disconnect.output_port {
-                    commands.entity(entity).remove::<ConnectedTo>();
+                    commands
+                        .entity(entity)
+                        .remove::<ConnectedTo>()
+                        .despawn_descendants();
                 }
             }
         }
     }
 }
 
-fn draw_connection(commands: &mut Commands, start: &Vec2, end: &Vec2, entity: Entity) {
-    let control_scale = ((end.x - start.x) / 2.0).max(30.0);
-    let src_control = *start + Vec2::X * control_scale;
-    let dst_control = *end - Vec2::X * control_scale;
-
+fn draw_connection(
+    commands: &mut Commands,
+    start: &Vec2,
+    end: &Vec2,
+    entity: Entity,
+    is_output: bool,
+) {
     let mut path_builder = PathBuilder::new();
-    path_builder.move_to(*start);
-    path_builder.cubic_bezier_to(src_control, dst_control, *end);
+
+    if is_output {
+        let control_scale = ((end.x - start.x) / 2.0).max(30.0);
+        let src_control = *start + Vec2::X * control_scale;
+        let dst_control = *end - Vec2::X * control_scale;
+        path_builder.move_to(*start);
+        path_builder.cubic_bezier_to(src_control, dst_control, *end);
+    } else {
+        // We are going right to left (most likely)
+        let control_scale = ((start.x - end.x) / 2.0).max(30.0);
+        let src_control = *start - Vec2::X * control_scale;
+        let dst_control = *end + Vec2::X * control_scale;
+        path_builder.move_to(*start);
+        path_builder.cubic_bezier_to(src_control, dst_control, *end);
+    }
+
     let path = path_builder.build();
     commands
         .entity(entity)
@@ -659,18 +737,21 @@ fn despawn_connections(
     }
 }
 
-fn update_connections(
+fn draw_connections(
     mut commands: Commands,
-    out_port_q: Query<(Entity, &GlobalTransform, &ConnectedTo, &Children), With<OutPort>>,
+    out_port_q: Query<
+        (Entity, &GlobalTransform, &ConnectedTo, &Children),
+        (With<OutPort>, Without<Connecting>),
+    >,
     in_port_q: Query<(&GlobalTransform), With<InPort>>,
 ) {
     // Connect outputs to  inputs
     for (out_entity, out_transform, out_connected_to, children) in out_port_q.iter() {
-        let (in_transform) = in_port_q.get(out_connected_to.0).unwrap();
+        let (in_transform) = in_port_q.get(out_connected_to.entity).unwrap();
         let start = Vec2::ZERO;
         let end = in_transform.translation().xy() - out_transform.translation().xy();
         let connection_wire = children.first().unwrap();
-        draw_connection(&mut commands, &start, &end, *connection_wire);
+        draw_connection(&mut commands, &start, &end, *connection_wire, true);
     }
 }
 
