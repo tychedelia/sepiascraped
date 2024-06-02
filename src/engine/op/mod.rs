@@ -127,6 +127,7 @@ impl OpCategory {
 pub struct OpInputs {
     pub count: usize,
     pub connections: HashMap<u8, (Entity, u8)>,
+    pub category: Option<OpCategory>,
 }
 
 impl OpInputs {
@@ -134,11 +135,17 @@ impl OpInputs {
         Self {
             count,
             connections: HashMap::new(),
+            category: None,
         }
     }
 
     pub fn is_fully_connected(&self) -> bool {
         self.count == 0 || self.connections.len() == self.count
+    }
+
+    pub fn with_category(mut self, category: &'static str) -> Self {
+        self.category = Some(OpCategory(category));
+        self
     }
 }
 

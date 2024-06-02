@@ -257,11 +257,12 @@ pub fn ui(
                         }
                     );
                     let spacing = 40.0;
+                    let input_category = input_config.category.as_ref().map(|x| x.0).unwrap_or(category.0);
                     for i in 0..input_config.count {
                         let offset_x = -(size.x / 8.0);
                         let total_height = spacing * ((input_config.count - 1) as f32);
                         let offset_y = i as f32 * spacing - total_height / 2.0;
-                        spawn_port(&mut meshes, &mut color_materials, parent, InPort(i as u8), PortCategory(category.0), Vec3::new(offset_x, offset_y as f32, -0.002));
+                        spawn_port(&mut meshes, &mut color_materials, parent, InPort(i as u8), PortCategory(input_category), Vec3::new(offset_x, offset_y as f32, -0.002));
                     }
                     for i in 0..output_config.count {
                         let offset_x = (size.x / 8.0);

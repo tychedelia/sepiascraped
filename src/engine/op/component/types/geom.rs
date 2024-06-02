@@ -13,7 +13,7 @@ use std::ops::DerefMut;
 use crate::engine::graph::event::{Connect, Disconnect};
 use crate::engine::op::component::CATEGORY;
 use crate::engine::op::material::MaterialOpHandle;
-use crate::engine::op::OpName;
+use crate::engine::op::{mesh, OpName};
 use crate::engine::op::OpRef;
 use crate::engine::op::{Op, OpInputs, OpOutputs, OpPlugin, OpType};
 use crate::engine::op::{
@@ -127,7 +127,7 @@ impl OpSpawn for ComponentOpGeom {
         (
             RenderLayers::from_layers(&[new_layer]),
             OpImage(image),
-            OpInputs::new(Self::INPUTS),
+            OpInputs::new(Self::INPUTS).with_category(mesh::CATEGORY),
             OpOutputs::default(),
         )
     }

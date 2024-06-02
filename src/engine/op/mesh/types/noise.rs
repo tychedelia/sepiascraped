@@ -1,26 +1,22 @@
+use std::f32::consts::PI;
+use std::ops::DerefMut;
+
 use bevy::color::palettes::css::GRAY;
+use bevy::ecs::system::{SystemParamItem, SystemState};
 use bevy::ecs::system::lifetimeless::*;
-use bevy::ecs::system::{StaticSystemParam, SystemParamItem, SystemState};
-use bevy::pbr::light_consts::lux::AMBIENT_DAYLIGHT;
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::extract_component::ExtractComponent;
 use bevy::render::view::RenderLayers;
-use bevy_egui::egui::ahash::HashMap;
-use noise::core::perlin::perlin_3d;
-use noise::permutationtable::PermutationTable;
 use noise::{NoiseFn, Perlin};
-use rand::{Rng, SeedableRng};
-use std::f32::consts::PI;
-use std::ops::DerefMut;
 
 use crate::engine::graph::event::{Connect, Disconnect};
-use crate::engine::op::mesh::{MeshExt, MeshOpBundle, MeshOpHandle, MeshOpInputMeshes, CATEGORY};
 use crate::engine::op::{
     Op, OpExecute, OpImage, OpInputs, OpOnConnect, OpOnDisconnect, OpOutputs, OpPlugin, OpRef,
     OpShouldExecute, OpSpawn, OpType, OpUpdate,
 };
-use crate::engine::param::{IntoParams, ParamBundle, ParamName, ParamOrder, ParamValue, Params};
+use crate::engine::op::mesh::{CATEGORY, MeshExt, MeshOpBundle, MeshOpHandle, MeshOpInputMeshes};
+use crate::engine::param::{IntoParams, ParamBundle, ParamName, ParamOrder, Params, ParamValue};
 use crate::render_layers::RenderLayerManager;
 
 #[derive(Default)]
@@ -209,7 +205,7 @@ impl OpOnConnect for MeshOpNoise {
 }
 
 impl OpOnDisconnect for MeshOpNoise {
-    type Param = ();
+    type Param = (SQuery<Write<MeshOpInputMeshes>>);
 
     fn on_disconnect<'w>(
         entity: Entity,
@@ -217,7 +213,9 @@ impl OpOnDisconnect for MeshOpNoise {
         fully_connected: bool,
         param: &mut SystemParamItem<'w, '_, Self::Param>,
     ) {
-        todo!()
+        let (inputs_meshes_q) = param;
+        let mut inputs_meshes = inputs_meshes_q.get_mut(entity).unwrap();
+        inputs_meshes.clear();
     }
 }
 
