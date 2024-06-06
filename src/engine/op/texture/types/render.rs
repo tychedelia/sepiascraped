@@ -4,7 +4,7 @@ use crate::engine::op::{
     Op, OpExecute, OpOnConnect, OpOnDisconnect, OpPlugin, OpShouldExecute, OpSpawn, OpType,
     OpUpdate,
 };
-use crate::engine::param::ParamBundle;
+use crate::engine::param::{ParamBundle, ParamName, ParamValue};
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
 use bevy::render::extract_component::ExtractComponent;
@@ -25,7 +25,18 @@ impl OpSpawn for TextureOpRender {
     type Bundle = ();
 
     fn params(bundle: &Self::Bundle) -> Vec<ParamBundle> {
-        todo!()
+        vec![
+            ParamBundle {
+                name: ParamName("Camera".to_string()),
+                value: ParamValue::CameraOps(vec![]),
+                ..default()
+            },
+            ParamBundle {
+                name: ParamName("Light".to_string()),
+                value: ParamValue::LightOps(vec![]),
+                ..default()
+            },
+        ]
     }
 
     fn create_bundle<'w>(

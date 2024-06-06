@@ -215,6 +215,58 @@ impl Default for GridMeshBuilder {
     }
 }
 
+impl MeshBuilder for GridMeshBuilder {
+    /// Builds a [`Mesh`] based on the configuration in `self`.
+    fn build(&self) -> Mesh {
+        let rotation = Quat::from_rotation_arc(Vec3::Y, *self.grid.normal);
+        let mut positions = Vec::new();
+        let mut normals = Vec::new();
+        let mut uvs = Vec::new();
+        let mut indices = Vec::new();
+
+        for row in 0..self.grid.rows {
+            for column in 0..self.grid.columns {
+                let x = (column as f32 / self.grid.columns as f32 - 0.5) * self.half_size.x;
+                let z = (row as f32 / self.grid.rows as f32 - 0.5) * self.half_size.y;
+                let position = rotation * Vec3::new(x, 0.0, z);
+                let normal = rotation * Vec3::Y;
+                let uv = Vec2::new(
+                    column as f32 / self.grid.columns as f32,
+                    row as f32 / self.grid.rows as f32,
+                );
+                positions.push(position.to_array());
+                normals.push(normal.to_array());
+                uvs.push(uv.to_array());
+            }
+        }
+
+        // Write the indices
+        for row in 0..self.grid.rows - 1 {
+            for column in 0..self.grid.columns - 1 {
+                let i = row * self.grid.columns + column;
+                let j = i + 1;
+                let k = i + self.grid.columns;
+                let l = k + 1;
+                indices.push(i as u32);
+                indices.push(j as u32);
+                indices.push(k as u32);
+                indices.push(k as u32);
+                indices.push(j as u32);
+                indices.push(l as u32);
+            }
+        }
+
+        Mesh::new(
+            PrimitiveTopology::TriangleList,
+            RenderAssetUsages::default(),
+        )
+            .with_inserted_indices(Indices::U32(indices))
+            .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
+            .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals)
+            .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
+    }
+}
+
 impl GridMeshBuilder {
     /// Creates a new [`GridMeshBuilder`] from a given normal and size.
     #[inline]
@@ -264,56 +316,6 @@ impl GridMeshBuilder {
         self.half_size = Vec2::new(width, height) / 2.0;
         self
     }
-
-    /// Builds a [`Mesh`] based on the configuration in `self`.
-    pub fn build(&self) -> Mesh {
-        let rotation = Quat::from_rotation_arc(Vec3::Y, *self.grid.normal);
-        let mut positions = Vec::new();
-        let mut normals = Vec::new();
-        let mut uvs = Vec::new();
-        let mut indices = Vec::new();
-
-        for row in 0..self.grid.rows {
-            for column in 0..self.grid.columns {
-                let x = (column as f32 / self.grid.columns as f32 - 0.5) * self.half_size.x;
-                let z = (row as f32 / self.grid.rows as f32 - 0.5) * self.half_size.y;
-                let position = rotation * Vec3::new(x, 0.0, z);
-                let normal = rotation * Vec3::Y;
-                let uv = Vec2::new(
-                    column as f32 / self.grid.columns as f32,
-                    row as f32 / self.grid.rows as f32,
-                );
-                positions.push(position.to_array());
-                normals.push(normal.to_array());
-                uvs.push(uv.to_array());
-            }
-        }
-
-        // Write the indices
-        for row in 0..self.grid.rows - 1 {
-            for column in 0..self.grid.columns - 1 {
-                let i = row * self.grid.columns + column;
-                let j = i + 1;
-                let k = i + self.grid.columns;
-                let l = k + 1;
-                indices.push(i as u32);
-                indices.push(j as u32);
-                indices.push(k as u32);
-                indices.push(k as u32);
-                indices.push(j as u32);
-                indices.push(l as u32);
-            }
-        }
-
-        Mesh::new(
-            PrimitiveTopology::TriangleList,
-            RenderAssetUsages::default(),
-        )
-        .with_inserted_indices(Indices::U32(indices))
-        .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
-        .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals)
-        .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
-    }
 }
 
 impl Meshable for Grid {
@@ -330,11 +332,5 @@ impl Meshable for Grid {
 impl From<Grid> for Mesh {
     fn from(grid: Grid) -> Self {
         grid.mesh().build()
-    }
-}
-
-impl From<GridMeshBuilder> for Mesh {
-    fn from(grid: GridMeshBuilder) -> Self {
-        grid.build()
     }
 }

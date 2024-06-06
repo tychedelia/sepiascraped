@@ -56,6 +56,8 @@ pub enum ParamValue {
     TextureOp(Option<Entity>),
     MeshOp(Option<Entity>),
     MaterialOp(Option<Entity>),
+    CameraOps(Vec<Entity>),
+    LightOps(Vec<Entity>),
 }
 
 impl ParamValue {
@@ -169,6 +171,8 @@ impl Hash for ParamValue {
             ParamValue::TextureOp(v) => v.hash(state),
             ParamValue::MeshOp(v) => v.hash(state),
             ParamValue::MaterialOp(v) => v.hash(state),
+            ParamValue::CameraOps(v) => v.hash(state),
+            ParamValue::LightOps(v) => v.hash(state),
         }
     }
 }

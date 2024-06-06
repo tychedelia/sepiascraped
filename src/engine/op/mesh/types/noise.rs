@@ -2,8 +2,8 @@ use std::f32::consts::PI;
 use std::ops::DerefMut;
 
 use bevy::color::palettes::css::GRAY;
-use bevy::ecs::system::{SystemParamItem, SystemState};
 use bevy::ecs::system::lifetimeless::*;
+use bevy::ecs::system::{SystemParamItem, SystemState};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::extract_component::ExtractComponent;
@@ -11,12 +11,12 @@ use bevy::render::view::RenderLayers;
 use noise::{NoiseFn, Perlin};
 
 use crate::engine::graph::event::{Connect, Disconnect};
+use crate::engine::op::mesh::{MeshExt, MeshOpBundle, MeshOpHandle, MeshOpInputMeshes, CATEGORY};
 use crate::engine::op::{
     Op, OpExecute, OpImage, OpInputs, OpOnConnect, OpOnDisconnect, OpOutputs, OpPlugin, OpRef,
     OpShouldExecute, OpSpawn, OpType, OpUpdate,
 };
-use crate::engine::op::mesh::{CATEGORY, MeshExt, MeshOpBundle, MeshOpHandle, MeshOpInputMeshes};
-use crate::engine::param::{IntoParams, ParamBundle, ParamName, ParamOrder, Params, ParamValue};
+use crate::engine::param::{IntoParams, ParamBundle, ParamName, ParamOrder, ParamValue, Params};
 use crate::render_layers::RenderLayerManager;
 
 #[derive(Default)]

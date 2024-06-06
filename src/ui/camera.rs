@@ -1,6 +1,5 @@
 use crate::ui::UiCamera;
 use bevy::input::mouse::MouseWheel;
-use bevy::input::touchpad::TouchpadMagnify;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
@@ -26,7 +25,6 @@ impl Plugin for CameraControllerPlugin {
 }
 
 fn camera_controller(
-    mut evr_touchpad_magnify: EventReader<TouchpadMagnify>,
     mut scroll_evr: EventReader<MouseWheel>,
     mut query: Query<&mut OrthographicProjection, With<UiCamera>>,
 ) {
@@ -37,14 +35,9 @@ fn camera_controller(
 
         for ev_scroll in scroll_evr.read() {
             if ev_scroll.y != 0.0 {
-                let scale = (projection.scale + ev_scroll.y * 0.001).clamp(min, max);
+                let scale = (projection.scale + ev_scroll.y * 0.01).clamp(min, max);
                 projection.scale = scale;
             }
-        }
-
-        for ev_magnify in evr_touchpad_magnify.read() {
-            let scale = (projection.scale + ev_magnify.0 * 0.001).clamp(min, max);
-            projection.scale = scale;
         }
     }
 }

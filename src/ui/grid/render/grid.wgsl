@@ -57,13 +57,13 @@ fn fragment(in: VertexOutput) -> FragmentOutput {
     let ndc_x = (in.position.x / screen_size.x) * 2.0 - 1.0;
     let ndc_y = ((screen_size.y - in.position.y) / screen_size.y) * 2.0 - 1.0;
     let ndc = vec4<f32>(ndc_x, ndc_y, 1.0, 1.0);
-    let view_space = view.inverse_projection * ndc;
+    let view_space = view.view_from_clip * ndc;
     let view_space_pos = view_space.xyz / view_space.w;
     let t = grid_position.translation;
-    let world_space = view.inverse_view * vec4<f32>(view_space_pos, 1.0) + vec4<f32>(-t.x, -t.y, t.z, 0.0);
+    let world_space = view.view_from_world * vec4<f32>(view_space_pos, 1.0) + vec4<f32>(-t.x, -t.y, t.z, 0.0);
 
-    let scale_x = view.projection[0][0]; // m00: 2/(right-left)
-    let scale_y = view.projection[1][1]; // m11: 2/(top-bottom)
+    let scale_x = view.clip_from_view[0][0]; // m00: 2/(right-left)
+    let scale_y = view.clip_from_view[1][1]; // m11: 2/(top-bottom)
 
     let world_units_per_px_x = 1.0 / (screen_size.x * 0.5 * scale_x);
     let world_units_per_px_y = 1.0 / (screen_size.x * 0.5 * scale_y);

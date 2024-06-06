@@ -13,8 +13,8 @@ use std::ops::DerefMut;
 use crate::engine::graph::event::{Connect, Disconnect};
 use crate::engine::op::component::CATEGORY;
 use crate::engine::op::material::MaterialOpHandle;
-use crate::engine::op::{mesh, OpName};
 use crate::engine::op::OpRef;
+use crate::engine::op::{mesh, OpName};
 use crate::engine::op::{Op, OpInputs, OpOutputs, OpPlugin, OpType};
 use crate::engine::op::{
     OpExecute, OpImage, OpOnConnect, OpOnDisconnect, OpShouldExecute, OpSpawn, OpUpdate,

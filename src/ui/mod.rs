@@ -1,8 +1,9 @@
 use std::collections::BTreeSet;
+use std::fmt::format;
 
 use bevy::core::FrameCount;
+use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use bevy::prelude::*;
-use bevy::render::camera::CameraOutputMode;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
 use bevy_mod_picking::DefaultPickingPlugins;
 use bevy_prototype_lyon::plugin::ShapePlugin;
@@ -13,9 +14,11 @@ use steel_parser::ast::IteratorExtensions;
 use camera::CameraControllerPlugin;
 
 use crate::engine::graph::event::ClickNode;
+use crate::engine::op::component::types::camera::ComponentOpCamera;
+use crate::engine::op::component::types::light::ComponentOpLight;
 use crate::engine::op::texture::TextureOp;
 use crate::engine::op::OpName;
-use crate::engine::op::{OpCategory, OpTypeName};
+use crate::engine::op::{OpCategory, OpType, OpTypeName};
 use crate::engine::param::{ParamName, ParamValue, ScriptedParam, ScriptedParamError};
 use crate::index::{Index, IndexPlugin, UniqueIndex};
 use crate::ui::graph::{GraphPlugin, SelectedNode};
@@ -38,7 +41,8 @@ impl Plugin for SepiascrapedUiPlugin {
             InfiniteGridPlugin,
             DefaultPickingPlugins,
             IndexPlugin::<OpCategory>::default(),
-            // FrameTimeDiagnosticsPlugin,
+            IndexPlugin::<OpTypeName>::default(),
+            FrameTimeDiagnosticsPlugin,
             // SystemInformationDiagnosticsPlugin,
             // PerfUiPlugin,
         ))
@@ -100,6 +104,7 @@ pub fn ui(
     mut ui_state: ResMut<UiState>,
     keys: Res<ButtonInput<KeyCode>>,
     mut egui_contexts: EguiContexts,
+    diagnostics_store: Res<DiagnosticsStore>,
 ) {
     let ctx = egui_contexts.ctx_mut();
 
@@ -110,7 +115,10 @@ pub fn ui(
             time.pause();
         }
     }
-
+    let fps = diagnostics_store
+        .get(&FrameTimeDiagnosticsPlugin::FPS)
+        .expect("FrameTime diagnostics not found")
+        .smoothed();
     ui_state.top_panel = Some(
         egui::TopBottomPanel::top("top_panel")
             .resizable(false)
@@ -118,6 +126,7 @@ pub fn ui(
                 ui.horizontal(|ui| {
                     ui.label(format!("Time: {:.2}", time.elapsed_seconds()));
                     ui.label(format!("Frames: {:.2}", frame_count.0));
+                    ui.label(format!("FPS: {:.2}", fps.unwrap_or(0.0)));
                 });
             })
             .response,
@@ -130,7 +139,11 @@ pub fn init_params(
 ) {
     for (entity, value) in params_q.iter() {
         match value {
-            ParamValue::TextureOp(_) | ParamValue::MeshOp(_) | ParamValue::MaterialOp(_) => {
+            ParamValue::TextureOp(_)
+            | ParamValue::MeshOp(_)
+            | ParamValue::MaterialOp(_)
+            | ParamValue::LightOps(_)
+            | ParamValue::CameraOps(_) => {
                 commands.entity(entity).insert(UiText(String::new()));
             }
             _ => {}
@@ -139,7 +152,6 @@ pub fn init_params(
 }
 
 pub fn selected_node_ui(
-    mut commands: Commands,
     mut ui_state: ResMut<UiState>,
     mut egui_contexts: EguiContexts,
     selected_q: Query<(&Children, &OpTypeName), With<SelectedNode>>,
@@ -154,10 +166,11 @@ pub fn selected_node_ui(
     mut op_name_q: Query<&OpName>,
     op_name_idx: Res<UniqueIndex<OpName>>,
     category_idx: Res<Index<OpCategory>>,
+    op_type_idx: Res<Index<OpTypeName>>,
 ) {
     if let Ok((children, op_type_name)) = selected_q.get_single() {
         ui_state.node_info = Some(
-            egui::Window::new(&op_type_name.0)
+            egui::Window::new(op_type_name.0)
                 .anchor(egui::Align2::LEFT_TOP, egui::Vec2::new(10.0, 30.0))
                 .resizable(false)
                 .collapsible(false)
@@ -356,6 +369,90 @@ pub fn selected_node_ui(
                                                     .speed(10.0),
                                             );
                                         });
+                                    }
+                                    ParamValue::CameraOps(x) => {
+                                        let mut ui_text = ui_text.expect("Failed to get ui_text");
+                                        ui.add_enabled_ui(!is_scripted, |ui| {
+                                            ui.text_edit_singleline(&mut ui_text.0);
+                                        });
+
+                                        if !ui_text.0.is_empty() {
+                                            let names = ui_text.split(',').collect::<Vec<_>>();
+                                            let mut entities = vec![];
+                                            for name in names {
+                                                if name == "*" {
+                                                    entities.extend(
+                                                        op_type_idx
+                                                            .get(&OpTypeName(OpType::<
+                                                                ComponentOpCamera,
+                                                            >::name(
+                                                            )))
+                                                            .unwrap_or(&vec![]),
+                                                    );
+                                                    continue;
+                                                }
+
+                                                if let Some(entity) =
+                                                    op_name_idx.get(&OpName(name.to_string()))
+                                                {
+                                                    entities.push(entity.clone());
+                                                } else {
+                                                    // We didn't find this one, that's probably an error
+                                                    let prev_color =
+                                                        ui.visuals_mut().override_text_color;
+                                                    ui.visuals_mut().override_text_color =
+                                                        Some(egui::Color32::RED);
+                                                    ui.label(format!("Unknown entity: {}", name));
+                                                    ui.visuals_mut().override_text_color =
+                                                        prev_color;
+                                                    ui.end_row();
+                                                }
+                                            }
+
+                                            *x = entities;
+                                        }
+                                    }
+                                    ParamValue::LightOps(x) => {
+                                        let mut ui_text = ui_text.expect("Failed to get ui_text");
+                                        ui.add_enabled_ui(!is_scripted, |ui| {
+                                            ui.text_edit_singleline(&mut ui_text.0);
+                                        });
+
+                                        if !ui_text.0.is_empty() {
+                                            let names = ui_text.split(',').collect::<Vec<_>>();
+                                            let mut entities = vec![];
+                                            for name in names {
+                                                if name == "*" {
+                                                    entities.extend(
+                                                        op_type_idx
+                                                            .get(&OpTypeName(OpType::<
+                                                                ComponentOpLight,
+                                                            >::name(
+                                                            )))
+                                                            .unwrap_or(&vec![]),
+                                                    );
+                                                    continue;
+                                                }
+
+                                                if let Some(entity) =
+                                                    op_name_idx.get(&OpName(name.to_string()))
+                                                {
+                                                    entities.push(entity.clone());
+                                                } else {
+                                                    // We didn't find this one, that's probably an error
+                                                    let prev_color =
+                                                        ui.visuals_mut().override_text_color;
+                                                    ui.visuals_mut().override_text_color =
+                                                        Some(egui::Color32::RED);
+                                                    ui.label(format!("Unknown entity: {}", name));
+                                                    ui.visuals_mut().override_text_color =
+                                                        prev_color;
+                                                    ui.end_row();
+                                                }
+                                            }
+
+                                            *x = entities;
+                                        }
                                     }
                                 }
                                 ui.end_row();

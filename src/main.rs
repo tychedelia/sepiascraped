@@ -2,7 +2,7 @@ use crate::engine::op::{OpImage, OpInputs, OpOutputs};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::view::RenderLayers;
-use bevy::window::WindowRef;
+use bevy::window::{ExitCondition, WindowRef};
 use engine::op::OpName;
 use iyes_perf_ui::prelude::*;
 

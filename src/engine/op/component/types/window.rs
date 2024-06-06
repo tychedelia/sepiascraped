@@ -80,6 +80,7 @@ impl OpUpdate for ComponentOpWindow {
 
         let scale_factor = window.resolution.scale_factor();
         let window_size = image.size_f32() * scale_factor;
+        info!("Setting window size to {:?}", window_size);
         window
             .resolution
             .set_physical_resolution(window_size.x as u32, window_size.y as u32);

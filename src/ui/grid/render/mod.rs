@@ -345,11 +345,11 @@ fn queue_infinite_grids(
             },
         );
 
-        for entity in entities.entities.iter().flat_map(|x| x.1.iter()) {
+        for entity in entities.iter::<With<InfiniteGridSettings>>() {
             if let Some(infinite_grid) = infinite_grids
                 .get(*entity)
                 .iter()
-                .filter(|(_, grid)| plane_check(&grid.transform, view.transform.translation()))
+                .filter(|(_, grid)| plane_check(&grid.transform, view.world_from_view.translation()))
                 .map(|(_, grid)| grid)
                 .next()
             {

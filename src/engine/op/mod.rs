@@ -80,8 +80,8 @@ pub struct OpRef(pub Entity);
 #[derive(Component, Clone, ExtractComponent, Default, Debug)]
 pub struct OpType<T: Debug + Sync + Send + 'static>(PhantomData<T>);
 
-#[derive(Component, Clone, Debug)]
-pub struct OpTypeName(pub String);
+#[derive(Component, Clone, Debug, Default, Hash, Ord, PartialOrd, Eq, PartialEq)]
+pub struct OpTypeName(pub &'static str);
 
 impl<T> OpType<T>
 where
@@ -232,7 +232,7 @@ fn spawn<'w, 's, T>(
             .insert((
                 OpCategory(T::CATEGORY),
                 OpDynExecute(Box::new(T::default())),
-                OpTypeName(OpType::<T>::name().to_string()),
+                OpTypeName(OpType::<T>::name()),
                 ParamHash(0),
                 bundle,
             ))

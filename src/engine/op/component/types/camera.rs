@@ -15,7 +15,7 @@ use crate::engine::op::{
     OpExecute, OpImage, OpOnConnect, OpOnDisconnect, OpShouldExecute, OpSpawn, OpUpdate,
 };
 use crate::engine::param::{IntoParams, ParamBundle, ParamName, ParamOrder, ParamValue};
-use crate::index::CompositeIndex2;
+use crate::index::{CompositeIndex2, IndexPlugin};
 use crate::render_layers::RenderLayerManager;
 
 #[derive(Default)]
@@ -53,6 +53,7 @@ impl OpSpawn for ComponentOpCamera {
     ) -> Self::Bundle {
         (
             Camera3dBundle {
+                transform: Transform::default(),
                 ..Default::default()
             },
             RenderLayers::from_layers(&[layer_manager.next_open_layer()]),

@@ -537,14 +537,29 @@ fn update_param(param_value: &mut ParamValue, steel_val: SteelVal) -> Result<(),
         },
         ParamValue::MeshOp(p) | ParamValue::MaterialOp(p) | ParamValue::TextureOp(p) => {
             match steel_val {
-                SteelVal::Custom(mut c) => {
-                    let custom = c.borrow_mut();
+                SteelVal::Custom(c) => {
+                    let custom = c.borrow();
                     let entity = custom.as_any_ref().downcast_ref::<EntityRef>().unwrap();
                     *p = Some(entity.0.clone());
                 }
                 _ => return Err(ScriptError::Conversion(steel_val)),
             }
         }
+        ParamValue::CameraOps(p) | ParamValue::LightOps(p) => match steel_val {
+            SteelVal::ListV(ref v) => {
+                for entity in v {
+                    match entity {
+                        SteelVal::Custom(c) => {
+                            let custom = c.borrow();
+                            let entity = custom.as_any_ref().downcast_ref::<EntityRef>().unwrap();
+                            p.push(entity.0.clone());
+                        }
+                        _ => return Err(ScriptError::Conversion(steel_val)),
+                    }
+                }
+            }
+            _ => return Err(ScriptError::Conversion(steel_val)),
+        },
         ParamValue::Vec3(p) => match steel_val {
             SteelVal::ListV(ref v) => {
                 let mut iter = v.into_iter();
@@ -659,6 +674,13 @@ impl From<ParamValue> for SteelVal {
                 None => SteelVal::Void,
                 Some(x) => EntityRef(x).into_steelval().unwrap(),
             },
+            ParamValue::CameraOps(x) | ParamValue::LightOps(x) => {
+                let mut vec = vec![];
+                for entity in x {
+                    vec.push(EntityRef(entity).into_steelval().unwrap());
+                }
+                vec.into_steelval().unwrap()
+            }
             ParamValue::Vec3(x) => {
                 let (x, y, z) = x.into();
                 vec![x, y, z].into_steelval().unwrap()
