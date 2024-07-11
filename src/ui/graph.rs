@@ -206,7 +206,7 @@ pub fn ui(
                             .into(),
                         material: materials.add(NodeMaterial {
                             selected: 0,
-                            category_color: category.to_color().linear(),
+                            category_color: category.to_color().to_linear(),
                             disabled: 0,
                             texture: (**image).clone(),
                         }),

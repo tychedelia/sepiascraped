@@ -244,16 +244,16 @@ fn prepare_infinite_grids(
                 .uniforms
                 .push(&GridDisplaySettingsUniform {
                     x_axis_color: Vec3::from_slice(
-                        &extracted.grid.x_axis_color.linear().to_f32_array(),
+                        &extracted.grid.x_axis_color.to_linear().to_f32_array(),
                     ),
                     y_axis_color: Vec3::from_slice(
-                        &extracted.grid.y_axis_color.linear().to_f32_array(),
+                        &extracted.grid.y_axis_color.to_linear().to_f32_array(),
                     ),
                     minor_line_color: Vec4::from_slice(
-                        &extracted.grid.minor_line_color.linear().to_f32_array(),
+                        &extracted.grid.minor_line_color.to_linear().to_f32_array(),
                     ),
                     major_line_color: Vec4::from_slice(
-                        &extracted.grid.major_line_color.linear().to_f32_array(),
+                        &extracted.grid.major_line_color.to_linear().to_f32_array(),
                     ),
                 }),
         });
@@ -267,16 +267,16 @@ fn prepare_infinite_grids(
                     .uniforms
                     .push(&GridDisplaySettingsUniform {
                         x_axis_color: Vec3::from_slice(
-                            &settings.x_axis_color.linear().to_f32_array(),
+                            &settings.x_axis_color.to_linear().to_f32_array(),
                         ),
                         y_axis_color: Vec3::from_slice(
-                            &settings.y_axis_color.linear().to_f32_array(),
+                            &settings.y_axis_color.to_linear().to_f32_array(),
                         ),
                         minor_line_color: Vec4::from_slice(
-                            &settings.minor_line_color.linear().to_f32_array(),
+                            &settings.minor_line_color.to_linear().to_f32_array(),
                         ),
                         major_line_color: Vec4::from_slice(
-                            &settings.major_line_color.linear().to_f32_array(),
+                            &settings.major_line_color.to_linear().to_f32_array(),
                         ),
                     }),
             });

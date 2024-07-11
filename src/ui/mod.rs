@@ -239,11 +239,7 @@ pub fn selected_node_ui(
                                                 .iter()
                                                 .map(|e| op_name_q.get(*e).unwrap().0.clone())
                                                 .collect::<BTreeSet<_>>();
-                                            ui.add(
-                                                AutoCompleteTextEdit::new(&mut ui_text, inputs)
-                                                    .max_suggestions(5)
-                                                    .highlight_matches(true),
-                                            );
+
                                         });
                                         if !ui_text.0.is_empty() {
                                             if let Some(entity) =
@@ -268,11 +264,6 @@ pub fn selected_node_ui(
                                                 .iter()
                                                 .map(|e| op_name_q.get(*e).unwrap().0.clone())
                                                 .collect::<BTreeSet<_>>();
-                                            ui.add(
-                                                AutoCompleteTextEdit::new(&mut ui_text, inputs)
-                                                    .max_suggestions(5)
-                                                    .highlight_matches(true),
-                                            );
                                         });
                                         if !ui_text.0.is_empty() {
                                             if let Some(entity) =
@@ -299,11 +290,6 @@ pub fn selected_node_ui(
                                                 .iter()
                                                 .map(|e| op_name_q.get(*e).unwrap().0.clone())
                                                 .collect::<BTreeSet<_>>();
-                                            ui.add(
-                                                AutoCompleteTextEdit::new(&mut ui_text, inputs)
-                                                    .max_suggestions(5)
-                                                    .highlight_matches(true),
-                                            );
                                         });
                                         if !ui_text.0.is_empty() {
                                             if let Some(entity) =

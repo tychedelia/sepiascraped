@@ -136,7 +136,7 @@ pub fn prepare_texture_op_pipelines<T>(
 
 pub fn prepare_texture_op_bind_group<T>(
     mut commands: Commands,
-    pipeline: ResMut<TextureOpPipeline>,
+    pipeline: Res<TextureOpPipeline>,
     uniforms: Res<ComponentUniforms<T::Uniform>>,
     views: Query<
         (

@@ -4,12 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = { path = "../../bevyengine/bevy", features = ["default", "file_watcher"] }
-bevy_egui = { path = "../../mvlabat/bevy_egui" }
-egui_extras = {  version = "0.27.1", features = ["syntect"] }
+bevy = { version = "0.14.0", features = ["default", "file_watcher"] }
+bevy_egui = "0.28.0"
+egui_extras = {  version = "0.28.1", features = ["syntect"] }
 egui_autocomplete = "6.0.0"
 petgraph = "0.6.4"
-bevy_mod_picking = { path = "../../aevyrie/bevy_mod_picking", default-features = false, features = [
+bevy_mod_picking = { version = "0.20.0", default-features = false, features = [
     "backend_raycast",
     "backend_bevy_ui",
     "backend_sprite",
@@ -17,7 +17,7 @@ bevy_mod_picking = { path = "../../aevyrie/bevy_mod_picking", default-features =
     "selection",
 #    "highlight",
     "backend_egui" ] }
-bevy_prototype_lyon = { path = "../../Nilirad/bevy_prototype_lyon"}
+bevy_prototype_lyon = "0.12.0"
 layout-rs = "0.1"
 log = "0.4.20"
 steel-core = { path = "../../mattwparas/steel/crates/steel-core" }
@@ -28,9 +28,6 @@ thiserror = "1"
 rustyline = { version = "14", features = ["derive"] }
 colored = "2.1.0"
 rand = {  version = "0.8.5", features = ["small_rng"] }
-iyes_perf_ui = { path = "../../IyesGames/iyes_perf_ui" }
+iyes_perf_ui = "0.3.0"
 noise = "0.9"
-
-[patch.crates-io]
-lasso = { git = "https://github.com/lcnr/lasso/", branch = "patch-1" }
 

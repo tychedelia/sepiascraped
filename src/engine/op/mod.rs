@@ -62,8 +62,6 @@ where
                     (
                         update::<T>,
                         should_execute::<T>,
-                        on_connect::<T>.run_if(on_event::<Connect>()),
-                        on_disconnect::<T>.run_if(on_event::<Disconnect>()),
                     )
                         .chain()
                         .before(validate)
@@ -220,7 +218,7 @@ fn spawn<'w, 's, T>(
     param: StaticSystemParam<<T as OpSpawn>::Param>,
     added_q: Query<Entity, Added<OpType<T>>>,
 ) where
-    T: Op + Component + Debug + Default + Send + Sync + 'static,
+    T: Op + Component + ExtractComponent + Debug + Default + Send + Sync + 'static,
 {
     let mut param = param.into_inner();
 
@@ -236,6 +234,8 @@ fn spawn<'w, 's, T>(
                 ParamHash(0),
                 bundle,
             ))
+            .observe(on_connect::<T>)
+            .observe(on_disconnect::<T>)
             .with_children(|parent| {
                 params.into_iter().for_each(|param| {
                     parent.spawn((OpRef(parent.parent_entity()), param));
@@ -352,30 +352,29 @@ trait OpOnConnect {
 }
 
 fn on_connect<T>(
-    mut ev_connect: EventReader<Connect>,
+    mut trigger: Trigger<Connect>,
     mut op_q: Query<&mut OpInputs, With<OpType<T>>>,
     mut ev_disconnect: EventWriter<Disconnect>,
     param: StaticSystemParam<<T as OpOnConnect>::Param>,
 ) where
     T: Op + Component + ExtractComponent + Debug + Send + Sync + 'static,
 {
+    let ev = trigger.event();
     let mut param = param.into_inner();
-    for ev in ev_connect.read() {
-        if let Ok(mut input) = op_q.get_mut(ev.input) {
-            if let Some((prev, prev_port)) = input.connections.get(&ev.input_port) {
-                ev_disconnect.send(Disconnect {
-                    output: *prev,
-                    input: ev.input,
-                    output_port: *prev_port,
-                    input_port: ev.input_port,
-                });
-            }
-
-            input
-                .connections
-                .insert(ev.input_port, (ev.output, ev.output_port));
-            T::on_connect(ev.input, *ev, input.is_fully_connected(), &mut param);
+    if let Ok(mut input) = op_q.get_mut(ev.input) {
+        if let Some((prev, prev_port)) = input.connections.get(&ev.input_port) {
+            ev_disconnect.send(Disconnect {
+                output: *prev,
+                input: ev.input,
+                output_port: *prev_port,
+                input_port: ev.input_port,
+            });
         }
+
+        input
+            .connections
+            .insert(ev.input_port, (ev.output, ev.output_port));
+        T::on_connect(ev.input, *ev, input.is_fully_connected(), &mut param);
     }
 }
 
@@ -393,18 +392,17 @@ trait OpOnDisconnect {
 }
 
 fn on_disconnect<T>(
-    mut ev_disconnect: EventReader<Disconnect>,
+    trigger: Trigger<Disconnect>,
     mut op_q: Query<&mut OpInputs, With<OpType<T>>>,
     param: StaticSystemParam<<T as OpOnDisconnect>::Param>,
 ) where
     T: Op + Component + ExtractComponent + Debug + Send + Sync + 'static,
 {
     let mut param = param.into_inner();
-    for ev in ev_disconnect.read() {
-        if let Ok(mut input) = op_q.get_mut(ev.input) {
-            input.connections.retain(|k, (e, _)| e != &ev.output);
-            T::on_disconnect(ev.input, *ev, input.is_fully_connected(), &mut param);
-        }
+    let ev = trigger.event();
+    if let Ok(mut input) = op_q.get_mut(ev.input) {
+        input.connections.retain(|k, (e, _)| e != &ev.output);
+        T::on_disconnect(ev.input, *ev, input.is_fully_connected(), &mut param);
     }
 }
 
